@@ -41,6 +41,10 @@ class FactotumPaths:
     def cache_path(self) -> Path:
         return self.output_dir / "model_cache.pkl"
 
+    @property
+    def dangling_words_path(self) -> Path:
+        return self.output_dir / "dangling_end_words.txt"
+
     @classmethod
     def default(cls) -> "FactotumPaths":
         return cls(

@@ -6,7 +6,7 @@ import sys
 import time
 import unicodedata
 
-_DANGLING_WORDS_PATH = Path(__file__).resolve().parent.parent / "resources" / "dangling_end_words.txt"
+_DANGLING_WORDS_PATH = Path(__file__).resolve().parent.parent.parent.parent / "output" / "dangling_end_words.txt"
 _DANGLING_CACHE: tuple[Path, float, float, frozenset[str]] | None = None
 _DANGLING_RECHECK_INTERVAL_S = 2.0
 
@@ -30,7 +30,7 @@ def load_dangling_end_words(path: str | Path | None = None, force_reload: bool =
         _DANGLING_CACHE = (target, mtime, now, _DANGLING_CACHE[3])
         return _DANGLING_CACHE[3]
     words: set[str] = set()
-    for line in target.read_text(encoding="utf-8").splitlines():
+    for line in target.read_text(encoding="utf-8-sig").splitlines():
         clean_line = line.strip().lower()
         if not clean_line:
             continue

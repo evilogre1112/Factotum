@@ -107,13 +107,19 @@ class TestFactotum(unittest.TestCase):
         self.assertEqual(tech_model.restore("he thong ky thuat phan mem"), "hệ thống kỹ thuật phần mềm")
 
     def test_dangling_end_words_filter_and_fallback(self) -> None:
-        """Loại bỏ dự đoán kết thúc bằng từ cụt lủn; nếu không có phương án hợp lệ thì trả về câu gốc kèm is_fallback=True."""
-        # Khi người dùng nhập câu kết thúc bằng từ cụt lủn ("của", "cho", "thì"...), trả về câu gốc kèm is_fallback=True
-        matches_cua = self.model.predict("bộ tư pháp của", top_k=3)
-        self.assertEqual(len(matches_cua), 1)
-        self.assertEqual(matches_cua[0].phrase, "bộ tư pháp của")
-        self.assertTrue(matches_cua[0].is_fallback)
-        self.assertEqual(matches_cua[0].confidence, 0.0)
+        """Loại bỏ dự đoán kết thúc bằng từ cụt lủn trong file tùy chỉnh; nếu không còn phương án hợp lệ thì trả về câu gốc kèm is_fallback=True."""
+        from factotum.core.extension import load_dangling_end_words
+
+        dangling = load_dangling_end_words(force_reload=True)
+        if not dangling:
+            self.skipTest("File dangling_end_words.txt đang trống.")
+        sample_word = "cho" if "cho" in dangling else next(iter(dangling))
+        q = f"bộ tư pháp {sample_word}"
+        matches_fb = self.model.predict(q, top_k=3)
+        self.assertEqual(len(matches_fb), 1)
+        self.assertEqual(matches_fb[0].phrase, q)
+        self.assertTrue(matches_fb[0].is_fallback)
+        self.assertEqual(matches_fb[0].confidence, 0.0)
 
         # Khi dự đoán hợp lệ, is_fallback phải là False
         matches_ok = self.model.predict("btp", top_k=3)

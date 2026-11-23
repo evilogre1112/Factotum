@@ -18,7 +18,7 @@ Factotum chuẩn hóa nhanh câu nhập tiếng Việt gõ tắt, gõ thiếu ho
 | Đoán từ bị thiếu ở giữa | `an toan thong` | `an toàn giao thông` |
 | Giải mã Telex thô & ký tự lặp | `buowcs`, `vi pham phappp luat` | `bước`, `vi phạm pháp luật` |
 | Sửa chính tả (OOV & đồng âm) trên câu có dấu | `uống dượu bia phạt bao nhiêu`, `quy định sử lý vi phạm hành chính` | `uống rượu bia phạt bao nhiêu`, `quy định xử lý vi phạm hành chính` |
-| Bảo toàn câu đúng & chặn câu cụt lủn | `chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền`, `bộ tư pháp của` | Giữ nguyên câu đúng; trả gốc kèm `is_fallback=True` khi kết thúc cụt lủn |
+| Bảo toàn câu đúng & chặn câu cụt lủn | `chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền`, `bộ tư pháp cho` | Giữ nguyên câu đúng; trả gốc kèm `is_fallback=True` khi kết thúc cụt lủn |
 
 ### Ví dụ xử lý theo ngữ cảnh
 
@@ -26,7 +26,7 @@ Cùng một chuỗi nhập nhưng đứng trong ngữ cảnh khác nhau sẽ cho
 
 | Dạng lỗi | Câu nhập | Kết quả |
 | :--- | :--- | :--- |
-| Viết tắt (`nd`) | `nd 23/24 quy định điều gì` | `nghị định 23/24 quy định điều gì` (`94%`) |
+| Viết tắt (`nd`) | `nd 23/24 quy định điều gì` | `nghị định 23/24 quy định điều gì` (`92%`) |
 | Viết tắt (`nd`) | `tòa án nd tối cao` | `tòa án nhân dân tối cao` (`99%`) |
 | Không dấu (`co the`) | `co the bị xử phạt` | `có thể bị xử phạt` (`99%`) |
 | Không dấu (`co the`) | `xâm phạm co the người khác` | `xâm phạm cơ thể người khác` (`94%`) |
@@ -52,8 +52,8 @@ Factotum chạy tốt nhất trên một trường chủ đề hẹp có thuật
 Ưu điểm chính:
 - Chạy trên 1 nhân CPU, không phụ thuộc thư viện ngoài (Python 3.10+).
 - File phân phối `.ftm` gọn (`1,29 MB` trên đĩa, JSON nén `zlib`, không dùng `pickle`), chiếm khoảng `147 MB` RAM khi nạp và khoảng `197 MB` sau khi ấm bộ đệm cho `113.107` cụm.
-- Tốc độ trung vị `P50 = 0,83 – 1,26 ms/câu` (`234 – 417 câu/giây` trên 1 nhân CPU); tự huấn luyện trên `2,62 triệu từ` mất `32,1 giây` với lõi C++ đa nhân.
-- Bảo toàn nguyên vẹn câu đã có dấu đúng chính tả (`20/20` câu hỏi thực tế, không phá từ mượn như `online`, `chip`), và hỗ trợ file thô [dangling_end_words.txt](src/factotum/resources/dangling_end_words.txt) để người dùng tự tùy chỉnh danh sách từ không được đứng cuối câu dự đoán.
+- Tốc độ trung bình `1,50 – 2,28 ms/câu` (`P50 = 1,02 – 1,24 ms`, `439 – 665 câu/giây` trên 1 nhân CPU); tự huấn luyện trên `2,62 triệu từ` mất `32,1 giây` với lõi C++ đa nhân.
+- Tách bạch 2 pha **Tạo đáp án thuần** (`search.py`, `context.py`) và **Hậu kiểm trên cả câu** (`reviewer.py`): bảo toàn nguyên vẹn câu có dấu đúng chính tả (`20/20`), đồng thời dùng file thô [output/dangling_end_words.txt](output/dangling_end_words.txt) để người dùng tự tùy chỉnh danh sách từ không được đứng cuối câu dự đoán.
 
 Hạn chế:
 - Phụ thuộc độ phủ dữ liệu huấn luyện: thuật ngữ hiếm hoặc từ hoàn toàn mới dễ bị kéo về cụm phổ biến hơn.
@@ -98,7 +98,7 @@ for item in model.predict("quyền sử dd", top_k=3):
     print(f"{item.phrase} (conf={item.confidence:.0%}, fallback={item.is_fallback})")
 ```
 
-Nếu dự đoán bị kết thúc cụt lủn bởi từ trong [src/factotum/resources/dangling_end_words.txt](src/factotum/resources/dangling_end_words.txt) (`của`, `cho`, `thì`, `và`...) và không còn phương án trọn nghĩa nào khác, Factotum trả về nguyên văn câu người dùng nhập kèm `item.is_fallback = True` và `item.confidence = 0.0`. File `.txt` này chỉ chứa danh sách từ thô để bạn tự thêm/bớt bất kỳ lúc nào (tự nạp lại sau 2 giây).
+Nếu dự đoán bị kết thúc cụt lủn bởi từ trong [output/dangling_end_words.txt](output/dangling_end_words.txt) (`cho`, `về`, `thì`, `và`...) và không còn phương án trọn nghĩa nào khác, Factotum trả về nguyên văn câu người dùng nhập kèm `item.is_fallback = True` và `item.confidence = 0.0`. File `.txt` này chỉ chứa danh sách từ thô để bạn tự thêm/bớt bất kỳ lúc nào (tự nạp lại sau 2 giây).
 
 ### 3. Tự huấn luyện trên dữ liệu riêng
 
@@ -133,7 +133,7 @@ Factotum gồm 2 luồng tách biệt: luồng huấn luyện (chạy khi nạp 
 ![Kiến trúc Pipeline Factotum](docs/images/pipeline_architecture.png)
 
 - Luồng huấn luyện đọc tài liệu cùng lĩnh vực, cắt câu để không ghép nhầm qua dấu câu, trích xuất cụm lặp bằng lõi C++ (tự lùi về Python nếu chưa biên dịch), dựng đồ thị xác suất chuyển tiếp 2 chiều và nén thành file `.ftm`.
-- Luồng dự đoán xử lý Telex thô và ký tự lặp, phân đoạn ngữ cảnh, tra đồ thị để khớp cụm, chèn từ thiếu hoặc sửa lỗi chính tả, rồi xếp hạng Top-K kèm `confidence`.
+- Luồng dự đoán tách 2 pha: pha sinh xử lý Telex thô và ký tự lặp, phân đoạn ngữ cảnh, tra đồ thị để khớp cụm, chèn từ thiếu hoặc sửa lỗi chính tả, xếp hạng Top-K kèm `confidence`; pha hậu kiểm (`reviewer.py`) kiểm tra lại toàn bộ câu đáp án theo `output/dangling_end_words.txt` và trả về câu gốc (`is_fallback=True`) nếu không còn phương án hợp lệ.
 
 ### Cấu trúc dữ liệu bên trong & thuật ngữ lõi
 
@@ -171,17 +171,17 @@ Tách hoàn toàn theo đơn vị file (`seed = 42`, tập kiểm tra rút các 
 
 | Nhóm câu hỏi | Số câu | Base-1g (`T1 / T3 / Phrase`) | Base-2g (`T1 / T3 / Phrase`) | Factotum (`T1 / T3 / Phrase`) |
 | :--- | :---: | :---: | :---: | :---: |
-| Không dấu đã có trong tập học | 936 | 52,7 / 78,8 / 54,8% (`0,07 ms`) | 99,4 / 100,0 / 99,5% (`0,10 ms`) | **100,0 / 100,0 / 100,0%** (`1,05 ms`) |
-| Không dấu mới hoàn toàn | 3.064 | 42,3 / 69,3 / 43,0% (`0,07 ms`) | **90,9 / 98,1 / 91,8%** (`0,11 ms`) | 88,2 / 96,8 / 91,5% (`1,55 ms`) |
-| Viết tắt hỗn hợp | 2.000 | 11,2 / 23,2 / 16,2% (`0,09 ms`) | 59,6 / 75,7 / 69,0% (`0,38 ms`) | **68,5 / 80,7 / 79,5%** (`11,55 ms`) |
-| Thiếu 1 từ ở giữa | 2.000 | 0,0 / 0,0 / 25,3% (`0,06 ms`) | 0,0 / 0,0 / 32,2% (`0,07 ms`) | **33,6 / 46,5 / 60,9%** (`1,25 ms`) |
-| Viết tắt toàn cụm | 2.000 | 0,4 / 0,9 / 4,1% (`0,08 ms`) | 14,3 / 24,1 / 47,0% (`10,66 ms`) | **24,6 / 31,4 / 90,8%** (**`5,69 ms`**) |
-| **Tổng (bỏ nhóm thiếu từ)** | **8.000** | **25,3 / 41,8 / 28,0%** | **64,9 / 74,2 / 75,8%** | **68,8 / 76,8 / 89,3%** |
-| **Tổng cộng (tất cả)** | **10.000** | **20,2 / 33,4 / 27,4%** (`0,07 ms`) | **51,9 / 59,4 / 67,1%** (`2,27 ms`) | **61,7 / 70,7 / 83,6%** (`P50 = 1,26 ms`) |
+| Không dấu đã có trong tập học | 952 | 56,6 / 81,0 / 58,3% (`0,08 ms`) | 99,2 / 100,0 / 99,7% (`0,10 ms`) | **99,9 / 100,0 / 100,0%** (`1,15 ms`) |
+| Không dấu mới hoàn toàn | 3.048 | 41,8 / 67,5 / 43,0% (`0,08 ms`) | **89,8 / 97,6 / 90,8%** (`0,11 ms`) | 87,2 / 96,7 / 90,8% (`1,63 ms`) |
+| Viết tắt hỗn hợp | 2.000 | 10,6 / 21,9 / 15,6% (`0,08 ms`) | 59,5 / 76,0 / 70,2% (`0,36 ms`) | **68,5 / 79,8 / 80,0%** (`2,90 ms`) |
+| Thiếu 1 từ ở giữa | 2.000 | 0,0 / 0,0 / 25,1% (`0,06 ms`) | 0,0 / 0,0 / 32,1% (`0,07 ms`) | **35,4 / 48,4 / 62,6%** (`1,33 ms`) |
+| Viết tắt toàn cụm | 2.000 | 0,5 / 1,3 / 4,8% (`0,08 ms`) | 15,8 / 26,1 / 48,5% (`10,98 ms`) | **25,7 / 32,9 / 91,8%** (**`4,12 ms`**) |
+| **Tổng (bỏ nhóm thiếu từ)** | **8.000** | **25,4 / 41,2 / 28,4%** | **64,9 / 74,6 / 76,1%** | **68,7 / 76,9 / 89,5%** |
+| **Tổng cộng (tất cả)** | **10.000** | **20,3 / 32,9 / 27,8%** (`0,07 ms`) | **51,9 / 59,7 / 67,3%** (`2,33 ms`) | **62,0 / 71,2 / 84,1%** (**`2,28 ms`**, `P50 = 1,24 ms`) |
 
-Hai baseline đạt `0%` Top-1/Top-3 ở nhóm thiếu từ vì không có cơ chế chèn từ. Khi bỏ nhóm này (`8.000` câu), Factotum hơn `Base-2g` `+3,9%` Top-1 (`68,8%` vs `64,9%`) và `+13,5%` Phrase validity (`89,3%` vs `75,8%`). Riêng ở nhóm không dấu mới hoàn toàn (`3.064` câu), `Base-2g` cao hơn Factotum `2,7%` Top-1 (`90,9%` vs `88,2%`) và nhanh hơn.
+Hai baseline đạt `0%` Top-1/Top-3 ở nhóm thiếu từ vì không có cơ chế chèn từ. Khi bỏ nhóm này (`8.000` câu), Factotum hơn `Base-2g` `+3,8%` Top-1 (`68,7%` vs `64,9%`) và `+13,4%` Phrase validity (`89,5%` vs `76,1%`). Riêng ở nhóm không dấu mới hoàn toàn (`3.048` câu), `Base-2g` cao hơn Factotum `2,6%` Top-1 (`89,8%` vs `87,2%`) và nhanh hơn.
 
-Trên bộ **Stress Test 10.000 câu** (in-sample), Factotum đạt **`91,1%` Top-1 / `98,2%` Top-3 / `99,9%` LV** (`P50 = 0,83 ms`, `417 câu/s`, vượt `Base-2g` `+20,4%` Top-1). Bộ hồi quy thủ công đạt **`60/60` (`100%`)**, bộ bảo toàn câu hỏi có dấu chuẩn đạt **`20/20` (`100%`)**. Chi tiết xem tại [benchmark/README.md](benchmark/README.md) và danh sách `4.724` câu lệch Top-1 tại `benchmark/failures.csv`.
+Trên bộ **Stress Test 10.000 câu** (in-sample), Factotum đạt **`90,8%` Top-1 / `98,0%` Top-3 / `99,9%` LV** (`1,50 ms/câu`, `P50 = 1,02 ms`, `665 câu/s`, vượt `Base-2g` `+20,6%` Top-1). Bộ hồi quy thủ công đạt **`60/60` (`100%`)**, bộ bảo toàn câu hỏi có dấu chuẩn đạt **`20/20` (`100%`)**. Chi tiết xem tại [benchmark/README.md](benchmark/README.md) và danh sách `4.721` câu lệch Top-1 tại `benchmark/failures.csv`.
 
 ### 2. Độ tin cậy (`confidence`) & Ablation Study (10.000 câu Document-level Held-out)
 
@@ -189,36 +189,36 @@ Trên bộ **Stress Test 10.000 câu** (in-sample), Factotum đạt **`91,1%` To
 
 | Mức `confidence` | Số câu | `confidence` TB | Đúng Top-1 | Đúng Top-3 | Phrase validity |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| `90 – 100%` | 3.897 | 95,2% | 67,3% | 75,4% | **99,7%** |
-| `70 – 90%` | 2.119 | 80,6% | 70,3% | 78,5% | **93,5%** |
-| `50 – 70%` | 1.961 | 57,7% | 63,8% | 73,9% | **76,1%** |
-| `30 – 50%` | 1.313 | 44,4% | 49,7% | 60,2% | **62,3%** |
-| `< 30%` | 710 | 10,0% | 21,7% | 32,1% | **26,2%** |
+| `90 – 100%` | 3.857 | 95,3% | 67,2% | 75,1% | **99,5%** |
+| `70 – 90%` | 2.109 | 80,4% | 71,6% | 80,0% | **93,5%** |
+| `50 – 70%` | 1.966 | 57,7% | 65,3% | 75,7% | **79,3%** |
+| `30 – 50%` | 1.358 | 44,4% | 49,3% | 61,3% | **62,9%** |
+| `< 30%` | 710 | 9,7% | 20,7% | 30,8% | **26,5%** |
 
-Với ngưỡng `confidence >= 70%` (`6.016/10.000` câu), Phrase validity đạt `93,5% – 99,7%` nên có thể tự áp dụng hoặc ưu tiên hiển thị; mức `50–70%` (`76,1%`) phù hợp hiển thị dạng gợi ý; mức `< 30%` (`26,2%`) hoặc `is_fallback = True` nên giữ nguyên câu gốc. Sai số hiệu chuẩn hiện tại: `ECE (Phrase validity) = 11,6%`, `ECE (Top-1) = 15,8%`.
+Với ngưỡng `confidence >= 70%` (`5.966/10.000` câu), Phrase validity đạt `93,5% – 99,5%` nên có thể tự áp dụng hoặc ưu tiên hiển thị; mức `50–70%` (`79,3%`) phù hợp hiển thị dạng gợi ý; mức `< 30%` (`26,5%`) hoặc `is_fallback = True` nên giữ nguyên câu gốc. Sai số hiệu chuẩn hiện tại: `ECE (Phrase validity) = 12,3%`, `ECE (Top-1) = 15,6%`.
 
 Ablation Study trên cùng 10.000 câu:
 
 | Cấu hình | Top-1 | Phrase validity | Ghi chú |
 | :--- | :---: | :---: | :--- |
-| Chỉ Maximal Repeats (bỏ đồ thị Markov) | `17,7%` | `30,6%` | Khớp cụm đã học (`100%`), `0%` cụm mới và thiếu từ. |
-| Chỉ Đồ thị Bigram (`Base-2g`, bỏ Maximal Repeats) | `51,9%` | `67,1%` | Tốt ở không dấu mới (`90,9%`), yếu ở viết tắt (`47,0%` PV) và `0%` thiếu từ. |
-| **Factotum đầy đủ (Maximal Repeats + Đồ thị + Chèn từ)** | **`61,7%`** | **`83,6%`** | Giữ cụm trọn nghĩa ở viết tắt và ghép cụm mới/chèn từ bằng đồ thị. |
+| Chỉ Maximal Repeats (bỏ đồ thị Markov) | `17,7%` | `30,6%` | Khớp cụm đã học (`99,9%`), `0%` cụm mới và thiếu từ. |
+| Chỉ Đồ thị Bigram (`Base-2g`, bỏ Maximal Repeats) | `51,9%` | `67,3%` | Tốt ở không dấu mới (`89,8%`), yếu ở viết tắt (`48,5%` PV) và `0%` thiếu từ. |
+| **Factotum đầy đủ (Maximal Repeats + Đồ thị + Chèn từ)** | **`62,0%`** | **`84,1%`** | Giữ cụm trọn nghĩa ở viết tắt và ghép cụm mới/chèn từ bằng đồ thị. |
 
-### 3. Đối đầu trực tiếp với LLM (1.000 câu Held-out, zero-shot)
+### 3. Đối đầu trực tiếp với LLM (Held-out, zero-shot)
 
-Rút `1.000` câu độc nhất từ 32 văn bản kiểm tra chưa từng học (`seed = 42`, chia đều `250` câu cho mỗi nhóm: không dấu mới, viết tắt hỗn hợp, thiếu 1 từ và viết tắt toàn cụm). Hai LLM lớn chạy ở chế độ zero-shot trên cùng một prompt có quy tắc giữ đúng độ dài cụm (cả hai mô hình đều trả lời đủ `1.000/1.000` câu và tuân thủ đúng quy tắc):
+Rút `1.000` câu độc nhất từ 32 văn bản kiểm tra chưa từng học (`seed = 42`, chia đều 4 nhóm: không dấu mới, viết tắt hỗn hợp, thiếu 1 từ và viết tắt toàn cụm), lọc còn **`919` cụm trọn nghĩa** (bỏ `81` cửa sổ bị cắt cụt lủn theo `output/dangling_end_words.txt`). Hai LLM lớn chạy ở chế độ zero-shot trên cùng một prompt có quy tắc giữ đúng độ dài cụm (cả hai trả lời đủ `1.000/1.000` câu và tuân thủ đúng quy tắc):
 
 | Nhóm câu hỏi | Số câu | Factotum (`T1 / PV`) | Gemini Hydrogen, zero-shot (`T1 / PV`) | Claude Sonnet 5.5, zero-shot (`T1 / PV`) |
 | :--- | :---: | :---: | :---: | :---: |
-| Không dấu mới hoàn toàn | 250 | **85,2% / 90,8%** (`96,4%` T3) | 84,8% / 86,8% | 79,6% / 81,6% |
-| Viết tắt hỗn hợp | 250 | **62,4% / 79,6%** (`77,6%` T3) | 60,4% / 75,2% | 62,0% / 76,8% |
-| Thiếu 1 từ ở giữa | 250 | 36,8% / **67,2%** (`48,4%` T3) | 34,0% / 58,8% | **38,0%** / 52,8% |
-| Viết tắt toàn cụm | 250 | **24,8% / 90,4%** (`32,4%` T3) | 6,4% / 44,4% | 2,0% / 29,6% |
-| **Tổng cộng** | **1.000** | **52,3% / 82,0%** (`63,7%` T3) | **46,4% / 66,3%** | **45,4% / 60,2%** |
-| **Thời gian chạy 1.000 câu** | | **`2,64 giây`** (1 CPU offline, `1,29 MB`) | `~15 giây` (batch cloud) | `~20 phút` (cloud) |
+| Không dấu mới hoàn toàn | 231 | **85,7% / 91,3%** (`96,1%` T3) | **85,7%** / 87,9% | 79,7% / 81,8% |
+| Viết tắt hỗn hợp | 228 | 64,9% / **79,4%** (`78,5%` T3) | 64,0% / 78,1% | **65,8%** / 78,9% |
+| Thiếu 1 từ ở giữa | 234 | **36,8% / 67,5%** (`48,7%` T3) | 33,3% / 59,0% | **36,8%** / 51,7% |
+| Viết tắt toàn cụm | 226 | **23,5% / 89,4%** (`31,9%` T3) | 6,6% / 43,8% | 2,2% / 29,6% |
+| **Tổng cộng (cụm trọn nghĩa)** | **919** | **52,8% / 81,8%** (`63,9%` T3) | **47,6% / 67,2%** | **46,2% / 60,6%** |
+| **Thời gian chạy 1.000 câu** | | **`3,35 giây`** (1 CPU offline, `1,29 MB`) | `~15 giây` (batch cloud) | `~20 phút` (cloud) |
 
-*Lưu ý công bằng:* hai LLM chạy zero-shot (không RAG, không fine-tune trên 124 văn bản luật), trong khi Factotum đã học trực tiếp phân phối cụm từ của lĩnh vực pháp luật. Ở nhóm thiếu 1 từ, Claude Sonnet 5.5 nhỉnh hơn Factotum `+1,2%` Top-1 (`38,0%` vs `36,8%`) nhờ hiểu ngữ nghĩa tổng quát; ngược lại ở nhóm viết tắt toàn cụm chuyên ngành, Factotum đạt `24,8%` Top-1 và `90,4%` Phrase validity (so với `6,4% / 44,4%` của Gemini và `2,0% / 29,6%` của Claude) với chi phí tính toán nhỏ hơn nhiều lần.
+*Lưu ý công bằng:* tính trên cả `1.000` câu thô (gồm `81` câu cụt lủn mà tầng hậu kiểm của Factotum chủ động trả về câu gốc), Factotum vẫn dẫn đầu với `48,5%` Top-1 / `77,5%` PV so với Gemini (`46,4% / 66,3%`) và Claude (`45,4% / 60,2%`). Hai LLM chạy zero-shot (không RAG, không fine-tune trên 124 văn bản luật), trong khi Factotum đã học trực tiếp phân phối cụm từ của lĩnh vực pháp luật. Ở nhóm viết tắt hỗn hợp, Claude Sonnet 5.5 nhỉnh hơn `+0,9%` Top-1 (`65,8%` vs `64,9%`); ngược lại ở nhóm viết tắt toàn cụm chuyên ngành, Factotum đạt `23,5%` Top-1 và `89,4%` Phrase validity (so với `6,6% / 43,8%` của Gemini và `2,2% / 29,6%` của Claude) với chi phí tính toán nhỏ hơn nhiều lần.
 
 ### 4. Giới hạn của bộ đo
 
@@ -247,17 +247,17 @@ Hồi quy log-log ($\log S = a + \alpha \log N$) trên 4 mốc với $N$ là t�
 
 ## So sánh với các hướng tiếp cận khác
 
-Số liệu `Base-1g`, `Base-2g` và `Factotum` lấy từ Document-level Held-out 10.000 câu; cột `LLM (zero-shot)` tham chiếu kết quả đo trực tiếp trên tập con 1.000 câu ở mục 3; cột `SymSpell` là mức tham khảo định tính:
+Số liệu `Base-1g`, `Base-2g` và `Factotum` lấy từ Document-level Held-out 10.000 câu; cột `LLM (zero-shot)` tham chiếu kết quả đo trực tiếp trên `919` cụm trọn nghĩa ở mục 3; cột `SymSpell` là mức tham khảo định tính:
 
 | Tiêu chí | `Base-1g` (Unigram) | `Base-2g` (Bigram + Viterbi) | Factotum | SymSpell / Edit Distance* | LLM (zero-shot) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| Khôi phục dấu (cụm mới) | `42,3%` Top-1 | **`90,9%`** Top-1 (`98,1%` Top-3) | `88,2%` Top-1 (`96,8%` Top-3) | Không hỗ trợ | `79,6% – 84,8%` Top-1 (1.000 câu) |
-| Khôi phục viết tắt toàn cụm | `0,4%` Top-1 (`4,1%` PV) | `14,3%` Top-1 (`47,0%` PV) | **`24,6%`** Top-1 (**`90,8%`** PV) | Không | `2,0% – 6,4%` Top-1 (`29,6% – 44,4%` PV) |
-| Đoán từ bị thiếu ở giữa | `0%` | `0%` | `33,6%` Top-1 (`60,9%` PV) | Không | `34,0% – 38,0%` Top-1 (`52,8% – 58,8%` PV) |
+| Khôi phục dấu (cụm mới) | `41,8%` Top-1 | **`89,8%`** Top-1 (`97,6%` Top-3) | `87,2%` Top-1 (`96,7%` Top-3) | Không hỗ trợ | `79,7% – 85,7%` Top-1 (mục 3) |
+| Khôi phục viết tắt toàn cụm | `0,5%` Top-1 (`4,8%` PV) | `15,8%` Top-1 (`48,5%` PV) | **`25,7%`** Top-1 (**`91,8%`** PV) | Không | `2,2% – 6,6%` Top-1 (`29,6% – 43,8%` PV) |
+| Đoán từ bị thiếu ở giữa | `0%` | `0%` | `35,4%` Top-1 (`62,6%` PV) | Không | `33,3% – 36,8%` Top-1 (`51,7% – 59,0%` PV) |
 | Sửa lỗi chính tả & Telex thô | Không | Không | Hỗ trợ OOV & đồng âm, giữ nguyên câu đúng | Tốt (từng từ đơn) | Tốt |
 | Tự huấn luyện trên dữ liệu riêng | Nhanh | Nhanh | `~32 giây` (CPU + C++) / `~105 giây` (Python thuần) | Nhanh | Chậm, thường cần GPU |
 | Dung lượng (Đĩa / RAM) | Vài MB | Vài MB | `1,29 MB` đĩa / `~147–197 MB` RAM | Rất nhỏ | `400 MB` – hàng chục GB* |
-| Tốc độ suy luận | `0,07 ms/câu` (CPU) | `2,27 ms/câu` (CPU) | `P50 = 0,83 – 1,26 ms/câu` (CPU offline) | `< 1 ms/câu`* | `~15 ms` (batch) – `1,2 s/câu` (cloud) |
+| Tốc độ suy luận | `0,07 ms/câu` (CPU) | `2,33 ms/câu` (CPU) | `1,50 – 2,28 ms/câu` (CPU offline) | `< 1 ms/câu`* | `~15 ms` (batch) – `1,2 s/câu` (cloud) |
 | Hiểu ngữ nghĩa mở đa lĩnh vực | Không | Không | Không | Không | Cao |
 
 *\*Khoảng tham khảo tùy kiến trúc mô hình, mức lượng tử hóa và phần cứng.*
