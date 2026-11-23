@@ -14,7 +14,7 @@ Factotum chuẩn hóa nhanh câu nhập tiếng Việt gõ tắt, gõ thiếu ho
 | :--- | :--- | :--- |
 | Khôi phục dấu tiếng Việt | `xu phat vi pham hanh chinh` | `xử phạt vi phạm hành chính` |
 | Khôi phục viết tắt theo chữ cái đầu | `xpvphc atgt` | `xử phạt vi phạm hành chính an toàn giao thông` |
-| Tự suy viết tắt theo ngữ cảnh | `quyền sử dd`, `tòa án nd tối cao`, `nd 23/24 quy định điều gì` | `quyền sử dụng đất`, `tòa án nhân dân tối cao`, `nghị định 23/24 quy định điều gì` |
+| Tự suy viết tắt theo ngữ cảnh | `quyền sử dd`, `tòa án nd tối cao`, `xkcbsx có bị xử phạt không` | `quyền sử dụng đất`, `tòa án nhân dân tối cao`, `xe không có biển số xe có bị xử phạt không` |
 | Đoán từ bị thiếu ở giữa | `an toan thong` | `an toàn giao thông` |
 | Giải mã Telex thô & ký tự lặp | `buowcs`, `vi pham phappp luat` | `bước`, `vi phạm pháp luật` |
 | Sửa chính tả (OOV & đồng âm) trên câu có dấu | `uống dượu bia phạt bao nhiêu`, `quy định sử lý vi phạm hành chính` | `uống rượu bia phạt bao nhiêu`, `quy định xử lý vi phạm hành chính` |

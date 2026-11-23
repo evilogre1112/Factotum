@@ -520,8 +520,20 @@ def query_with_context(
             and seg_tokens[0] not in index.unaccented_map
             and not index.get_acronym_pids(seg_tokens[0])
         )
-        if is_unmapped_oov_in_accented and not any(m.superstring_diff >= 0 for m in f_candidates):
-            f_candidates = []
+        if is_unmapped_oov_in_accented:
+            # Luật đồ thị/KB thuần túy (không phụ thuộc ngôn ngữ): chỉ giữ phương án tách OOV
+            # nếu khớp KB thực tế, hoặc mọi cạnh nối thông liên tục VÀ chứa ít nhất 1 cụm 3 từ thực tế trong KB.
+            fwd = index.fwd_graph
+            f_candidates = [
+                m
+                for m in f_candidates
+                if m.superstring_diff >= 0
+                or (
+                    len(ws := m.phrase.split()) >= 3
+                    and all(fwd.get(ws[j], {}).get(ws[j + 1], 0) > 0 for j in range(len(ws) - 1))
+                    and any(index.lookup_real_phrase_score(ws[j : j + 3])[0] > 0 for j in range(len(ws) - 2))
+                )
+            ]
         if not f_candidates:
             for i in range(len(sentence_beam)):
                 bw, wt, tcs, tcf, tm, mw, ld, ls, mp = sentence_beam[i]
@@ -577,8 +589,14 @@ def query_with_context(
                 scored.append((sort_k, f_m, ctx_info))
 
             scored.sort(key=lambda x: x[0])
-            if is_unmapped_oov_in_accented and (left_ctx or right_ctx) and scored and scored[0][2][0] >= 4:
-                # Nếu tách từ OOV (vd: "chip" -> "chi phí") không khớp ngữ cảnh xung quanh trong KB (tier >= 4), giữ nguyên từ OOV.
+            if (
+                is_unmapped_oov_in_accented
+                and (left_ctx or right_ctx)
+                and scored
+                and scored[0][2][0] >= 4
+                and len(scored[0][1].phrase.split()) <= 2
+            ):
+                # Nếu tách từ OOV ngắn (<= 2 từ, vd: "chip" -> "chi phí") không khớp ngữ cảnh xung quanh trong KB (tier >= 4), giữ nguyên từ OOV.
                 next_beam.append((bw + seg_tokens, max(wt, 5), tcs, tcf, tm, mw, -1, "", mp * 1e-6))
                 continue
             for _, f_m, (tier, span_len, ctx_freq, ctx_diff, ctx_src) in scored[: max(top_k, 5)]:
