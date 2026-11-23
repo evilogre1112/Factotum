@@ -68,6 +68,44 @@ class TestFactotum(unittest.TestCase):
         # Dữ liệu cũ vẫn nguyên vẹn
         self.assertEqual(self.model.restore("xpvphc"), "xử phạt vi phạm hành chính")
 
+    def test_domain_agnostic_adaptation_and_acronym_isolation(self) -> None:
+        """Factotum không phụ thuộc miền luật: cùng một ký hiệu viết tắt tự đổi nghĩa theo ngữ liệu mới."""
+        finance_model = Factotum().fit(
+            [
+                (
+                    "báo cáo tài chính kiểm toán độc lập cuối năm. "
+                    "hóa đơn giá trị gia tăng và báo cáo tài chính hợp nhất. "
+                    "kiểm toán độc lập xác nhận báo cáo tài chính và hóa đơn giá trị gia tăng."
+                )
+                * 3
+            ]
+        )
+        tech_model = Factotum().fit(
+            [
+                (
+                    "hệ thống kỹ thuật phần mềm quản lý cơ sở dữ liệu. "
+                    "bảo mật an toàn thông tin và kỹ thuật phần mềm hiện đại. "
+                    "quản lý cơ sở dữ liệu đảm bảo an toàn thông tin trong hệ thống kỹ thuật phần mềm."
+                )
+                * 3
+            ]
+        )
+
+        # Cùng mã viết tắt / cụm thuộc từng miền tự thích nghi mà không cần hardcode
+        self.assertEqual(finance_model.restore("bctc"), "báo cáo tài chính")
+        self.assertEqual(finance_model.restore("hdgtgt"), "hóa đơn giá trị gia tăng")
+        self.assertEqual(finance_model.restore("bao cao chinh"), "báo cáo tài chính")
+        self.assertEqual(finance_model.restore("kt doc lap"), "kiểm toán độc lập")
+
+        self.assertEqual(tech_model.restore("csdl"), "cơ sở dữ liệu")
+        self.assertEqual(tech_model.restore("attt"), "an toàn thông tin")
+        self.assertEqual(tech_model.restore("co so lieu"), "cơ sở dữ liệu")
+        self.assertEqual(tech_model.restore("kt phan mem"), "kỹ thuật phần mềm")
+
+        # Chống va chạm: từ đơn hợp lệ không bị bung nhầm thành cụm viết tắt ở bất kỳ miền nào
+        self.assertEqual(finance_model.restore("bao cao tai chinh"), "báo cáo tài chính")
+        self.assertEqual(tech_model.restore("he thong ky thuat phan mem"), "hệ thống kỹ thuật phần mềm")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,401 @@
+category	query	expected
+khong_dau_moi	bang gia nay va	bảng giá này và
+khong_dau_moi	kien theo quy	kiện theo quy
+khong_dau_moi	co thue nha	có thuế nhà
+khong_dau_moi	le phan tram	lệ phần trăm
+khong_dau_moi	hoac toa an co tham	hoặc tòa án có thẩm
+khong_dau_moi	hanh quyet dinh cua trong	hành quyết định của trọng
+khong_dau_moi	bao lanh nhu da neu	bảo lãnh như đã nêu
+khong_dau_moi	lam trai nhung	làm trái những
+khong_dau_moi	gay bat loi cho	gây bất lợi cho
+khong_dau_moi	luc hanh vi	lực hành vi
+khong_dau_moi	phan anh tinh	phản ánh tình
+khong_dau_moi	cac ben cung thoa	các bên cùng thỏa
+khong_dau_moi	hanh vi trai	hành vi trái
+khong_dau_moi	dau cua chi	dấu của chi
+khong_dau_moi	xuat ve gia hang	xuất về giá hàng
+khong_dau_moi	thuong tien bao hiem	thường tiền bảo hiểm
+khong_dau_moi	gom cac khoan	gồm các khoản
+khong_dau_moi	nha thau mua tu	nhà thầu mua từ
+khong_dau_moi	de xuat giam gia theo	đề xuất giảm giá theo
+khong_dau_moi	cong trach nhiem	công trách nhiệm
+khong_dau_moi	hang thu nhat truong hop	hạng thứ nhất trường hợp
+khong_dau_moi	gia phien toa phuc tham	gia phiên tòa phúc thẩm
+khong_dau_moi	uy thac tu phap	ủy thác tư pháp
+khong_dau_moi	trong ngay cuoi	trong ngày cuối
+khong_dau_moi	thong trich xuat ma so	thống trích xuất mã số
+khong_dau_moi	chap ve dan su	chấp về dân sự
+khong_dau_moi	linh vuc hang	lĩnh vực hàng
+khong_dau_moi	dang ky xoa	đăng ký xóa
+khong_dau_moi	tri hop dong khong tinh	trị hợp đồng không tính
+khong_dau_moi	hoa tru so chinh	hóa trụ sở chính
+khong_dau_moi	danh gia viec xac dinh	đánh giá việc xác định
+khong_dau_moi	diem phat sinh khieu nai	điểm phát sinh khiếu nại
+khong_dau_moi	vi yeu cau trong	vi yêu cầu trong
+khong_dau_moi	co sua doi bo sung	có sửa đổi bổ sung
+khong_dau_moi	tu sau thang den	từ sáu tháng đến
+khong_dau_moi	dung tuong ung quy	dung tương ứng quy
+khong_dau_moi	trong lien danh thoa thuan	trong liên danh thỏa thuận
+khong_dau_moi	cac yeu cau ky	các yêu cầu kỹ
+khong_dau_moi	so hop dong hoac van	số hợp đồng hoặc văn
+khong_dau_moi	nghien co so giao	nghiện cơ sở giáo
+khong_dau_moi	toa an viet nam hoac	tòa án việt nam hoặc
+khong_dau_moi	duoc dai dien	được đại diện
+khong_dau_moi	dong phai bao	đồng phải bao
+khong_dau_moi	thoai he thong	thoại hệ thống
+khong_dau_moi	nam den muoi	năm đến mười
+khong_dau_moi	nhan cong ghi	nhân công ghi
+khong_dau_moi	bien den roi	biển đến rời
+khong_dau_moi	neu xuat xu	nêu xuất xứ
+khong_dau_moi	da hoan thanh hoan	đã hoàn thành hoàn
+khong_dau_moi	khi tranh luan duoc	khi tranh luận được
+khong_dau_moi	an con phai quyet	án còn phải quyết
+khong_dau_moi	lanh du thau	lãnh dự thầu
+khong_dau_moi	hang hoa cung	hàng hóa cùng
+khong_dau_moi	chia thanh nhieu phan doc	chia thành nhiều phần độc
+khong_dau_moi	cac goi thau ma	các gói thầu mà
+khong_dau_moi	tai nhom nuoc vung	tại nhóm nước vùng
+khong_dau_moi	chu chot duoc	chủ chốt được
+khong_dau_moi	cau bat giu tau bien	cầu bắt giữ tàu biển
+khong_dau_moi	tri phan viec	trị phần việc
+khong_dau_moi	vao ket luan cua	vào kết luận của
+khong_dau_moi	du phong sau khi giam	dự phòng sau khi giảm
+khong_dau_moi	chu dong cai tien	chủ động cải tiến
+khong_dau_moi	yeu cau ve nhan	yêu cầu về nhãn
+khong_dau_moi	theo thu tuc do bo	theo thủ tục do bộ
+khong_dau_moi	dan den khong duoc hoan	dẫn đến không được hoàn
+khong_dau_moi	muc doanh thu binh quan	mức doanh thu bình quân
+khong_dau_moi	ngoai cac cong	ngoài các công
+khong_dau_moi	quan den viec	quan đến việc
+khong_dau_moi	ky thuat nhu	kỹ thuật như
+khong_dau_moi	nha may day	nhà máy dây
+khong_dau_moi	du nha thau	dụ nhà thầu
+khong_dau_moi	dat tai nuoc thanh vien	đặt tại nước thành viên
+khong_dau_moi	tinh cong bo doi voi	tỉnh công bố đối với
+khong_dau_moi	thuat tai bang	thuật tại bảng
+khong_dau_moi	su dung de so	sử dụng để so
+khong_dau_moi	tau nguoi khai thac	tàu người khai thác
+khong_dau_moi	neu linh vuc tong quat	nêu lĩnh vực tổng quát
+khong_dau_moi	duoc nghiem thu it	được nghiệm thu ít
+khong_dau_moi	thanh ly nhung	thanh lý nhưng
+khong_dau_moi	ap dung thong	áp dụng thống
+khong_dau_moi	hop dong chung toi	hợp đồng chúng tôi
+khong_dau_moi	dinh duoc ma	định được mã
+khong_dau_moi	to chuyen gia dua	tổ chuyên gia đưa
+khong_dau_moi	trung thau nha thau co	trúng thầu nhà thầu có
+khong_dau_moi	cac dieu kien ve	các điều kiện về
+khong_dau_moi	chung thuc mot	chứng thực một
+khong_dau_moi	ve ho tich dang ky	về hộ tịch đăng ký
+khong_dau_moi	ben bao lanh cam	bên bảo lãnh cam
+khong_dau_moi	co so dich	cơ sở dịch
+khong_dau_moi	vao ho so	vào hồ sơ
+khong_dau_moi	tha tau bien	thả tàu biển
+khong_dau_moi	tuyen nay co hieu	tuyển này có hiệu
+khong_dau_moi	khong duoc thay the nhan	không được thay thế nhân
+khong_dau_moi	hiem bao lanh phai	hiểm bảo lãnh phải
+khong_dau_moi	quyet dinh phai	quyết định phải
+khong_dau_moi	tu tu nam nam	tù từ năm năm
+khong_dau_moi	muon hoa chat vat tu	mượn hóa chất vật tư
+khong_dau_moi	nam ve viec thuc	năm về việc thực
+khong_dau_moi	hang nam neu khong truc	hằng năm nếu không trực
+khong_dau_moi	trung thau thi khi huy	trúng thầu thì khi huy
+viet_tat_hon_hop	đảm nha t	đảm nhà thầu
+viet_tat_hon_hop	triệu tap cua kiem s	triệu tập của kiểm sát
+viet_tat_hon_hop	không thuoc t	không thuộc trường
+viet_tat_hon_hop	có kha nang t	có khả năng thực
+viet_tat_hon_hop	tại uy ban nhan d	tại ủy ban nhân dân
+viet_tat_hon_hop	khác theo yeu cau t	khác theo yêu cầu tại
+viet_tat_hon_hop	người khoi k	người khởi kiện
+viet_tat_hon_hop	trung gian d	trung gian để
+viet_tat_hon_hop	tên nha t	tên nhà thầu
+viet_tat_hon_hop	chỉ quy dinh linh v	chỉ quy định lĩnh vực
+viet_tat_hon_hop	đáp ung yeu cau c	đáp ứng yêu cầu chủ
+viet_tat_hon_hop	theo trinh tu thoi g	theo trình tự thời gian
+viet_tat_hon_hop	xét chuyen n	xét chuyển ngạch
+viet_tat_hon_hop	chủ dau t	chủ đầu tư
+viet_tat_hon_hop	quy dinh trong truong h	quy định trong trường hợp
+viet_tat_hon_hop	tổ chuc cac k	tổ chức các kỳ
+viet_tat_hon_hop	nhật tru truong h	nhật trừ trường hợp
+viet_tat_hon_hop	cáo chong tham nhung d	cáo chống tham nhũng được
+viet_tat_hon_hop	cung cap ma h	cung cấp mã hàng
+viet_tat_hon_hop	hợp phap c	hợp pháp của
+viet_tat_hon_hop	thì cach tinh doanh t	thì cách tính doanh thu
+viet_tat_hon_hop	đề nghi t	đề nghị trúng
+viet_tat_hon_hop	trong muc nay c	trong mục này chủ
+viet_tat_hon_hop	hàng hoa tuong tu k	hàng hóa tương tự không
+viet_tat_hon_hop	hoạt dong h	hoạt động hàng
+viet_tat_hon_hop	hiện nghia v	hiện nghĩa vụ
+viet_tat_hon_hop	định tai c	định tại chương
+viet_tat_hon_hop	tố khac neu c	tố khác nếu có
+viet_tat_hon_hop	số thue g	số thuế giấy
+viet_tat_hon_hop	cụ the ten c	cụ thể tên công
+viet_tat_hon_hop	tối cao cac toa a	tối cao các tòa án
+viet_tat_hon_hop	nhà thau g	nhà thầu gồm
+viet_tat_hon_hop	hệ thong bang k	hệ thống bảng kê
+viet_tat_hon_hop	tên goi t	tên gói thầu
+viet_tat_hon_hop	được su dung k	được sử dụng khi
+viet_tat_hon_hop	bảng khoi luong cong v	bảng khối lượng công việc
+viet_tat_hon_hop	theo bieu tien do t	theo biểu tiến độ thanh
+viet_tat_hon_hop	nộp cho c	nộp cho cơ
+viet_tat_hon_hop	tòa an ra q	tòa án ra quyết
+viet_tat_hon_hop	bảo lanh d	bảo lãnh dự
+viet_tat_hon_hop	toàn ven l	toàn vẹn lãnh
+viet_tat_hon_hop	lao dong thuong binh v	lao động thương binh và
+viet_tat_hon_hop	thống bang de x	thống bảng đề xuất
+viet_tat_hon_hop	hiệu suat c	hiệu suất công
+viet_tat_hon_hop	ngày thang nam lam d	ngày tháng năm làm đơn
+viet_tat_hon_hop	nghiệm va nguon l	nghiệm và nguồn lực
+viet_tat_hon_hop	với chanh an t	với chánh án tòa
+viet_tat_hon_hop	tài san k	tài sản khác
+viet_tat_hon_hop	áp dung b	áp dụng biện
+viet_tat_hon_hop	báo cao ket qua k	báo cáo kết quả kinh
+viet_tat_hon_hop	đầu tu da co t	đầu tư đã có thiết
+viet_tat_hon_hop	hợp nha thau k	hợp nhà thầu không
+viet_tat_hon_hop	đối voi cac thiet b	đối với các thiết bị
+viet_tat_hon_hop	chữ va dong t	chữ và đồng tiền
+viet_tat_hon_hop	bắt giu t	bắt giữ tàu
+viet_tat_hon_hop	kỹ thuat c	kỹ thuật của
+viet_tat_hon_hop	giá cho t	giá cho từng
+viet_tat_hon_hop	nhật theo don gia m	nhật theo đơn giá mà
+viet_tat_hon_hop	đầu tu doi voi n	đầu tư đối với những
+viet_tat_hon_hop	thành vien nao co q	thành viên nào có quyền
+viet_tat_hon_hop	thầu da co tai c	thầu đã có tại công
+viet_tat_hon_hop	thanh toan c	thanh toán của
+viet_tat_hon_hop	động thiet b	động thiết bị
+viet_tat_hon_hop	các cong v	các công việc
+viet_tat_hon_hop	dân viet nam da d	dân việt nam đã được
+viet_tat_hon_hop	chụp duoc chung thuc m	chụp được chứng thực một
+viet_tat_hon_hop	sự ma phap l	sự mà pháp luật
+viet_tat_hon_hop	mời thau khong b	mời thầu không bao
+viet_tat_hon_hop	thời gian q	thời gian quy
+viet_tat_hon_hop	hàng hoa thuoc pham v	hàng hóa thuộc phạm vi
+viet_tat_hon_hop	hiện trach nhiem chung t	hiện trách nhiệm chung trách
+viet_tat_hon_hop	trường hop dich vu p	trường hợp dịch vụ phi
+viet_tat_hon_hop	kinh doanh va xac n	kinh doanh và xác nhận
+viet_tat_hon_hop	kê khai chinh xac t	kê khai chính xác trung
+viet_tat_hon_hop	hiệu luc p	hiệu lực pháp
+viet_tat_hon_hop	họ ten dia chi c	họ tên địa chỉ của
+viet_tat_hon_hop	quy dinh c	quy định các
+viet_tat_hon_hop	hoặc trong lanh tho c	hoặc trong lãnh thổ của
+viet_tat_hon_hop	không hoan thanh do l	không hoàn thành do lỗi
+viet_tat_hon_hop	diện hop phap cua t	diện hợp pháp của thành
+viet_tat_hon_hop	hộ kinh doanh va x	hộ kinh doanh và xác
+viet_tat_hon_hop	xác cac t	xác các thông
+viet_tat_hon_hop	thầu ky ten dong d	thầu ký tên đóng dấu
+viet_tat_hon_hop	cấp tinh k	cấp tỉnh kháng
+viet_tat_hon_hop	các quy dinh nhu c	các quy định như có
+viet_tat_hon_hop	và ngay het hieu l	và ngày hết hiệu lực
+viet_tat_hon_hop	nhập doanh n	nhập doanh nghiệp
+viet_tat_hon_hop	cầu thi nha thau d	cầu thì nhà thầu được
+viet_tat_hon_hop	hợp dong thue t	hợp đồng thuê thuyền
+viet_tat_hon_hop	với cac p	với các phần
+viet_tat_hon_hop	năng luc cua nha t	năng lực của nhà thầu
+viet_tat_hon_hop	ròng cua n	ròng của nhà
+viet_tat_hon_hop	viện kiem s	viện kiểm sát
+viet_tat_hon_hop	đánh gia l	đánh giá là
+viet_tat_hon_hop	thỏa thuan k	thỏa thuận khung
+viet_tat_hon_hop	việc phan cong trach n	việc phân công trách nhiệm
+viet_tat_hon_hop	đơn vi co nhu c	đơn vị có nhu cầu
+viet_tat_hon_hop	đóng thau v	đóng thầu và
+viet_tat_hon_hop	trưởng bo cong t	trưởng bộ công thương
+viet_tat_hon_hop	có quy dinh k	có quy định khác
+thieu_1_tu	dong ich	động công ích
+thieu_1_tu	danh thanh vien	danh từng thành viên
+thieu_1_tu	va dau	và đóng dấu
+thieu_1_tu	hop thue	hợp đồng thuê
+thieu_1_tu	bao cap	bảo hiểm cấp
+thieu_1_tu	cong xa hoi	cộng hòa xã hội
+thieu_1_tu	hoac bi tu	hoặc bị phạt tù
+thieu_1_tu	thi co bi cam	thì có thể bị cấm
+thieu_1_tu	ro tri	rõ giá trị
+thieu_1_tu	diem thieu	điểm tối thiểu
+thieu_1_tu	thoi thuc hien	thời gian thực hiện
+thieu_1_tu	loai so quan cap	loại số cơ quan cấp
+thieu_1_tu	tren thong	trên hệ thống
+thieu_1_tu	ke tu ngay bao	kể từ ngày thông báo
+thieu_1_tu	chinh ra	chính phủ ra
+thieu_1_tu	va suat cua thiet	và công suất của thiết
+thieu_1_tu	tiep tuc xem ve	tiếp tục xem xét về
+thieu_1_tu	toan quy	toán theo quy
+thieu_1_tu	doc vu hang	đốc cảng vụ hàng
+thieu_1_tu	nay tai muc	này nếu tại mục
+thieu_1_tu	hinh thuc tau	hình thức thuê tàu
+thieu_1_tu	ten rieng cua tau	tên gọi riêng của tàu
+thieu_1_tu	tru hop cong	trừ trường hợp công
+thieu_1_tu	nguoi van chuyen gay	người thuê vận chuyển gây
+thieu_1_tu	phai khai quat de	phải đủ khái quát để
+thieu_1_tu	noi dung cong	nội dung các công
+thieu_1_tu	cac thanh tu	các thành viên tự
+thieu_1_tu	quyen chua cua	quyền bào chữa của
+thieu_1_tu	phi phi	phí lệ phí
+thieu_1_tu	thay theo	thay thế theo
+thieu_1_tu	thau ghi ten thau	thầu ghi tên gói thầu
+thieu_1_tu	luat dau thau thanh	luật đấu thầu thì thành
+thieu_1_tu	nguoi duoc hiem yeu	người được bảo hiểm yêu
+thieu_1_tu	thuong mai khoan	thương mại các khoản
+thieu_1_tu	quyet da	quyết định đã
+thieu_1_tu	du nghia	đủ các nghĩa
+thieu_1_tu	cap trinh duoc xac	cấp công trình được xác
+thieu_1_tu	chi co tri	chỉ có giá trị
+thieu_1_tu	ky ket chu	ký kết ghi chú
+thieu_1_tu	bao ve lieu	bảo vệ dữ liệu
+thieu_1_tu	tau nguoi	tàu tên người
+thieu_1_tu	dinh ap theo	định áp dụng theo
+thieu_1_tu	thuoc so cua	thuộc sở hữu của
+thieu_1_tu	xuat so	xuất với số
+thieu_1_tu	nha bi loai truong	nhà thầu bị loại trường
+thieu_1_tu	bao cam	bảo lãnh cam
+thieu_1_tu	nang dong	năng huy động
+thieu_1_tu	cho cap ky	cho cấp dưới ký
+thieu_1_tu	thanh duoc	thành chưa được
+thieu_1_tu	dang qua trinh thuc	đang trong quá trình thực
+thieu_1_tu	co loi viec	có lỗi trong việc
+thieu_1_tu	cam ket cap tin	cam kết cung cấp tín
+thieu_1_tu	thao dong	thảo hợp đồng
+thieu_1_tu	hop du thau	hợp giá dự thầu
+thieu_1_tu	tung vien	từng thành viên
+thieu_1_tu	cu gia tri	cứ vào giá trị
+thieu_1_tu	neu co hieu	nếu có sau hiệu
+thieu_1_tu	noi cong viec	nội dung công việc
+thieu_1_tu	voi tri	với giá trị
+thieu_1_tu	cua an cap	của tòa án cấp
+thieu_1_tu	ngoai truong	ngoại tệ trường
+thieu_1_tu	cua chu tu	của chủ đầu tư
+thieu_1_tu	cap tam cua	cấp tạm thời của
+thieu_1_tu	nam chu	nam ghi chú
+thieu_1_tu	giam cong	giám đốc công
+thieu_1_tu	cua nam	của các năm
+thieu_1_tu	cam bao	cam kết bảo
+thieu_1_tu	tu hop	tư cách hợp
+thieu_1_tu	trong tong	trong bảng tổng
+thieu_1_tu	tuong voi gia tri	tương tự với giá trị
+thieu_1_tu	chi can	chi phí cần
+thieu_1_tu	tai ve	tài sản về
+thieu_1_tu	le ho tich	lệ phí hộ tịch
+thieu_1_tu	nhiem thuc	nhiệm để thực
+thieu_1_tu	dau quy dinh	đầu tư quy định
+thieu_1_tu	dien tu he	điện tử và hệ
+thieu_1_tu	noi sau	nội dung sau
+thieu_1_tu	hop duoc quyen	hợp được ủy quyền
+thieu_1_tu	nguoi van phai	người vận chuyển phải
+thieu_1_tu	bang lieu	bảng dữ liệu
+thieu_1_tu	voi chi	với tiêu chí
+thieu_1_tu	nhan dinh	nhận quyết định
+thieu_1_tu	giai viec dan	giải quyết việc dân
+thieu_1_tu	nhiem cua minh	nhiệm riêng của mình
+thieu_1_tu	gian hien	gian thực hiện
+thieu_1_tu	nham dich	nhằm mục đích
+thieu_1_tu	tai diem	tại thời điểm
+thieu_1_tu	du la tong	dự thầu là tổng
+thieu_1_tu	lam cong ly cua	làm công đại lý của
+thieu_1_tu	tuoc mot quyen	tước một số quyền
+thieu_1_tu	thau trach	thầu có trách
+thieu_1_tu	tai cong	tài chính công
+thieu_1_tu	viec thuc te	việc trong thực tế
+thieu_1_tu	tieu dac biet neu	tiêu thụ đặc biệt nếu
+thieu_1_tu	duyet ket lua	duyệt kết quả lựa
+thieu_1_tu	thue thu dac	thuế tiêu thụ đặc
+thieu_1_tu	la ung	là đáp ứng
+thieu_1_tu	nhiem su	nhiệm dân sự
+thieu_1_tu	mot nam nam	một năm đến năm
+thieu_1_tu	lieu cac	liệu khác các
+viet_tat_toan_cum	hcstg	hạn chế sự tham gia
+viet_tat_toan_cum	tdk	trong điều kiện
+viet_tat_toan_cum	cyck	các yêu cầu khác
+viet_tat_toan_cum	tbv	tàu biển việt
+viet_tat_toan_cum	pgqtc	pháp giải quyết tiêu chí
+viet_tat_toan_cum	cvd	công việc đơn
+viet_tat_toan_cum	dgvn	đánh giá về năng
+viet_tat_toan_cum	nda	này được áp
+viet_tat_toan_cum	ddxnn	đồng đang xét nếu nhà
+viet_tat_toan_cum	hdt	hợp đồng thuê
+viet_tat_toan_cum	mndh	mười năm đến hai
+viet_tat_toan_cum	xvts	xứ và trụ sở
+viet_tat_toan_cum	tnddk	thẩm nhân dân dự khuyết
+viet_tat_toan_cum	dcktq	được công khai theo quy
+viet_tat_toan_cum	vqdt	vụ quy định tại
+viet_tat_toan_cum	btktn	bốn tháng kể từ ngày
+viet_tat_toan_cum	tnb	trách nhiệm bố
+viet_tat_toan_cum	nbvq	người bảo vệ quyền
+viet_tat_toan_cum	lnt	lai nộp tiền
+viet_tat_toan_cum	hkct	hiểm không chịu trách
+viet_tat_toan_cum	tann	tòa án nước ngoài
+viet_tat_toan_cum	scchs	sở chính của hãng sản
+viet_tat_toan_cum	ltv	là thành viên
+viet_tat_toan_cum	dvk	dịch vụ kỹ
+viet_tat_toan_cum	annt	án nước ngoài tại
+viet_tat_toan_cum	yccct	yêu cầu cung cấp trong
+viet_tat_toan_cum	tdtgt	tham dự thầu gói thầu
+viet_tat_toan_cum	pnc	phải nộp cho
+viet_tat_toan_cum	dhmc	đó hạng mục công
+viet_tat_toan_cum	dtcp	đầu tư cho phép
+viet_tat_toan_cum	ddnch	đại diện nước cộng hòa
+viet_tat_toan_cum	nnb	nhà nước bảng
+viet_tat_toan_cum	dgcl	đây gọi chung là
+viet_tat_toan_cum	nts	nhà thầu sẽ
+viet_tat_toan_cum	ptd	phạm tội đối
+viet_tat_toan_cum	tctcl	tư có thể có lợi
+viet_tat_toan_cum	hbpt	hoặc bị phạt tù
+viet_tat_toan_cum	dlnc	độc lập nếu có
+viet_tat_toan_cum	vhvn	văn hóa văn nghệ
+viet_tat_toan_cum	kdsn	không đủ số năm
+viet_tat_toan_cum	vth	vụ thực hiện
+viet_tat_toan_cum	nlvkn	năng lực và kinh nghiệm
+viet_tat_toan_cum	tdx	thầu đề xuất
+viet_tat_toan_cum	bpt	bị phạt tù
+viet_tat_toan_cum	vktm	về khí thải mức
+viet_tat_toan_cum	hdx	hội đồng xét
+viet_tat_toan_cum	dcpqd	do chính phủ quy định
+viet_tat_toan_cum	mqg	một quốc gia
+viet_tat_toan_cum	ctt	công ty thành
+viet_tat_toan_cum	hhlns	hết hiệu lực ngay sau
+viet_tat_toan_cum	cda	chung được áp
+viet_tat_toan_cum	cgh	cầm giữ hàng
+viet_tat_toan_cum	tdstt	thầu điền số tiền thanh
+viet_tat_toan_cum	ccc	của các cơ
+viet_tat_toan_cum	vuqbg	vi ủy quyền bao gồm
+viet_tat_toan_cum	tct	tàu có trách
+viet_tat_toan_cum	pmt	phạm một trong
+viet_tat_toan_cum	dnt	dụng nhà thầu
+viet_tat_toan_cum	khd	khi hợp đồng
+viet_tat_toan_cum	hhsx	hàng hóa sản xuất
+viet_tat_toan_cum	ctq	có thẩm quyền
+viet_tat_toan_cum	cql	các quyền lợi
+viet_tat_toan_cum	rndcv	rõ nội dung công việc
+viet_tat_toan_cum	bct	bị các tài
+viet_tat_toan_cum	dtq	đồng theo quy
+viet_tat_toan_cum	chv	có hành vi
+viet_tat_toan_cum	nvgqk	nại và giải quyết khiếu
+viet_tat_toan_cum	ctcc	cáo tài chính của
+viet_tat_toan_cum	ltttp	lại theo thủ tục phúc
+viet_tat_toan_cum	pttg	phương tiện tham gia
+viet_tat_toan_cum	kcknt	không có khả năng thực
+viet_tat_toan_cum	tcct	ty con công ty
+viet_tat_toan_cum	ycn	yêu cầu nếu
+viet_tat_toan_cum	hdtt	hợp đồng tương tự
+viet_tat_toan_cum	ccdyc	chốt chỉ được yêu cầu
+viet_tat_toan_cum	dsd	được sửa đổi
+viet_tat_toan_cum	tbhhb	tàu biển hàng hóa bị
+viet_tat_toan_cum	bhbln	bảo hiểm bảo lãnh này
+viet_tat_toan_cum	nsvt	nhất so với thời
+viet_tat_toan_cum	dnnq	do nhà nước quy
+viet_tat_toan_cum	nvcnd	nghệ và các nội dung
+viet_tat_toan_cum	tvn	tại việt nam
+viet_tat_toan_cum	dthn	đã thực hiện nhiệm
+viet_tat_toan_cum	lgql	lưu giữ quản lý
+viet_tat_toan_cum	ldln	lao động lành nghề
+viet_tat_toan_cum	smtm	sơ mời thầu mục
+viet_tat_toan_cum	thdbk	trường hợp đặc biệt khi
+viet_tat_toan_cum	dta	được tòa án
+viet_tat_toan_cum	duq	được ủy quyền
+viet_tat_toan_cum	vdss	vào để so sánh
+viet_tat_toan_cum	tht	thực hiện theo
+viet_tat_toan_cum	ktv	khác trừ việc
+viet_tat_toan_cum	dmvd	được mời vào đối
+viet_tat_toan_cum	duny	đáp ứng những yêu
+viet_tat_toan_cum	hcr	hại của rượu
+viet_tat_toan_cum	hvctd	huyện và các trường dự
+viet_tat_toan_cum	ttvm	tối thiểu về mức
+viet_tat_toan_cum	pttb	phạt tù từ ba
+viet_tat_toan_cum	ccpc	các chi phí cần
+viet_tat_toan_cum	hmh	hiện một hoặc
