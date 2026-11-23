@@ -13,6 +13,7 @@ venv/
 # Raw training documents & local HTML visual demos (not tracked in repo)
 data/
 visual/
+benchmark/llm_eval_*
 
 # Generated caches & intermediate outputs (keep only pre-built .ftm model)
 output/*
