@@ -1,0 +1,77 @@
+Thời gian nạp RAM: 4.838 s | Cụm: 113,107 | Từ đơn: 3,399 | Khóa: 1,942
+
+
+==================== 1. DOCUMENT-LEVEL HELD-OUT (124 TRAIN DOCS / 32 UNSEEN DOCS - 10,000 CÂU)
+[Build Index Train: SA/LCP=31.43s | Tổng Build=58.02s | KB Train=100,246 cụm] ====================
+Nhóm test              |  Số câu |    Base-1g (T1/T3/PV, ms)    |    Base-2g (T1/T3/PV, ms)    |   Factotum (T1/T3/PV, ms)   
+----------------------------------------------------------------------------------------------------------------------------
+heldout_acronym        |   2,000 |   0.4/  0.9/  3.9% (0.14ms)  |  15.8/ 25.8/ 46.7% (17.66ms) |  24.5/ 31.7/ 93.2% (8.19ms) 
+heldout_missing        |   2,000 |   0.0/  0.0/ 24.9% (0.10ms)  |   0.0/  0.0/ 30.8% (0.12ms)  |  34.0/ 47.9/ 60.9% (2.32ms) 
+heldout_mixed_abbr     |   2,000 |  11.6/ 24.3/ 17.3% (0.15ms)  |  57.9/ 76.2/ 68.9% (0.62ms)  |  67.6/ 79.8/ 80.3% (4.99ms) 
+heldout_unacc_in_kb    |     983 |  54.1/ 80.8/ 55.6% (0.14ms)  |  99.4/100.0/ 99.8% (0.17ms)  |  99.9/100.0/100.0% (2.07ms) 
+heldout_unacc_novel    |   3,017 |  42.2/ 68.6/ 43.6% (0.13ms)  |  89.7/ 98.1/ 91.1% (0.18ms)  |  86.2/ 96.3/ 90.4% (2.80ms) 
+----------------------------------------------------------------------------------------------------------------------------
+TỔNG CỘNG              |  10,000 |  20.5/ 33.7/ 27.9% (0.13ms)  |  51.6/ 59.9/ 66.6% (3.75ms)  |  61.0/ 70.7/ 84.0% (4.15ms) 
+Vượt Base-1g: +40.6% Top-1 | Vượt Base-2g: +9.5% Top-1 | Engine: 41.49s (Wall: 80.79s) | P50=2.20ms | P95=14.03ms | P99=27.13ms | Max=679.21ms | 241 câu/s
+
+Confidence Calibration:
+  90-100%  | n=3,842 | avg= 95.4% | Top-1= 65.9% | Top-3= 74.3% | PhraseValid= 99.6%
+  70-90%   | n=2,173 | avg= 80.3% | Top-1= 70.2% | Top-3= 79.5% | PhraseValid= 92.5%
+  50-70%   | n=1,984 | avg= 57.6% | Top-1= 63.6% | Top-3= 74.7% | PhraseValid= 78.5%
+  30-50%   | n=1,339 | avg= 44.3% | Top-1= 47.9% | Top-3= 60.0% | PhraseValid= 62.0%
+  <30%     | n=  662 | avg= 10.1% | Top-1= 21.5% | Top-3= 31.3% | PhraseValid= 26.1%
+  ECE (Top-1) = 16.0% | ECE (PhraseValid) = 11.8%
+
+Mẫu các câu lệch Top-1 (hiển thị 12/3,896, toàn bộ lưu tại failures.csv):
+  - [heldout_unacc_novel] 'khai thi nha thau' -> Kỳ vọng: 'khai thì nhà thầu' | Top-1: 'khai thí nhà thầu' (conf=0.43, 21.40ms)
+  - [heldout_missing] 'va nhan' -> Kỳ vọng: 'và cá nhân' | Top-1: 'và nhân' (conf=0.99, 2.83ms)
+  - [heldout_acronym] 'vtdnc' -> Kỳ vọng: 'và tương đương nếu có' | Top-1: 'vụ tài sản do người chết' (conf=0.49, 103.74ms)
+  - [heldout_unacc_novel] 'neu co thue nha' -> Kỳ vọng: 'nếu có thuế nhà' | Top-1: 'nếu có thuê nhà' (conf=0.82, 5.51ms)
+  - [heldout_missing] 'van bang chung' -> Kỳ vọng: 'văn bằng hoặc chứng' | Top-1: 'văn bằng chứng' (conf=0.80, 3.30ms)
+  - [heldout_missing] 'phap uu trong' -> Kỳ vọng: 'pháp ưu đãi trong' | Top-1: 'pháp ưu trong' (conf=0.10, 0.99ms)
+  - [heldout_missing] 'thuc cac' -> Kỳ vọng: 'thực hiện các' | Top-1: 'thực các' (conf=0.99, 4.08ms)
+  - [heldout_unacc_novel] 'xu the phat' -> Kỳ vọng: 'xu thế phát' | Top-1: 'xu thế phạt' (conf=0.10, 1.66ms)
+  - [heldout_mixed_abbr] 'pháp luat cua t' -> Kỳ vọng: 'pháp luật của tòa' | Top-1: 'pháp luật của nước tiếp' (conf=0.76, 3.79ms)
+  - [heldout_acronym] 'cycbg' -> Kỳ vọng: 'cho yêu cầu bắt giữ' | Top-1: 'chủ yếu của biên bản gồm' (conf=0.40, 39.67ms)
+  - [heldout_mixed_abbr] 'thi hanh t' -> Kỳ vọng: 'thi hành tại' | Top-1: 'thi hành án thì' (conf=0.54, 3.60ms)
+  - [heldout_acronym] 'nndt' -> Kỳ vọng: 'ngày nhận được thông' | Top-1: 'nhà nước đầu tư' (conf=0.90, 0.09ms)
+
+
+==================== 2. BỘ TEST CHUẨN (test_cases.json) ====================
+Nhóm test              |  Số câu |    Base-1g (T1/T3/LV, ms)    |    Base-2g (T1/T3/LV, ms)    |   Factotum (T1/T3/LV, ms)   
+----------------------------------------------------------------------------------------------------------------------------
+acronym                |       7 |   0.0/  0.0/  0.0% (0.15ms)  |  28.6/ 57.1/ 85.7% (22.48ms) | 100.0/100.0/100.0% (0.16ms) 
+contextual             |      19 |   0.0/  0.0/  0.0% (0.27ms)  |  36.8/ 42.1/ 52.6% (14.45ms) | 100.0/100.0/ 73.7% (21.95ms)
+first_last_abbr        |      12 |  91.7/ 91.7/ 75.0% (0.17ms)  |  91.7/ 91.7/ 75.0% (0.56ms)  | 100.0/100.0/ 75.0% (24.72ms)
+missing_word           |       6 |   0.0/  0.0/  0.0% (0.08ms)  |   0.0/  0.0/ 50.0% (0.10ms)  | 100.0/100.0/100.0% (2.11ms) 
+mixed_abbr             |       6 |   0.0/  0.0/ 16.7% (0.17ms)  |  66.7/ 66.7/ 83.3% (2.26ms)  | 100.0/100.0/100.0% (30.60ms)
+unaccented             |      10 |  20.0/ 50.0/ 20.0% (0.20ms)  | 100.0/100.0/100.0% (0.22ms)  | 100.0/100.0/100.0% (6.42ms) 
+----------------------------------------------------------------------------------------------------------------------------
+TỔNG CỘNG              |      60 |  21.7/ 26.7/ 20.0% (0.19ms)  |  56.7/ 61.7/ 71.7% (7.58ms)  | 100.0/100.0/ 86.7% (16.26ms)
+Vượt Base-1g: +78.3% Top-1 | Vượt Base-2g: +43.3% Top-1 | Engine: 0.98s (Wall: 1.45s) | P50=12.03ms | P95=49.73ms | P99=57.06ms | Max=78.16ms | 62 câu/s
+
+
+==================== 3. STRESS TEST 10,000 CÂU (FREQUENCY-WEIGHTED) ====================
+Nhóm test              |  Số câu |    Base-1g (T1/T3/LV, ms)    |    Base-2g (T1/T3/LV, ms)    |   Factotum (T1/T3/LV, ms)   
+----------------------------------------------------------------------------------------------------------------------------
+auto_acronym           |   1,500 |   1.5/  3.1/ 21.1% (0.08ms)  |  34.8/ 50.1/ 98.3% (11.28ms) |  72.5/ 89.5/ 99.6% (0.12ms) 
+auto_missing           |   1,500 |   0.0/  0.0/ 34.1% (0.06ms)  |   0.0/  0.0/ 49.9% (0.07ms)  |  73.1/ 98.6/ 99.9% (1.61ms) 
+auto_mixed_abbr        |   2,000 |  14.3/ 32.9/ 39.6% (0.10ms)  |  77.5/ 89.0/ 98.4% (0.41ms)  |  93.2/ 99.0/ 99.9% (4.67ms) 
+auto_unaccented        |   5,000 |  58.6/ 83.7/ 64.2% (0.08ms)  |  98.8/100.0/100.0% (0.09ms)  |  99.5/100.0/100.0% (1.84ms) 
+----------------------------------------------------------------------------------------------------------------------------
+TỔNG CỘNG              |  10,000 |  32.4/ 48.9/ 48.3% (0.08ms)  |  70.1/ 75.3/ 91.9% (1.83ms)  |  90.2/ 98.0/ 99.9% (2.11ms) 
+Vượt Base-1g: +57.9% Top-1 | Vượt Base-2g: +20.1% Top-1 | Engine: 21.15s (Wall: 40.63s) | P50=1.39ms | P95=6.81ms | P99=11.35ms | Max=95.07ms | 473 câu/s
+
+Mẫu các câu lệch Top-1 (hiển thị 12/975, toàn bộ lưu tại failures.csv):
+  - [auto_missing] 'giao theo' -> Kỳ vọng: 'giao hàng theo' | Top-1: 'giao theo' (conf=0.93, 2.59ms)
+  - [auto_acronym] 'cnt' -> Kỳ vọng: 'cho nhà thầu' | Top-1: 'của nhà thầu' (conf=0.99, 0.08ms)
+  - [auto_acronym] 'ccn' -> Kỳ vọng: 'cấp cao nhất' | Top-1: 'của cá nhân' (conf=0.99, 0.15ms)
+  - [auto_acronym] 'cycv' -> Kỳ vọng: 'có yêu cầu về' | Top-1: 'các yêu cầu về' (conf=0.99, 0.08ms)
+  - [auto_missing] 'hanh vi pham' -> Kỳ vọng: 'hành vi vi phạm' | Top-1: 'hành vi phạm' (conf=0.99, 4.10ms)
+  - [auto_missing] 'can khac' -> Kỳ vọng: 'căn cứ khác' | Top-1: 'cần thiết khác' (conf=0.76, 1.20ms)
+  - [auto_missing] 'cac quan' -> Kỳ vọng: 'các cơ quan' | Top-1: 'các quan' (conf=0.90, 4.72ms)
+  - [auto_missing] 'nhan cap' -> Kỳ vọng: 'nhân dân cấp' | Top-1: 'nhân cấp' (conf=0.90, 2.99ms)
+  - [auto_missing] 'cac to' -> Kỳ vọng: 'các yếu tố' | Top-1: 'các tổ' (conf=0.99, 4.88ms)
+  - [auto_missing] 'thau ten' -> Kỳ vọng: 'thầu ghi tên' | Top-1: 'thầu tên' (conf=0.99, 1.97ms)
+  - [auto_mixed_abbr] 'hành nghe t' -> Kỳ vọng: 'hành nghề thực' | Top-1: 'hành nghề trong' (conf=0.99, 11.35ms)
+  - [auto_missing] 'cua ben' -> Kỳ vọng: 'của các bên' | Top-1: 'của bên' (conf=0.99, 3.50ms)

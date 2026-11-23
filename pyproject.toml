@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "factotum-vn-nlp"
+version = "0.1.0"
+description = "Factotum: Vietnamese diacritic restoration, abbreviation expansion, missing-word recovery and graph-based spell correction"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["factotum*"]
+
+[tool.setuptools.package-data]
+"factotum.builder" = ["native/*.dll", "native/*.so", "native/*.dylib", "native/*.cpp"]

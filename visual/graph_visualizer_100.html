@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mô phỏng Vật lý Đồ thị Tri thức (100 Nodes)</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      cursor: grab;
+    }
+    canvas.dragging-node {
+      cursor: grabbing;
+    }
+    canvas.panning {
+      cursor: grabbing;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased flex flex-col h-screen select-none">
+  <!-- Top Bar -->
+  <header class="flex flex-wrap items-center justify-between gap-2.5 px-4 py-2.5 bg-[var(--card)] border-b border-[var(--border)] z-10">
+    <div>
+      <h1 class="text-sm font-bold leading-tight">Đồ Thị Tri Thức Cụm Tối Đại &amp; Markov — 100 Nodes (Vật Lý Thời Gian Thực)</h1>
+      <p class="text-xs text-[var(--muted-foreground)]">
+        100 đỉnh cốt lõi · <span id="stat-edges" class="font-mono">298</span> cạnh có hướng · Kéo trực tiếp bất kỳ node nào để xem lực đàn hồi
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2 text-xs">
+      <!-- Search -->
+      <div class="relative">
+        <input
+          id="search-input"
+          type="text"
+          placeholder="Tìm node (vd: hợp đồng, nhà thầu...)"
+          class="w-48 px-2.5 py-1.5 rounded-md bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+        />
+        <div
+          id="search-dropdown"
+          class="hidden absolute left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-md bg-[var(--card)] border border-[var(--border)] shadow-lg z-30"
+        ></div>
+      </div>
+
+      <!-- Color Mode -->
+      <select
+        id="color-mode"
+        class="px-2 py-1.5 rounded-md bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none"
+      >
+        <option value="comm">Màu theo Cụm cộng đồng</option>
+        <option value="ngram">Màu theo N-gram (1 / 2 / 3)</option>
+      </select>
+
+      <!-- Spacing / Repulsion Slider -->
+      <label class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--background)] border border-[var(--border)]">
+        <span class="text-[var(--muted-foreground)]">Độ giãn</span>
+        <input id="repulsion-slider" type="range" min="100" max="420" value="230" step="10" class="w-20 accent-[var(--primary)]" />
+      </label>
+
+      <!-- Physics Toggle -->
+      <button
+        id="btn-physics"
+        class="px-2.5 py-1.5 rounded-md bg-[var(--background)] border border-[var(--border)] font-medium hover:border-[var(--primary)] transition"
+      >
+        ⏸ Tạm dừng vật lý
+      </button>
+
+      <!-- Reset View -->
+      <button
+        id="btn-reset"
+        class="px-2.5 py-1.5 rounded-md bg-[var(--primary)] text-[var(--primary-foreground)] font-medium hover:opacity-90 transition"
+      >
+        Đặt lại góc nhìn
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="flex flex-1 min-h-0 overflow-hidden relative">
+    <!-- Canvas -->
+    <div id="canvas-wrap" class="flex-1 relative min-w-0 h-full overflow-hidden">
+      <canvas id="graph-canvas" class="w-full h-full"></canvas>
+
+      <!-- Floating Legend -->
+      <div
+        id="legend"
+        class="absolute bottom-3 left-3 px-3 py-2 rounded-lg bg-[var(--card)]/95 border border-[var(--border)] shadow-sm text-xs space-y-1 max-w-sm"
+      ></div>
+
+      <!-- Zoom controls -->
+      <div class="absolute bottom-3 right-3 flex flex-col gap-1">
+        <button id="btn-zoom-in" class="w-8 h-8 rounded-md bg-[var(--card)] border border-[var(--border)] font-bold text-sm hover:opacity-80">+</button>
+        <button id="btn-zoom-out" class="w-8 h-8 rounded-md bg-[var(--card)] border border-[var(--border)] font-bold text-sm hover:opacity-80">−</button>
+      </div>
+    </div>
+
+    <!-- Right Inspector Sidebar -->
+    <aside class="w-76 shrink-0 bg-[var(--card)] border-l border-[var(--border)] flex flex-col h-full overflow-hidden" style="width: 300px;">
+      <div class="p-3 border-b border-[var(--border)]">
+        <div class="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)] mb-1.5">
+          Đỉnh trung tâm (Hubs)
+        </div>
+        <div id="quick-hubs" class="flex flex-wrap gap-1.5"></div>
+      </div>
+
+      <div id="inspector-body" class="flex-1 overflow-y-auto p-3 space-y-3 text-xs"></div>
+    </aside>
+  </div>
+
+  <script>
+    const GRAPH_DATA = {"nodes":[["thầu",40023,1,1,-435.4,54.7],["của",39716,1,2,108.4,-12.8],["hợp",35378,1,6,-215.8,-49.3],["có",31149,1,0,-103.6,151.1],["các",28978,1,1,-209.8,7.8],["và",28065,1,0,-137.2,271.5],["định",27454,1,3,486.5,98.1],["nhà",27385,1,1,-258.3,80.8],["được",26582,1,0,-20.9,208.2],["nhà thầu",23337,2,0,-194.0,226.0],["trong",22370,1,1,-156.9,-102.0],["công",21650,1,1,127.2,-139.6],["hoặc",21469,1,6,68.7,-91.3],["đồng",21190,1,6,2.0,-141.4],["điều",20570,1,3,399.4,-121.1],["theo",19051,1,3,479.1,30.1],["không",18747,1,0,-158.2,172.3],["người",17981,1,0,-66.7,284.6],["với",17945,1,1,-16.7,99.6],["quy",17703,1,3,634.1,187.2],["giá",17130,1,1,-650.0,-16.2],["quy định",15555,2,3,494.5,-89.3],["việc",15373,1,1,-53.5,-37.6],["trường",15227,1,6,-184.6,-170.4],["thực",14897,1,4,267.1,-89.8],["về",14388,1,2,171.0,-81.1],["hợp đồng",14385,2,0,236.1,362.2],["hiện",14239,1,4,78.1,-25.6],["bảo",14166,1,4,170.0,347.9],["trường hợp",13708,2,0,-391.6,453.2],["số",13543,1,6,-324.3,74.5],["thực hiện",12948,2,0,100.3,243.6],["tại",12555,1,3,611.1,-69.6],["cho",12434,1,0,-454.7,126.2],["phải",12185,1,0,-60.0,381.2],["tài",12019,1,6,138.6,-337.8],["hành",11671,1,4,341.9,78.5],["này",11633,1,3,195.9,130.5],["bị",11619,1,0,-120.8,92.5],["chủ",11375,1,5,-347.9,-301.9],["từ",11305,1,6,57.1,133.8],["là",11301,1,6,-444.0,376.3],["thời",11283,1,6,-360.5,179.7],["quyền",11246,1,0,78.3,378.4],["đối",11141,1,1,182.9,85.6],["thì",11140,1,0,-95.0,316.7],["sản",11085,1,6,-0.1,-199.4],["nước",10954,1,1,-292.5,-39.8],["dụng",10866,1,1,365.9,273.1],["thành",10720,1,1,-514.3,-124.8],["pháp",10556,1,5,-104.2,-281.6],["cơ",10485,1,2,-109.3,-479.7],["yêu cầu",10372,2,2,191.1,212.0],["năm",10356,1,6,-51.1,-203.7],["vụ",10291,1,2,272.6,-444.1],["động",10046,1,6,-243.0,-513.7],["dự",9746,1,1,-430.0,-45.1],["đối với",9646,2,0,-368.6,348.4],["thông",9336,1,2,-178.8,-283.6],["quan",9117,1,2,-48.0,-383.2],["cầu",9097,1,2,218.7,-315.1],["nhân",9083,1,5,-247.4,-204.3],["luật",9067,1,5,128.4,-260.7],["hàng",9045,1,6,180.5,-128.3],["tư",9025,1,5,-473.1,-265.1],["đến",8911,1,6,-228.5,-267.4],["khác",8815,1,0,10.6,365.9],["cấp",8812,1,0,256.4,250.6],["để",8550,1,4,290.4,93.3],["ghi",8294,1,6,-310.2,485.3],["phạm",8233,1,4,428.9,351.2],["thể",8173,1,2,-89.6,-136.3],["sự",8164,1,5,-326.8,-196.0],["điểm",8117,1,6,-225.5,305.6],["mục",8087,1,3,461.3,-236.7],["liên",7923,1,2,44.1,-598.4],["xuất",7869,1,6,-136.6,-364.4],["bộ",7852,1,5,197.1,-504.1],["ngày",7807,1,6,-174.3,397.6],["nhận",7798,1,4,97.5,439.0],["sau",7761,1,6,-348.2,245.8],["đã",7672,1,0,139.0,179.7],["vi",7668,1,4,494.5,233.0],["chính",7563,1,2,224.2,-252.8],["một",7513,1,1,-287.5,-139.4],["thuế",7420,1,1,-145.1,37.1],["đầu",7342,1,5,-463.9,-165.5],["sở",7229,1,2,22.6,-348.1],["quy định tại",7202,3,3,637.2,-157.7],["khoản",7128,1,3,381.5,-39.7],["bản",6961,1,2,-10.5,-581.5],["nếu",6911,1,0,33.2,270.4],["hóa",6882,1,6,272.1,6.4],["án",6845,1,2,-53.2,-335.8],["trình",6830,1,1,402.4,74.1],["gói",6793,1,1,-614.3,98.5],["khi",6769,1,0,-44.5,136.6],["gói thầu",6434,2,0,-8.4,524.1],["chức",6279,1,2,494.4,-370.6],["công việc",6267,2,3,315.6,-216.9]],"edges":[[90,93,1206,0.1183],[90,83,429,0.0421],[90,58,273,0.0268],[28,36,479,0.0207],[28,15,2,0.0001],[38,8,537,0.013],[38,39,310,0.0075],[38,66,201,0.0049],[77,62,2525,0.2007],[77,35,471,0.0374],[77,12,383,0.0304],[33,4,1838,0.0709],[33,17,1712,0.066],[33,9,615,0.0237],[83,1,3792,0.3444],[83,25,1260,0.1144],[83,12,535,0.0486],[39,86,4660,0.2274],[39,87,552,0.0269],[39,71,236,0.0115],[98,54,2811,0.2903],[98,83,240,0.0248],[98,24,211,0.0218],[4,23,11280,0.1537],[4,11,2193,0.0299],[4,47,1871,0.0255],[3,71,6725,0.1076],[3,43,2859,0.0457],[3,85,2441,0.039],[11,22,12564,0.3159],[11,94,4778,0.1201],[11,10,1079,0.0271],[99,10,392,0.0709],[99,1,358,0.0648],[99,15,260,0.047],[51,87,8260,0.3193],[51,59,7232,0.2796],[51,71,5329,0.206],[67,63,746,0.0592],[67,8,407,0.0323],[67,3,244,0.0194],[60,1,1344,0.2026],[60,25,629,0.0948],[60,58,227,0.0342],[1,7,8001,0.0797],[1,9,4360,0.0434],[1,17,3932,0.0392],[48,96,768,0.075],[48,44,648,0.0633],[48,68,459,0.0448],[56,0,8567,0.4206],[56,93,1673,0.0821],[56,38,37,0.0018],[69,78,452,0.0276],[69,30,448,0.0274],[69,42,405,0.0247],[20,56,2557,0.0975],[20,2,698,0.0266],[20,33,613,0.0234],[95,0,10119,0.6551],[95,2,38,0.0025],[95,4,20,0.0013],[97,69,370,0.0715],[97,37,304,0.0587],[97,5,250,0.0483],[27,36,1606,0.1654],[27,2,822,0.0846],[27,84,707,0.0728],[12,16,1726,0.0323],[12,38,1382,0.0259],[12,81,1323,0.0248],[63,92,13008,0.7041],[63,47,763,0.0413],[63,53,97,0.0053],[36,82,6658,0.2879],[36,83,1875,0.0811],[36,12,375,0.0162],[92,91,816,0.0864],[92,46,816,0.0864],[92,82,747,0.0791],[2,13,21902,0.3726],[2,80,11030,0.1876],[2,50,2595,0.0441],[26,15,933,0.0545],[26,5,386,0.0226],[26,16,376,0.022],[96,3,1272,0.1273],[96,58,816,0.0816],[96,8,246,0.0246],[89,37,350,0.0219],[89,34,96,0.006],[89,85,48,0.003],[66,1,721,0.0531],[66,8,668,0.0492],[66,3,622,0.0458],[16,8,4181,0.1065],[16,3,3119,0.0795],[16,34,1369,0.0349],[75,59,5893,0.4119],[75,77,45,0.0031],[75,2,14,0.001],[62,37,1257,0.1429],[62,25,1101,0.1252],[62,1,409,0.0465],[41,7,997,0.0607],[41,17,957,0.0582],[41,69,694,0.0422],[84,10,13067,0.4288],[84,30,1562,0.0513],[84,53,1169,0.0384],[74,11,2570,0.248],[74,99,680,0.0656],[74,63,549,0.053],[78,3,1057,0.0725],[78,79,644,0.0442],[78,69,97,0.0067],[17,37,2578,0.0545],[17,3,1948,0.0412],[17,70,1908,0.0403],[7,0,45816,0.6651],[7,47,3804,0.0552],[7,46,515,0.0075],[9,34,1671,0.0643],[9,16,1366,0.0525],[9,10,1109,0.0426],[61,72,2959,0.2338],[61,11,579,0.0457],[61,5,320,0.0253],[79,28,3345,0.2204],[79,8,1592,0.1049],[79,1,1032,0.068],[37,45,1586,0.0847],[37,40,1467,0.0783],[37,12,1048,0.0559],[53,65,9322,0.2343],[53,12,4363,0.1097],[53,14,1294,0.0325],[47,85,2577,0.0988],[47,49,2248,0.0862],[47,3,661,0.0253],[91,3,10634,0.6494],[91,16,660,0.0403],[91,17,250,0.0153],[50,62,7943,0.4522],[50,61,1360,0.0774],[50,1,1070,0.0609],[70,82,3360,0.1232],[70,36,1221,0.0448],[70,19,1181,0.0433],[34,8,1803,0.0832],[34,3,1221,0.0563],[34,69,514,0.0237],[59,65,1916,0.212],[59,63,816,0.0903],[59,3,776,0.0859],[19,6,26807,0.5111],[19,94,224,0.0043],[19,70,108,0.0021],[21,32,7202,0.2514],[21,1,2546,0.0889],[21,25,867,0.0303],[88,89,1988,0.1591],[88,14,1424,0.114],[88,74,1269,0.1016],[43,1,632,0.0354],[43,5,576,0.0322],[43,52,442,0.0247],[80,96,1827,0.069],[80,42,378,0.0143],[80,78,283,0.0107],[46,76,7941,0.4366],[46,1,611,0.0336],[46,40,590,0.0324],[30,85,1064,0.0755],[30,53,632,0.0448],[30,78,304,0.0216],[87,83,1751,0.1534],[87,68,305,0.0267],[87,4,75,0.0066],[72,39,1861,0.2247],[72,3,333,0.0402],[72,1,283,0.0342],[15,19,8085,0.1689],[15,21,5940,0.1241],[15,88,2828,0.0591],[85,7,2929,0.1309],[85,9,678,0.0303],[85,12,555,0.0248],[49,84,204,0.0124],[49,2,148,0.009],[49,22,125,0.0076],[45,38,16189,0.4147],[45,34,1246,0.0319],[45,9,953,0.0244],[58,59,878,0.0521],[58,64,840,0.0498],[58,30,519,0.0308],[0,47,5333,0.0823],[0,10,4638,0.0715],[0,16,3514,0.0542],[71,1,3600,0.2983],[71,38,1899,0.1574],[71,40,713,0.0591],[42,73,5317,0.2747],[42,45,94,0.0049],[42,41,35,0.0018],[24,27,19864,0.642],[24,36,681,0.022],[24,10,252,0.0081],[31,26,1402,0.0709],[31,97,1336,0.0676],[31,2,1192,0.0603],[10,4,14399,0.2311],[10,47,4903,0.0787],[10,42,3161,0.0507],[94,81,261,0.0455],[94,24,158,0.0276],[94,31,128,0.0223],[23,2,34478,0.8241],[23,1,221,0.0053],[23,35,192,0.0046],[29,9,1645,0.0802],[29,80,714,0.0348],[29,3,612,0.0298],[35,46,8370,0.3409],[35,83,3929,0.16],[35,89,630,0.0257],[64,61,406,0.0515],[64,50,300,0.038],[64,33,282,0.0358],[32,89,3405,0.1495],[32,14,2493,0.1095],[32,74,2069,0.0909],[40,78,3631,0.1024],[40,4,459,0.0129],[40,96,346,0.0098],[82,70,8827,0.4797],[82,37,859,0.0467],[82,19,448,0.0243],[22,10,767,0.0369],[22,31,628,0.0302],[22,16,344,0.0166],[5,4,3883,0.0828],[5,3,1682,0.0359],[5,16,1317,0.0281],[25,22,1396,0.0523],[25,35,889,0.0333],[25,36,793,0.0297],[18,7,5589,0.157],[18,4,1942,0.0546],[18,9,1844,0.0518],[54,93,1398,0.1196],[54,1,571,0.0488],[54,75,234,0.02],[76,10,379,0.0297],[76,4,368,0.0289],[76,35,315,0.0247],[52,25,2538,0.1772],[52,1,1439,0.1005],[52,9,257,0.0179],[93,25,828,0.0884],[93,61,439,0.0469],[93,12,381,0.0407],[14,37,3091,0.117],[14,89,372,0.0141],[14,1,219,0.0083],[73,25,213,0.0139],[73,5,81,0.0053],[73,40,60,0.0039],[81,8,2971,0.1832],[81,38,1782,0.1099],[81,31,804,0.0496],[8,31,1001,0.0207],[8,46,963,0.0199],[8,67,850,0.0176],[86,64,9099,0.9059],[86,16,90,0.009],[86,8,59,0.0059],[65,84,909,0.0283],[65,53,411,0.0128],[65,42,361,0.0112],[68,31,1074,0.0734],[68,24,829,0.0566],[68,28,463,0.0316],[6,32,12291,0.3234],[6,1,4929,0.1297],[6,40,1943,0.0511],[44,18,21073,0.6543],[44,2,12,0.0004],[57,9,1630,0.112],[57,4,914,0.0628],[57,17,521,0.0358],[13,65,5447,0.2022],[13,12,1106,0.0411],[13,15,906,0.0336],[55,51,636,0.0575],[55,46,460,0.0416],[55,10,378,0.0342]]};
+
+    const COMM_NAMES = [
+      "Hành vi & Quyền lợi",
+      "Đấu thầu & Nhà thầu",
+      "Cơ quan & Thủ tục",
+      "Điều khoản & Quy định",
+      "Thực hiện & Vi phạm",
+      "Chủ thể & Pháp luật",
+      "Hợp đồng & Thời hạn"
+    ];
+
+    const NGRAM_NAMES = [
+      "1-gram (Từ đơn lõi)",
+      "2-gram (Cụm 2 từ)",
+      "3-gram (Cụm 3 từ)"
+    ];
+
+    const PALETTE_COMM = [
+      "#3b82f6",
+      "#10b981",
+      "#f59e0b",
+      "#8b5cf6",
+      "#ec4899",
+      "#06b6d4",
+      "#f97316"
+    ];
+
+    const PALETTE_NGRAM = ["#3b82f6", "#10b981", "#ec4899"];
+
+    const nodes = GRAPH_DATA.nodes.map((d, id) => ({
+      id,
+      label: d[0],
+      freq: d[1],
+      ngram: d[2],
+      comm: d[3],
+      x: d[4] * 1.45,
+      y: d[5] * 1.45,
+      vx: 0,
+      vy: 0,
+      r: Math.max(9, Math.min(24, 6.5 + Math.pow(Math.log10(d[1] + 1), 1.75) * 1.55)),
+      outEdges: [],
+      inEdges: [],
+      neighbors: new Set()
+    }));
+
+    const edges = GRAPH_DATA.edges.map((e) => {
+      const obj = { u: e[0], v: e[1], freq: e[2], prob: e[3] };
+      nodes[obj.u].outEdges.push(obj);
+      nodes[obj.v].inEdges.push(obj);
+      nodes[obj.u].neighbors.add(obj.v);
+      nodes[obj.v].neighbors.add(obj.u);
+      return obj;
+    });
+
+    nodes.forEach((n) => {
+      n.outEdges.sort((a, b) => b.prob - a.prob || b.freq - a.freq);
+      n.inEdges.sort((a, b) => b.freq - a.freq || b.prob - a.prob);
+    });
+
+    // Physics & UI state
+    let physicsRunning = true;
+    let repulsionScale = 230; // controls spacing
+    let colorMode = "comm";
+    let selectedId = -1;
+    let hoverId = -1;
+    let draggedNodeId = -1;
+
+    // Camera
+    let camX = 0;
+    let camY = 0;
+    let camScale = 0.58;
+    let isPanning = false;
+    let pointerMoved = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panCamX = 0;
+    let panCamY = 0;
+
+    const canvas = document.getElementById("graph-canvas");
+    const ctx = canvas.getContext("2d");
+    const wrap = document.getElementById("canvas-wrap");
+    const legendEl = document.getElementById("legend");
+    const inspectorBody = document.getElementById("inspector-body");
+
+    function getThemeColors() {
+      const cs = getComputedStyle(document.documentElement);
+      const isLight = document.documentElement.classList.contains("light");
+      return {
+        fg: cs.getPropertyValue("--foreground").trim() || (isLight ? "#0f172a" : "#f8fafc"),
+        muted: cs.getPropertyValue("--muted-foreground").trim() || (isLight ? "#64748b" : "#94a3b8"),
+        edgeBase: isLight ? "rgba(100,116,139,0.26)" : "rgba(148,163,184,0.24)",
+        edgeDim: isLight ? "rgba(100,116,139,0.05)" : "rgba(148,163,184,0.05)",
+        outEdge: "#f59e0b",
+        inEdge: "#06b6d4",
+        labelBg: isLight ? "rgba(255,255,255,0.88)" : "rgba(15,23,42,0.82)",
+        nodeRing: isLight ? "#ffffff" : "#0f172a"
+      };
+    }
+
+    function getNodeColor(n) {
+      if (colorMode === "comm") return PALETTE_COMM[n.comm % PALETTE_COMM.length];
+      return PALETTE_NGRAM[Math.min(2, n.ngram - 1)];
+    }
+
+    function worldToScreen(wx, wy) {
+      return [canvas.clientWidth / 2 + (wx - camX) * camScale, canvas.clientHeight / 2 + (wy - camY) * camScale];
+    }
+
+    function screenToWorld(sx, sy) {
+      return [(sx - canvas.clientWidth / 2) / camScale + camX, (sy - canvas.clientHeight / 2) / camScale + camY];
+    }
+
+    function stepPhysics() {
+      if (!physicsRunning) return;
+
+      const N = nodes.length;
+      const repConst = repulsionScale * 140; // strong repulsion so nodes stay well-separated
+      const springLen = repulsionScale * 0.92;
+      const springK = 0.016;
+      const centerGravity = 0.0022;
+      const damping = 0.84;
+
+      // 1. Pairwise Coulomb repulsion + soft collision spacing
+      for (let i = 0; i < N; i++) {
+        const a = nodes[i];
+        for (let j = i + 1; j < N; j++) {
+          const b = nodes[j];
+          let dx = b.x - a.x;
+          let dy = b.y - a.y;
+          let distSq = dx * dx + dy * dy;
+          if (distSq < 1) {
+            dx = (Math.random() - 0.5) * 2;
+            dy = (Math.random() - 0.5) * 2;
+            distSq = dx * dx + dy * dy;
+          }
+          const dist = Math.sqrt(distSq);
+          const ux = dx / dist;
+          const uy = dy / dist;
+
+          // Repulsion force
+          let f = repConst / (distSq + 600);
+
+          // Extra soft collision padding so labels never overlap
+          const minSep = a.r + b.r + repulsionScale * 0.34;
+          if (dist < minSep) {
+            f += (minSep - dist) * 0.14;
+          }
+
+          const fx = ux * f;
+          const fy = uy * f;
+          a.vx -= fx;
+          a.vy -= fy;
+          b.vx += fx;
+          b.vy += fy;
+        }
+      }
+
+      // 2. Hooke spring attraction along directed Markov edges
+      for (let i = 0; i < edges.length; i++) {
+        const e = edges[i];
+        const a = nodes[e.u];
+        const b = nodes[e.v];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const targetDist = springLen * (1.15 - Math.min(0.45, e.prob * 0.7));
+        const force = (dist - targetDist) * springK * (0.65 + e.prob * 1.4);
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+        a.vx += fx;
+        a.vy += fy;
+        b.vx -= fx;
+        b.vy -= fy;
+      }
+
+      // 3. Gentle center gravity + velocity integration
+      for (let i = 0; i < N; i++) {
+        const n = nodes[i];
+        if (i === draggedNodeId) {
+          n.vx = 0;
+          n.vy = 0;
+          continue;
+        }
+        n.vx -= n.x * centerGravity;
+        n.vy -= n.y * centerGravity;
+        n.vx *= damping;
+        n.vy *= damping;
+
+        const maxV = 18;
+        const vMag = Math.hypot(n.vx, n.vy);
+        if (vMag > maxV) {
+          n.vx = (n.vx / vMag) * maxV;
+          n.vy = (n.vy / vMag) * maxV;
+        }
+        n.x += n.vx;
+        n.y += n.vy;
+      }
+    }
+
+    function drawCurvedEdge(x1, y1, x2, y2, rTarget, color, lineWidth, showArrow, probLabel) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const dist = Math.hypot(dx, dy);
+      if (dist < rTarget + 6) return;
+
+      // Slight quadratic curve so bidirectional edges (A->B and B->A) don't overlap
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2;
+      const curveOffset = Math.min(26, dist * 0.12);
+      const cx = mx - (dy / dist) * curveOffset;
+      const cy = my + (dx / dist) * curveOffset;
+
+      // End point near target node border
+      const tdx = x2 - cx;
+      const tdy = y2 - cy;
+      const tdist = Math.hypot(tdx, tdy) || 1;
+      const ex = x2 - (tdx / tdist) * (rTarget + 3);
+      const ey = y2 - (tdy / tdist) * (rTarget + 3);
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.quadraticCurveTo(cx, cy, ex, ey);
+      ctx.stroke();
+
+      if (showArrow) {
+        const headLen = Math.min(11, Math.max(5.5, lineWidth * 3.4));
+        const angle = Math.atan2(tdy, tdx);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(ex, ey);
+        ctx.lineTo(ex - headLen * Math.cos(angle - Math.PI / 6), ey - headLen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(ex - headLen * Math.cos(angle + Math.PI / 6), ey - headLen * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      if (probLabel) {
+        const lx = 0.25 * x1 + 0.5 * cx + 0.25 * ex;
+        const ly = 0.25 * y1 + 0.5 * cy + 0.25 * ey;
+        ctx.font = "600 10px ui-monospace, monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const tw = ctx.measureText(probLabel).width;
+        ctx.fillStyle = getThemeColors().labelBg;
+        ctx.fillRect(lx - tw / 2 - 3, ly - 7, tw + 6, 14);
+        ctx.fillStyle = color;
+        ctx.fillText(probLabel, lx, ly);
+      }
+    }
+
+    function draw() {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      const theme = getThemeColors();
+      ctx.clearRect(0, 0, w, h);
+
+      const activeId = selectedId !== -1 ? selectedId : hoverId;
+      const activeNode = activeId !== -1 ? nodes[activeId] : null;
+
+      const sx = new Float32Array(nodes.length);
+      const sy = new Float32Array(nodes.length);
+      for (let i = 0; i < nodes.length; i++) {
+        const p = worldToScreen(nodes[i].x, nodes[i].y);
+        sx[i] = p[0];
+        sy[i] = p[1];
+      }
+
+      // 1. Background edges
+      for (let i = 0; i < edges.length; i++) {
+        const e = edges[i];
+        if (activeNode && (e.u === activeId || e.v === activeId)) continue;
+        const radV = nodes[e.v].r * Math.max(0.55, Math.min(1.4, camScale));
+        drawCurvedEdge(
+          sx[e.u],
+          sy[e.u],
+          sx[e.v],
+          sy[e.v],
+          radV,
+          activeNode ? theme.edgeDim : theme.edgeBase,
+          activeNode ? 0.7 : 0.9 + e.prob * 1.4,
+          !activeNode && camScale > 0.48,
+          null
+        );
+      }
+
+      // 2. Highlighted edges of active node
+      if (activeNode) {
+        for (const e of activeNode.inEdges) {
+          const radV = nodes[e.v].r * Math.max(0.55, Math.min(1.4, camScale));
+          drawCurvedEdge(
+            sx[e.u],
+            sy[e.u],
+            sx[e.v],
+            sy[e.v],
+            radV,
+            theme.inEdge,
+            1.8 + e.prob * 2.5,
+            true,
+            `${(e.prob * 100).toFixed(0)}%`
+          );
+        }
+        for (const e of activeNode.outEdges) {
+          const radV = nodes[e.v].r * Math.max(0.55, Math.min(1.4, camScale));
+          drawCurvedEdge(
+            sx[e.u],
+            sy[e.u],
+            sx[e.v],
+            sy[e.v],
+            radV,
+            theme.outEdge,
+            1.8 + e.prob * 2.5,
+            true,
+            `${(e.prob * 100).toFixed(0)}%`
+          );
+        }
+      }
+
+      // 3. Draw nodes + always-clear labels
+      const nodeScale = Math.max(0.55, Math.min(1.4, camScale));
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        const x = sx[i], y = sy[i];
+        if (x < -80 || x > w + 80 || y < -80 || y > h + 80) continue;
+
+        const isFocus = i === activeId;
+        const isNeighbor = activeNode ? activeNode.neighbors.has(i) : false;
+        const rad = n.r * nodeScale * (isFocus ? 1.22 : 1.0);
+
+        ctx.globalAlpha = activeNode ? (isFocus || isNeighbor ? 1.0 : 0.18) : 0.94;
+        ctx.fillStyle = getNodeColor(n);
+        ctx.beginPath();
+        ctx.arc(x, y, rad, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.lineWidth = isFocus ? 2.8 : 1.5;
+        ctx.strokeStyle = isFocus ? theme.fg : theme.nodeRing;
+        ctx.stroke();
+
+        // Label pill below/above node
+        const fontSize = Math.round(Math.max(10.5, Math.min(14, 10 + n.r * 0.14 * nodeScale)));
+        ctx.font = `${isFocus || n.freq > 20000 ? "700" : "500"} ${fontSize}px system-ui, -apple-system, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        const tw = ctx.measureText(n.label).width;
+        const ly = y + rad + 4;
+        ctx.fillStyle = theme.labelBg;
+        ctx.fillRect(x - tw / 2 - 3, ly - 1, tw + 6, fontSize + 3);
+        ctx.fillStyle = theme.fg;
+        ctx.fillText(n.label, x, ly);
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    function animate() {
+      stepPhysics();
+      draw();
+      requestAnimationFrame(animate);
+    }
+
+    function hitTest(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const mx = clientX - rect.left;
+      const my = clientY - rect.top;
+      const nodeScale = Math.max(0.55, Math.min(1.4, camScale));
+      let best = -1;
+      let bestDist = Infinity;
+      for (let i = 0; i < nodes.length; i++) {
+        const [x, y] = worldToScreen(nodes[i].x, nodes[i].y);
+        const rad = Math.max(10, nodes[i].r * nodeScale + 4);
+        const d = Math.hypot(mx - x, my - y);
+        if (d <= rad && d < bestDist) {
+          bestDist = d;
+          best = i;
+        }
+      }
+      return best;
+    }
+
+    function renderLegend() {
+      if (colorMode === "comm") {
+        legendEl.innerHTML =
+          `<div class="font-semibold mb-1">Cụm cộng đồng (100 đỉnh lõi)</div>` +
+          `<div class="grid grid-cols-2 gap-x-3 gap-y-1">` +
+          COMM_NAMES.map(
+            (name, i) =>
+              `<div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${PALETTE_COMM[i]}"></span><span class="truncate">${name}</span></div>`
+          ).join("") +
+          `</div>`;
+      } else {
+        legendEl.innerHTML =
+          `<div class="font-semibold mb-1">Phân loại N-gram</div>` +
+          `<div class="space-y-1">` +
+          NGRAM_NAMES.map(
+            (name, i) =>
+              `<div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${PALETTE_NGRAM[i]}"></span><span>${name}</span></div>`
+          ).join("") +
+          `</div>`;
+      }
+    }
+
+    function updateInspector() {
+      if (selectedId === -1) {
+        inspectorBody.innerHTML = `
+          <div class="text-[var(--muted-foreground)] leading-relaxed space-y-2.5">
+            <p class="font-semibold text-[var(--foreground)]">Tương tác Vật lý Thời gian thực</p>
+            <ul class="list-disc pl-4 space-y-1">
+              <li><b>Kéo trực tiếp 1 node</b> để thấy lực lò xo đàn hồi kéo theo các cụm từ liên quan.</li>
+              <li><b>Kéo vùng trống</b> để di chuyển bản đồ, <b>cuộn chuột</b> để phóng to / thu nhỏ.</li>
+              <li><b>Kéo thanh "Độ giãn"</b> ở trên để đẩy các node xa nhau hơn nữa.</li>
+              <li><b>Click 1 node</b> để xem xác suất chuyển tiếp Markov đi ra (cam) và đi vào (xanh ngọc).</li>
+            </ul>
+          </div>`;
+        return;
+      }
+
+      const n = nodes[selectedId];
+      const outHtml = n.outEdges.length
+        ? n.outEdges
+            .map(
+              (e) => `
+            <button data-jump="${e.v}" class="w-full text-left p-1.5 rounded hover:bg-[var(--background)] border border-transparent hover:border-[var(--border)] transition flex items-center justify-between gap-2">
+              <span class="truncate font-medium">→ ${nodes[e.v].label}</span>
+              <span class="font-mono text-[var(--muted-foreground)] shrink-0">${(e.prob * 100).toFixed(1)}% (${e.freq.toLocaleString()})</span>
+            </button>`
+            )
+            .join("")
+        : `<div class="text-[var(--muted-foreground)] italic">Không có cạnh đi ra trong top 100 node.</div>`;
+
+      const inHtml = n.inEdges.length
+        ? n.inEdges
+            .map(
+              (e) => `
+            <button data-jump="${e.u}" class="w-full text-left p-1.5 rounded hover:bg-[var(--background)] border border-transparent hover:border-[var(--border)] transition flex items-center justify-between gap-2">
+              <span class="truncate font-medium">${nodes[e.u].label} →</span>
+              <span class="font-mono text-[var(--muted-foreground)] shrink-0">${(e.prob * 100).toFixed(1)}% (${e.freq.toLocaleString()})</span>
+            </button>`
+            )
+            .join("")
+        : `<div class="text-[var(--muted-foreground)] italic">Không có cạnh đi vào trong top 100 node.</div>`;
+
+      inspectorBody.innerHTML = `
+        <div class="p-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)] space-y-1.5">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm font-bold">${n.label}</span>
+            <span class="px-1.5 py-0.5 rounded text-[11px] font-mono bg-[var(--card)] border border-[var(--border)]">${n.ngram}-gram</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1 pt-1 text-[var(--muted-foreground)]">
+            <div>Tần suất: <b class="text-[var(--foreground)] font-mono">${n.freq.toLocaleString()}</b></div>
+            <div>Cụm: <b class="text-[var(--foreground)]">${COMM_NAMES[n.comm]}</b></div>
+            <div>Cạnh ra: <b class="text-amber-500 font-mono">${n.outEdges.length}</b></div>
+            <div>Cạnh vào: <b class="text-cyan-500 font-mono">${n.inEdges.length}</b></div>
+          </div>
+        </div>
+        <div>
+          <div class="font-semibold text-amber-500 mb-1">Cạnh Markov đi ra (A → B)</div>
+          <div class="space-y-0.5">${outHtml}</div>
+        </div>
+        <div>
+          <div class="font-semibold text-cyan-500 mb-1">Cạnh đi vào (X → A)</div>
+          <div class="space-y-0.5">${inHtml}</div>
+        </div>`;
+
+      inspectorBody.querySelectorAll("[data-jump]").forEach((btn) => {
+        btn.addEventListener("click", () => focusNode(Number(btn.dataset.jump)));
+      });
+    }
+
+    function focusNode(id) {
+      const n = nodes[id];
+      if (!n) return;
+      selectedId = id;
+      camX = n.x;
+      camY = n.y;
+      camScale = Math.max(camScale, 0.95);
+      updateInspector();
+    }
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.floor(wrap.clientWidth * dpr));
+      canvas.height = Math.max(1, Math.floor(wrap.clientHeight * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function resetView() {
+      camX = 0;
+      camY = 0;
+      const minDim = Math.min(wrap.clientWidth, wrap.clientHeight);
+      camScale = Math.max(0.35, minDim / 1850);
+      selectedId = -1;
+      updateInspector();
+    }
+
+    // Quick Hub Chips
+    const hubNames = ["nhà thầu", "hợp đồng", "quy định", "quy định tại", "trường hợp", "thực hiện", "yêu cầu", "đối với", "gói thầu", "công việc"];
+    const quickHubsEl = document.getElementById("quick-hubs");
+    hubNames.forEach((name) => {
+      const found = nodes.find((n) => n.label === name);
+      if (!found) return;
+      const btn = document.createElement("button");
+      btn.textContent = name;
+      btn.className = "px-2 py-0.5 rounded-full text-xs bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] transition";
+      btn.addEventListener("click", () => focusNode(found.id));
+      quickHubsEl.appendChild(btn);
+    });
+
+    // Search
+    const searchInput = document.getElementById("search-input");
+    const searchDropdown = document.getElementById("search-dropdown");
+    searchInput.addEventListener("input", () => {
+      const q = searchInput.value.trim().toLowerCase();
+      if (!q) {
+        searchDropdown.classList.add("hidden");
+        return;
+      }
+      const hits = nodes.filter((n) => n.label.includes(q)).slice(0, 12);
+      searchDropdown.innerHTML = hits.length
+        ? hits
+            .map(
+              (n) =>
+                `<button data-id="${n.id}" class="w-full text-left px-2.5 py-1.5 hover:bg-[var(--background)] flex items-center justify-between gap-2">
+                  <span class="truncate font-medium">${n.label}</span>
+                  <span class="font-mono text-[var(--muted-foreground)]">${n.freq.toLocaleString()}</span>
+                </button>`
+            )
+            .join("")
+        : `<div class="p-2 text-[var(--muted-foreground)]">Không thấy trong top 100 node</div>`;
+      searchDropdown.querySelectorAll("button").forEach((b) => {
+        b.addEventListener("click", () => {
+          focusNode(Number(b.dataset.id));
+          searchDropdown.classList.add("hidden");
+          searchInput.value = nodes[Number(b.dataset.id)].label;
+        });
+      });
+      searchDropdown.classList.remove("hidden");
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+        searchDropdown.classList.add("hidden");
+      }
+    });
+
+    // Mouse interactions: Drag node OR Pan canvas
+    canvas.addEventListener("mousedown", (e) => {
+      pointerMoved = false;
+      const hit = hitTest(e.clientX, e.clientY);
+      if (hit !== -1) {
+        draggedNodeId = hit;
+        canvas.classList.add("dragging-node");
+      } else {
+        isPanning = true;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        panCamX = camX;
+        panCamY = camY;
+        canvas.classList.add("panning");
+      }
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (draggedNodeId !== -1) {
+        pointerMoved = true;
+        const rect = canvas.getBoundingClientRect();
+        const [wx, wy] = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+        nodes[draggedNodeId].x = wx;
+        nodes[draggedNodeId].y = wy;
+        nodes[draggedNodeId].vx = 0;
+        nodes[draggedNodeId].vy = 0;
+        return;
+      }
+      if (isPanning) {
+        const dx = e.clientX - panStartX;
+        const dy = e.clientY - panStartY;
+        if (Math.hypot(dx, dy) > 3) pointerMoved = true;
+        camX = panCamX - dx / camScale;
+        camY = panCamY - dy / camScale;
+        return;
+      }
+      if (e.target === canvas) {
+        hoverId = hitTest(e.clientX, e.clientY);
+      } else {
+        hoverId = -1;
+      }
+    });
+
+    window.addEventListener("mouseup", (e) => {
+      if (draggedNodeId !== -1) {
+        if (!pointerMoved) {
+          selectedId = draggedNodeId;
+          updateInspector();
+        }
+        draggedNodeId = -1;
+        canvas.classList.remove("dragging-node");
+      } else if (isPanning) {
+        if (!pointerMoved && e.target === canvas) {
+          selectedId = -1;
+          updateInspector();
+        }
+        isPanning = false;
+        canvas.classList.remove("panning");
+      }
+    });
+
+    canvas.addEventListener(
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const [wxBefore, wyBefore] = screenToWorld(mx, my);
+        const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+        camScale = Math.min(3.5, Math.max(0.18, camScale * factor));
+        const [wxAfter, wyAfter] = screenToWorld(mx, my);
+        camX += wxBefore - wxAfter;
+        camY += wyBefore - wyAfter;
+      },
+      { passive: false }
+    );
+
+    // Controls
+    document.getElementById("color-mode").addEventListener("change", (e) => {
+      colorMode = e.target.value;
+      renderLegend();
+    });
+    document.getElementById("repulsion-slider").addEventListener("input", (e) => {
+      repulsionScale = Number(e.target.value);
+    });
+    const btnPhysics = document.getElementById("btn-physics");
+    btnPhysics.addEventListener("click", () => {
+      physicsRunning = !physicsRunning;
+      btnPhysics.textContent = physicsRunning ? "⏸ Tạm dừng vật lý" : "▶ Chạy vật lý";
+    });
+    document.getElementById("btn-reset").addEventListener("click", resetView);
+    document.getElementById("btn-zoom-in").addEventListener("click", () => {
+      camScale = Math.min(3.5, camScale * 1.25);
+    });
+    document.getElementById("btn-zoom-out").addEventListener("click", () => {
+      camScale = Math.max(0.18, camScale / 1.25);
+    });
+
+    window.addEventListener("resize", resize);
+    window.addEventListener("themechange", draw);
+
+    renderLegend();
+    resize();
+    resetView();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
