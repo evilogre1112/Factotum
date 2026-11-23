@@ -28,6 +28,7 @@ from factotum.core.extension import (  # noqa: E402
     get_current_timestamp,
     is_single_consonant_bullet,
     is_valid_vietnamese_syllable,
+    load_dangling_end_words,
     print_progress,
     remove_accents,
     split_and_clean,
@@ -357,11 +358,13 @@ def build_auto_stress_cases(
     engine: GraphQueryEngine, total_target: int = 10000, seed: int = 42
 ) -> list[dict[str, str]]:
     rng = random.Random(seed)
+    dangling_words = load_dangling_end_words()
     pool_2_6 = [
         (p_str, words, freq)
         for p_str, words, freq in engine.phrases
         if 2 <= len(words) <= 6
         and freq >= 2
+        and words[-1] not in dangling_words
         and all(
             w.isalpha()
             and len(w) >= 2
@@ -496,12 +499,13 @@ def run_held_out_benchmark(
             show_progress=False,
         )
 
-        # 4. Trích cụm 3..5 từ từ các văn bản Held-out chưa từng thấy
+        # 4. Trích cụm 3..5 từ trọn nghĩa (không kết thúc bằng từ cụt lủn) từ các văn bản Held-out chưa từng thấy
+        dangling_words = load_dangling_end_words()
         ngram_counts: Counter[str] = Counter()
         for k in (3, 4, 5):
             for i in range(len(held_out_tokens_all) - k + 1):
                 window = held_out_tokens_all[i : i + k]
-                if all(
+                if window[-1] not in dangling_words and all(
                     w.isalpha()
                     and len(w) >= 2
                     and not is_single_consonant_bullet(w)

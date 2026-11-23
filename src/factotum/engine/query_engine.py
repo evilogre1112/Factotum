@@ -239,7 +239,6 @@ class GraphQueryEngine(GraphIndex):
         if not orig_tokens:
             return []
         fallback_phrase = " ".join(orig_tokens)
-        search_k = max(top_k + 6, 10)
 
         raw_tokens, preprocessed = preprocess_tokens(self, orig_tokens)
         class_variants = _expand_class_variants(raw_tokens)
@@ -247,14 +246,14 @@ class GraphQueryEngine(GraphIndex):
         if len(class_variants) == 1:
             norm_tokens, class_slots = class_variants[0]
             raw_matches = self._query_single_variant(
-                norm_tokens, class_slots, raw_query, preprocessed, search_k, allow_missing, max_diff_k
+                norm_tokens, class_slots, raw_query, preprocessed, top_k, allow_missing, max_diff_k
             )
             return _filter_dangling_or_fallback(self, raw_matches, fallback_phrase, top_k)
 
         merged: dict[str, QueryMatch] = {}
         for norm_tokens, class_slots in class_variants:
             for m in self._query_single_variant(
-                norm_tokens, class_slots, raw_query, preprocessed, search_k, allow_missing, max_diff_k
+                norm_tokens, class_slots, raw_query, preprocessed, top_k, allow_missing, max_diff_k
             ):
                 prev = merged.get(m.phrase)
                 if prev is None or (m.confidence, m.freq) > (prev.confidence, prev.freq):

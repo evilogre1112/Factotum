@@ -7,18 +7,28 @@ import time
 import unicodedata
 
 _DANGLING_WORDS_PATH = Path(__file__).resolve().parent.parent / "resources" / "dangling_end_words.txt"
-_DANGLING_CACHE: tuple[Path, float, frozenset[str]] | None = None
+_DANGLING_CACHE: tuple[Path, float, float, frozenset[str]] | None = None
+_DANGLING_RECHECK_INTERVAL_S = 2.0
 
 
-def load_dangling_end_words(path: str | Path | None = None) -> frozenset[str]:
-    """Đọc danh sách từ kết thúc cụt lủn từ file .txt thô (tự động nạp lại khi người dùng sửa file)."""
+def load_dangling_end_words(path: str | Path | None = None, force_reload: bool = False) -> frozenset[str]:
+    """Đọc danh sách từ kết thúc cụt lủn từ file .txt thô (cache trong RAM, tự kiểm tra lại mỗi 2 giây)."""
     global _DANGLING_CACHE, DANGLING_END_WORDS
     target = Path(path) if path is not None else _DANGLING_WORDS_PATH
+    now = time.monotonic()
+    if (
+        not force_reload
+        and _DANGLING_CACHE is not None
+        and _DANGLING_CACHE[0] == target
+        and (now - _DANGLING_CACHE[2]) < _DANGLING_RECHECK_INTERVAL_S
+    ):
+        return _DANGLING_CACHE[3]
     if not target.is_file():
         return frozenset()
     mtime = target.stat().st_mtime
-    if _DANGLING_CACHE is not None and _DANGLING_CACHE[0] == target and _DANGLING_CACHE[1] == mtime:
-        return _DANGLING_CACHE[2]
+    if not force_reload and _DANGLING_CACHE is not None and _DANGLING_CACHE[0] == target and _DANGLING_CACHE[1] == mtime:
+        _DANGLING_CACHE = (target, mtime, now, _DANGLING_CACHE[3])
+        return _DANGLING_CACHE[3]
     words: set[str] = set()
     for line in target.read_text(encoding="utf-8").splitlines():
         clean_line = line.strip().lower()
@@ -28,7 +38,7 @@ def load_dangling_end_words(path: str | Path | None = None) -> frozenset[str]:
             if part:
                 words.add(part)
     result = frozenset(words)
-    _DANGLING_CACHE = (target, mtime, result)
+    _DANGLING_CACHE = (target, mtime, now, result)
     if path is None:
         DANGLING_END_WORDS = result
     return result
