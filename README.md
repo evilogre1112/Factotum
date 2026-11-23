@@ -16,9 +16,9 @@ Factotum chuẩn hóa nhanh câu nhập tiếng Việt gõ tắt, gõ thiếu ho
 | Khôi phục viết tắt theo chữ cái đầu | `xpvphc atgt` | `xử phạt vi phạm hành chính an toàn giao thông` |
 | Tự suy viết tắt theo ngữ cảnh | `quyền sử dd`, `tòa án nd tối cao`, `xkcbsx có bị xử phạt không` | `quyền sử dụng đất`, `tòa án nhân dân tối cao`, `xe không có biển số xe có bị xử phạt không` |
 | Đoán từ bị thiếu ở giữa | `an toan thong` | `an toàn giao thông` |
-| Giải mã Telex thô & ký tự lặp | `buowcs`, `vi pham phappp luat` | `bước`, `vi phạm pháp luật` |
-| Sửa chính tả (OOV & đồng âm) trên câu có dấu | `uống dượu bia phạt bao nhiêu`, `quy định sử lý vi phạm hành chính` | `uống rượu bia phạt bao nhiêu`, `quy định xử lý vi phạm hành chính` |
-| Bảo toàn câu đúng & chặn câu cụt lủn | `chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền`, `bộ tư pháp cho` | Giữ nguyên câu đúng; trả gốc kèm `is_fallback=True` khi kết thúc cụt lủn |
+| Sửa lỗi gõ Telex & lặp phím | `buowcs`, `vi pham phappp luat` | `bước`, `vi phạm pháp luật` |
+| Sửa lỗi chính tả trên câu có dấu | `uống dượu bia phạt bao nhiêu`, `quy định sử lý vi phạm hành chính` | `uống rượu bia phạt bao nhiêu`, `quy định xử lý vi phạm hành chính` |
+| Giữ nguyên câu đúng & tránh câu cụt nghĩa | `chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền`, `bộ tư pháp cho` | Giữ nguyên câu đã gõ đúng; trả lại câu gốc nếu không có gợi ý trọn nghĩa |
 
 ### Ví dụ xử lý theo ngữ cảnh
 
@@ -35,33 +35,33 @@ Cùng một chuỗi nhập nhưng đứng trong ngữ cảnh khác nhau sẽ cho
 
 ### Phạm vi sử dụng và vị trí trong hệ thống
 
-Factotum không dùng Deep Learning hay GPU. Mô hình dựng đồ thị thống kê từ các cụm lặp trong văn bản (Suffix Array + Maximal Repeats + xác suất chuyển tiếp Markov) và đóng vai trò tầng chuẩn hóa đầu vào đứng trước công cụ tìm kiếm hoặc hệ thống hỏi đáp chuyên ngành:
+Factotum không dùng Deep Learning hay GPU. Thay vào đó, công cụ tự học các cụm từ và cách ghép câu hay lặp lại từ chính bộ tài liệu của bạn, rồi đóng vai trò bước làm sạch câu hỏi trước khi đưa vào công cụ tìm kiếm hoặc hệ thống hỏi đáp:
 
 ```text
 Người dùng gõ: "nd 23/24 quy định điều gì"
        ↓
-  [ Factotum ]        Chuẩn hóa đầu vào (~1–2 ms trên CPU)
+  [ Factotum ]        Chuẩn hóa câu nhập (~2 ms trên CPU)
        ↓
 "nghị định 23/24 quy định điều gì"
        ↓
-  [ BM25 + Vector Search ] → [ Reranking ] → Văn bản phù hợp
+  [ Tìm kiếm / Hỏi đáp ] → Văn bản phù hợp
 ```
 
-Factotum chạy tốt nhất trên một trường chủ đề hẹp có thuật ngữ lặp lại ổn định (pháp luật, y tế, kế toán, quy trình hành chính, tài liệu nội bộ), không phù hợp cho văn bản mở đa chủ đề hay ngôn ngữ mạng xã hội.
+Factotum chạy tốt nhất trên một lĩnh vực cụ thể có thuật ngữ lặp lại ổn định (pháp luật, y tế, kế toán, quy trình hành chính, tài liệu nội bộ), không phù hợp cho văn bản mở đa chủ đề hay ngôn ngữ mạng xã hội.
 
 Ưu điểm chính:
-- Chạy trên 1 nhân CPU, không phụ thuộc thư viện ngoài (Python 3.10+).
-- File phân phối `.ftm` gọn (`1,29 MB` trên đĩa, JSON nén `zlib`, không dùng `pickle`), chiếm khoảng `147 MB` RAM khi nạp và khoảng `197 MB` sau khi ấm bộ đệm cho `113.107` cụm.
-- Tốc độ trung bình `1,81 – 2,44 ms/câu` (`P50 = 1,24 – 1,35 ms`, `411 – 552 câu/giây` trên 1 nhân CPU); tự huấn luyện trên `2,62 triệu từ` mất `32,1 giây` với lõi C++ đa nhân.
-- Tách bạch 2 pha **Tạo đáp án thuần** (`search.py`, `context.py`, xếp hạng tập trung theo 7 hạng bằng chứng `evidence_tier` + `finalize_matches` trong `models.py`) và **Hậu kiểm trên cả câu** (`reviewer.py`): hỗ trợ khóa viết tắt phụ âm ghép 2 ký tự (`ng` → `người`, `kh` → `khác`, `nh`, `gh`...), bảo toàn nguyên vẹn câu có dấu đúng chính tả (`20/20`), và dùng file thô [output/dangling_end_words.txt](output/dangling_end_words.txt) để người dùng tự tùy chỉnh danh sách từ không được đứng cuối câu dự đoán.
+- **Gọn nhẹ, chạy offline:** chạy trên CPU thông thường, không cần GPU và không phải cài thêm thư viện ngoài (chỉ cần Python 3.10+).
+- **File mô hình rất nhỏ:** chỉ `1,29 MB` trên đĩa (chiếm khoảng `150 – 200 MB` RAM khi chạy cho hơn `113.000` cụm từ chuyên ngành).
+- **Phản hồi gần như tức thì:** xử lý trung bình khoảng `2 ms` mỗi câu (hơn `400 câu/giây` trên 1 nhân CPU) và tự học xong `2,6 triệu từ` trong khoảng `32 giây`.
+- **Sửa cẩn thận, tránh làm hỏng câu:** hiểu được cả viết tắt ngắn theo chữ cái đầu (`ng` → `người`, `kh` → `khác`...), giữ nguyên các câu đã gõ đúng dấu, và tự trả lại câu gốc nếu không tìm được gợi ý trọn nghĩa (bạn có thể tự thêm/bớt danh sách từ không được đứng cuối câu trong [output/dangling_end_words.txt](output/dangling_end_words.txt)).
 
 Hạn chế:
-- Phụ thuộc độ phủ dữ liệu huấn luyện: thuật ngữ hiếm hoặc từ hoàn toàn mới dễ bị kéo về cụm phổ biến hơn.
-- Chưa đọc hiểu ngữ nghĩa ở cấp độ cả đoạn văn dài.
+- Phụ thuộc vào bộ tài liệu đã học: từ quá hiếm hoặc chưa từng xuất hiện trong tài liệu có thể bị đoán lệch sang cụm phổ biến hơn.
+- Chưa đọc hiểu ngữ nghĩa sâu ở cấp độ cả đoạn văn dài.
 
 ## Cài đặt và sử dụng
 
-Yêu cầu Python 3.10+. Không cần cài thêm gói ngoài: `fit_folder()` tự đọc `.docx` qua `zipfile` + `xml.etree.ElementTree` và `.doc` (Word 97–2003) qua bộ giải mã OLE2 Piece Table viết bằng `struct` trong thư viện chuẩn.
+Yêu cầu Python 3.10+. Không cần cài thêm thư viện ngoài: Factotum tự đọc trực tiếp các file `.txt`, `.docx` và `.doc` (Word cũ).
 
 ### 1. Cài đặt
 
@@ -70,7 +70,7 @@ cd Factotum
 pip install -e .
 ```
 
-Trên Windows, repo có sẵn `src/factotum/builder/native/sa_lcp.dll` (trích xuất `2,62 triệu từ` mất `5,86 giây`, trọn gói `fit()` mất `32,1 giây`). Trên Linux/macOS, nếu chưa biên dịch thư viện động thì code tự lùi về Python thuần (`~93,5 giây` cho bước trích xuất). Để bật bản C++:
+Trên Windows, bản tăng tốc C++ đã được đóng gói sẵn (học `2,62 triệu từ` mất khoảng `32 giây`). Trên Linux/macOS, Factotum vẫn chạy bình thường bằng Python thuần (`~105 giây`); nếu muốn tăng tốc tương đương Windows, bạn chỉ cần chạy thêm 1 lệnh biên dịch:
 
 ```bash
 # Linux
@@ -98,7 +98,7 @@ for item in model.predict("quyền sử dd", top_k=3):
     print(f"{item.phrase} (conf={item.confidence:.0%}, fallback={item.is_fallback})")
 ```
 
-Nếu dự đoán bị kết thúc cụt lủn bởi từ trong [output/dangling_end_words.txt](output/dangling_end_words.txt) (`cho`, `về`, `thì`, `và`...) và không còn phương án trọn nghĩa nào khác, Factotum trả về nguyên văn câu người dùng nhập kèm `item.is_fallback = True` và `item.confidence = 0.0`. File `.txt` này chỉ chứa danh sách từ thô để bạn tự thêm/bớt bất kỳ lúc nào (tự nạp lại sau 2 giây).
+Nếu câu gợi ý bị kết thúc cụt nghĩa bởi các từ trong [output/dangling_end_words.txt](output/dangling_end_words.txt) (`cho`, `về`, `thì`, `và`...) và không còn phương án trọn nghĩa nào khác, Factotum sẽ giữ nguyên câu người dùng nhập (kèm `item.is_fallback = True`). Bạn có thể tự mở file `.txt` này để thêm hoặc bớt từ bất kỳ lúc nào.
 
 ### 3. Tự huấn luyện trên dữ liệu riêng
 
@@ -117,38 +117,35 @@ model = Factotum().fit([
 model.save("my_domain.ftm")
 ```
 
-### 4. Chạy CLI, Unit Test và Benchmark
+### 4. Dùng thử trực tiếp, chạy kiểm thử và Benchmark
 
 ```bash
-python src/app.py                              # Giao diện dòng lệnh tương tác
-python -m unittest discover -s tests -v        # Chạy 23 test (16 unit đa miền + 6 hồi quy mô hình luật + 1 cổng held-out tùy chọn)
-FACTOTUM_RUN_HELDOUT_GATE=1 python -m unittest discover -s tests -v  # Bật thêm cổng held-out 124/32 văn bản (cần thư mục data/)
-python benchmark/run_benchmark.py 10000        # Tái lập toàn bộ benchmark (seed=42)
+python src/app.py                              # Mở giao diện dòng lệnh để gõ thử trực tiếp
+python -m unittest discover -s tests -v        # Chạy bộ kiểm thử tự động (23 bài kiểm tra)
+python benchmark/run_benchmark.py 10000        # Chạy lại toàn bộ bộ đo Benchmark (seed=42)
 ```
 
-## Pipeline hoạt động
+## Cách hoạt động
 
-Factotum gồm 2 luồng tách biệt: luồng huấn luyện (chạy khi nạp tài liệu mới) và luồng dự đoán (chạy trực tiếp trên RAM).
+Factotum gồm 2 luồng tách biệt: **học từ tài liệu** (chạy 1 lần khi nạp tài liệu mới) và **chuẩn hóa câu nhập** (chạy trực tiếp trên RAM).
 
 ![Kiến trúc Pipeline Factotum](docs/images/pipeline_architecture.png)
 
-- Luồng huấn luyện đọc tài liệu cùng lĩnh vực, cắt câu để không ghép nhầm qua dấu câu, trích xuất cụm lặp bằng lõi C++ (tự lùi về Python nếu chưa biên dịch), dựng đồ thị xác suất chuyển tiếp 2 chiều và nén thành file `.ftm`.
-- Luồng dự đoán tách 2 pha: pha sinh xử lý Telex thô và ký tự lặp, phân đoạn ngữ cảnh, tra đồ thị để khớp cụm, chèn từ thiếu hoặc sửa lỗi chính tả, xếp hạng Top-K kèm `confidence`; pha hậu kiểm (`reviewer.py`) kiểm tra lại toàn bộ câu đáp án theo `output/dangling_end_words.txt` và trả về câu gốc (`is_fallback=True`) nếu không còn phương án hợp lệ.
+- **Luồng học tài liệu:** Đọc các tài liệu cùng lĩnh vực, tự tách từng câu để không ghép nhầm qua dấu chấm/phẩy, rút ra các cụm từ chuyên ngành cùng mối liên kết giữa các từ hay đi liền nhau, rồi nén gọn thành 1 file `.ftm`.
+- **Luồng chuẩn hóa câu nhập:** Gồm 2 bước rõ ràng: bước đầu dọn lỗi gõ phím (Telex, lặp phím), dựa vào ngữ cảnh để khôi phục dấu, giải viết tắt, chèn từ thiếu hoặc sửa lỗi chính tả và chấm điểm độ tin cậy; bước sau rà soát lại cả câu để đảm bảo câu trả ra trọn nghĩa (nếu không chắc chắn sẽ giữ nguyên câu gốc).
 
-### Cấu trúc dữ liệu bên trong & thuật ngữ lõi
+![Minh họa cách lưu cụm từ và tra cứu không dấu](docs/images/knowledge_graph_flower.png)
 
-![Minh họa cấu trúc đồ thị cụm tối đại và bảng tra cứu không dấu](docs/images/knowledge_graph_flower.png)
+## Benchmark
+
+### Giải thích nhanh các thuật ngữ đo đạc
 
 | Thuật ngữ | Giải thích ngắn |
 | :--- | :--- |
-| **Suffix Array & LCP** | Sắp xếp mọi hậu tố của văn bản theo thứ tự từ điển kèm độ dài tiền tố chung dài nhất (Longest Common Prefix), giúp tìm toàn bộ cụm lặp trong hàng triệu từ chỉ trong vài giây. |
-| **Maximal Repeats (Cụm lặp tối đại)** | Cụm từ xuất hiện lặp lại và không thể mở rộng thêm về bên trái hay bên phải mà vẫn giữ nguyên tần suất (ví dụ `xử phạt vi phạm hành chính`). Đây là cách mô hình tự rút thuật ngữ chuyên ngành mà không cần từ điển gán nhãn sẵn. |
-| **Đồ thị chuyển tiếp Markov (2 chiều)** | Lưu xác suất một từ đứng ngay sau (`A → B`) hoặc đứng ngay trước (`B ← A`) một từ khác, dùng để ghép cụm không dấu mới và chèn từ bị thiếu ở giữa. |
-| **Bảng tra cứu không dấu (cấp từ đơn)** | Bảng băm ánh xạ từng khóa từ đơn (1 ký tự đầu như `d`, `b`; 2 ký tự đầu+cuối như `dc`, `bc`; hoặc từ không dấu đầy đủ như `co`, `ban`) sang danh sách âm tiết có dấu xếp theo tần suất giảm dần trong $O(1)$. |
-| **OOV (Out-of-Vocabulary)** | Từ hoàn toàn mới chưa từng xuất hiện trong tập văn bản huấn luyện. |
-| **ECE (Expected Calibration Error)** | Sai số trung bình (%) giữa điểm `confidence` mô hình báo ra và tỷ lệ đúng thực tế; ECE càng nhỏ thì `confidence` càng sát xác suất thật. |
-
-## Benchmark
+| **Maximal Repeats (Cụm lặp tối đại)** | Cụm từ xuất hiện lặp lại trọn vẹn trong tài liệu (ví dụ `xử phạt vi phạm hành chính`), được rút tự động bằng thuật toán `Suffix Array & LCP` mà không cần gán nhãn thủ công. |
+| **Đồ thị Markov (2 chiều)** | Lưu xác suất hai từ đứng liền nhau (`A → B` và `B ← A`), giúp ghép câu mới chưa từng thấy nguyên vẹn và đoán từ bị thiếu ở giữa. |
+| **OOV (Out-of-Vocabulary)** | Từ hoàn toàn mới chưa từng xuất hiện trong tập tài liệu đã học. |
+| **ECE (Expected Calibration Error)** | Độ lệch trung bình (%) giữa điểm `confidence` mô hình báo ra và tỷ lệ đúng thực tế; ECE càng nhỏ thì điểm tin cậy càng sát thực tế. |
 
 ### Đọc các chỉ số Top-1, Top-3 và Phrase validity
 
@@ -254,7 +251,7 @@ Số liệu `Base-1g`, `Base-2g` và `Factotum` lấy từ Document-level Held-o
 | Khôi phục dấu (cụm mới) | `42,3%` Top-1 | **`90,9%`** Top-1 (`98,1%` Top-3) | `88,2%` Top-1 (`96,8%` Top-3) | Không hỗ trợ | `79,7% – 85,7%` Top-1 (mục 3) |
 | Khôi phục viết tắt toàn cụm | `0,4%` Top-1 (`4,1%` PV) | `14,3%` Top-1 (`47,0%` PV) | **`24,3%`** Top-1 (**`89,4%`** PV) | Không | `2,2% – 6,6%` Top-1 (`29,6% – 43,8%` PV) |
 | Đoán từ bị thiếu ở giữa | `0%` | `0%` | `33,6%` Top-1 (`60,9%` PV) | Không | `33,3% – 36,8%` Top-1 (`51,7% – 59,0%` PV) |
-| Sửa lỗi chính tả & Telex thô | Không | Không | Hỗ trợ OOV & đồng âm, giữ nguyên câu đúng | Tốt (từng từ đơn) | Tốt |
+| Sửa lỗi chính tả & gõ Telex | Không | Không | Sửa lỗi chính tả, giữ nguyên câu đúng | Tốt (từng từ đơn) | Tốt |
 | Tự huấn luyện trên dữ liệu riêng | Nhanh | Nhanh | `~32 giây` (CPU + C++) / `~105 giây` (Python thuần) | Nhanh | Chậm, thường cần GPU |
 | Dung lượng (Đĩa / RAM) | Vài MB | Vài MB | `1,29 MB` đĩa / `~147–197 MB` RAM | Rất nhỏ | `400 MB` – hàng chục GB* |
 | Tốc độ suy luận | `0,08 ms/câu` (CPU) | `2,38 ms/câu` (CPU) | `1,81 – 2,44 ms/câu` (CPU offline) | `< 1 ms/câu`* | `~15 ms` (batch) – `1,2 s/câu` (cloud) |
