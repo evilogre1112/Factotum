@@ -70,7 +70,9 @@ def expand_query_variants(index: GraphIndex, raw_query: str) -> list[list[list[s
         has_accent = tok != no_accent
         is_vn = is_valid_vietnamese_syllable(tok)
 
-        if has_accent and is_vn and tok in real_vocab:
+        if has_accent and is_vn:
+            # Từ đã có dấu tiếng Việt hợp lệ (kể cả OOV như "nhiêu", "dượu"): giữ nguyên,
+            # không xóa dấu để tra UnaccentedMap hay tách sticky token; lỗi chính tả do tầng spell xử lý.
             per_token_options.append([[[tok]]])
         elif (len(tok) == 1 or is_vn) and (tok in ua_map or no_accent in ua_map):
             cands = ua_map.get(tok) or ua_map[no_accent]

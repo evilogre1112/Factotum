@@ -60,6 +60,13 @@ def is_normalized_anchor(
         if w_self > 0 and w_self > w_alt:
             return True
 
+    # Trong câu đã có dấu, nếu token là âm tiết thanh ngang hợp lệ đứng cạnh từ có dấu
+    # mà đồ thị không có bằng chứng cho biến thể có dấu khác (w_alt == 0), giữ nguyên từ gốc.
+    next_has_accent = bool(next_tok and next_tok != remove_accents(next_tok))
+    prev_has_accent = bool(prev_tok and prev_tok != remove_accents(prev_tok))
+    if (prev_acc or prev_has_accent) and (next_acc or next_has_accent):
+        return True
+
     if cands and cands[0] == tok:
         if prev_acc or next_acc:
             return True

@@ -111,6 +111,22 @@ class TestLegalModelRegression(unittest.TestCase):
         for query, expected in contextual_acronyms.items():
             self.assertEqual(self.model.restore(query), expected, query)
 
+    def test_accented_sentence_typo_and_oov_preservation(self) -> None:
+        """Câu đã có dấu: sửa đúng lỗi chính tả (kể cả câu >12 từ) và không làm hỏng từ đúng hay OOV hợp lệ."""
+        cases = {
+            "người điều khiển xe máy uống dượu bia tham gia giao thông bị phạt bao nhiêu": (
+                "người điều khiển xe máy uống rượu bia tham gia giao thông bị phạt bao nhiêu"
+            ),
+            "uống dượu bia phạt bao nhiêu": "uống rượu bia phạt bao nhiêu",
+            "bảo hiễm xã hội bắt buộc": "bảo hiểm xã hội bắt buộc",
+            "bảo hiễm xã hội một lần tính như thế nào": "bảo hiểm xã hội một lần tính như thế nào",
+            "xử phạt vi phạm hành chính bao nhiêu tiền": "xử phạt vi phạm hành chính bao nhiêu tiền",
+            "nộp phạt vi phạm giao thông ở đâu": "nộp phạt vi phạm giao thông ở đâu",
+            "sữ lý vi phạm hành chính": "xử lý vi phạm hành chính",
+        }
+        for query, expected in cases.items():
+            self.assertEqual(self.model.restore(query), expected, query)
+
     def test_legal_400_scoring_regression_gate(self) -> None:
         """Khóa sàn Top-1 / Top-3 theo từng nhóm trên 400 câu thực tế để phát hiện tụt điểm khi sửa scoring."""
         floors = {

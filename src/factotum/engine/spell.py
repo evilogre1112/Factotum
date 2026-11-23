@@ -50,12 +50,13 @@ def try_graph_spell_correction(
 ) -> list[QueryMatch]:
     """Sửa lỗi chính tả bằng đồ thị cạnh xuôi/ngược kết hợp độ tương đồng âm tiết tiếng Việt."""
     n = len(raw_tokens)
-    if n == 0 or n > 12:
+    if n == 0 or n > 64:
         return []
 
     fwd = index.fwd_graph
     rev = index.rev_graph
     found: dict[str, tuple[tuple[int, int, float, int], QueryMatch]] = {}
+    best_per_pos: list[tuple[int, str, int, float, int]] = []
 
     unacc_positions = {
         idx
@@ -72,12 +73,18 @@ def try_graph_spell_correction(
         next_w = raw_tokens[i + 1] if i + 1 < n else ""
 
         is_nonword = tok not in index.real_vocab and tok not in index.unaccented_map
-        broken_left = bool(prev_w and prev_w in fwd and tok not in fwd[prev_w])
-        broken_right = bool(next_w and next_w in rev and tok not in rev[next_w])
+        orig_l = fwd.get(prev_w, {}).get(tok, 0) if prev_w else 0
+        orig_r = fwd.get(tok, {}).get(next_w, 0) if next_w else 0
+        broken_left = bool(prev_w and prev_w in fwd and orig_l == 0)
+        broken_right = bool(next_w and next_w in rev and orig_r == 0)
 
         if not (is_nonword or broken_left or broken_right):
             continue
         if not is_nonword and tok == remove_accents(tok) and tok in index.unaccented_map:
+            continue
+        # Từ đã có trong từ vựng và nối được với ít nhất 1 lân cận (vd: "giao thông" trong "giao thông ở đâu")
+        # thì không phải lỗi chính tả, tránh sửa bừa làm hỏng từ đúng.
+        if not is_nonword and (orig_l > 0 or orig_r > 0):
             continue
 
         has_l = bool(prev_w and prev_w in fwd)
@@ -93,11 +100,12 @@ def try_graph_spell_correction(
             cand_pool = index.unaccented_map.get(ua0, ())
 
         scored_cands: list[tuple[float, int, int, str]] = []
+        eff_min_sim = min_sim if is_nonword else max(min_sim, 0.72)
         for w in cand_pool:
             if w == tok:
                 continue
             sim = vn_word_similarity(tok, w)
-            if sim < min_sim:
+            if sim < eff_min_sim:
                 continue
             e_l = fwd.get(prev_w, {}).get(w, 0) if prev_w else 0
             e_r = fwd.get(w, {}).get(next_w, 0) if next_w else 0
@@ -109,18 +117,48 @@ def try_graph_spell_correction(
             continue
         scored_cands.sort(key=lambda x: (-round(x[0], 2), -x[1], -x[2]))
 
-        for sim, _, edge_w, w in scored_cands[:6]:
+        pos_best_recorded = False
+        for sim, both_bonus, edge_w, w in scored_cands[:6]:
             fixed_words = raw_tokens[:i] + [w] + raw_tokens[i + 1 :]
-            kb_freq, kb_diff, kb_src = (
-                index.lookup_real_phrase_score(fixed_words, max_diff_k=max_diff_k)
-                if n >= 2
-                else (index.dict_freq.get(w, 0) or index.word_freq.get(w, 0), 0, w)
-            )
+            if n == 1:
+                kb_freq, kb_diff, kb_src = (
+                    index.dict_freq.get(w, 0) or index.word_freq.get(w, 0),
+                    0,
+                    w,
+                )
+            else:
+                # Tra KB trên cả câu (nếu ngắn) hoặc cửa sổ cục bộ quanh vị trí sửa (cho câu dài > 5 từ)
+                kb_freq, kb_diff, kb_src = (
+                    index.lookup_real_phrase_score(fixed_words, max_diff_k=max_diff_k)
+                    if n <= 6
+                    else (0, -1, "")
+                )
+                if kb_freq <= 0:
+                    w_start = max(0, i - 1)
+                    w_end = min(n, i + 2)
+                    kb_freq, kb_diff, kb_src = index.lookup_real_phrase_score(
+                        fixed_words[w_start:w_end], max_diff_k=max_diff_k
+                    )
+                if kb_freq <= 0 and prev_w:
+                    kb_freq, kb_diff, kb_src = index.lookup_real_phrase_score(
+                        [prev_w, w], max_diff_k=max_diff_k
+                    )
+                if kb_freq <= 0 and next_w:
+                    kb_freq, kb_diff, kb_src = index.lookup_real_phrase_score(
+                        [w, next_w], max_diff_k=max_diff_k
+                    )
+
+            # Nếu từ gốc đã nằm trong từ vựng (real-word typo như "sử lý" -> "xử lý"),
+            # bắt buộc phương án sửa phải tạo ra cụm có thật trong KB.
+            if not is_nonword and kb_freq <= 0:
+                continue
             if kb_freq <= 0 and edge_w <= 0:
                 continue
 
+            m_start = max(0, i - 2)
+            m_end = min(n, i + 3)
             m_prob = 1.0
-            for j in range(n - 1):
+            for j in range(m_start, m_end - 1):
                 m_prob *= index.fwd_prob.get(fixed_words[j], {}).get(fixed_words[j + 1], 1e-6)
 
             phrase_str = " ".join(fixed_words)
@@ -133,7 +171,7 @@ def try_graph_spell_correction(
                 source_phrase=kb_src if kb_freq > 0 else "",
                 missing_words=[],
                 context_tier=2 if kb_freq > 0 else 4,
-                context_span_len=n - 1 if kb_freq > 0 else 1,
+                context_span_len=min(n - 1, 2) if kb_freq > 0 else 1,
                 markov_prob=m_prob,
             )
             base_conf = compute_confidence(m)
@@ -143,6 +181,32 @@ def try_graph_spell_correction(
             prev = found.get(phrase_str)
             if prev is None or rank_k < prev[0]:
                 found[phrase_str] = (rank_k, m)
+            if not pos_best_recorded and is_nonword and (kb_freq > 0 or both_bonus > 0):
+                best_per_pos.append((i, w, kb_freq or edge_w, sim, is_kb))
+                pos_best_recorded = True
+
+    if len(best_per_pos) >= 2:
+        combined = list(raw_tokens)
+        min_sim_all = 1.0
+        total_freq = 0
+        for pos_i, rep_w, freq_v, sim_v, _ in best_per_pos:
+            combined[pos_i] = rep_w
+            min_sim_all = min(min_sim_all, sim_v)
+            total_freq += freq_v
+        phrase_str = " ".join(combined)
+        m = QueryMatch(
+            phrase=phrase_str,
+            freq=total_freq // len(best_per_pos),
+            missing_count=0,
+            superstring_diff=0,
+            source_phrase="",
+            missing_words=[],
+            context_tier=2,
+            context_span_len=len(best_per_pos),
+            markov_prob=0.5,
+        )
+        m.confidence = round(min(0.96, compute_confidence(m) * (0.50 + 0.50 * min_sim_all)), 4)
+        found[phrase_str] = ((0, 0, -round(min_sim_all, 3), -total_freq), m)
 
     if not found:
         return []
