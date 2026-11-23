@@ -44,6 +44,20 @@ def is_normalized_anchor(
     )
     fwd = index.fwd_graph
 
+    next_has_accent = bool(next_tok and next_tok != remove_accents(next_tok))
+    prev_has_accent = bool(prev_tok and prev_tok != remove_accents(prev_tok))
+    if (prev_acc or prev_has_accent) and (next_acc or next_has_accent):
+        # Khi từ thanh ngang đứng giữa 2 từ đã có dấu (vd: "mất bao lâu", "tối đa bao lâu"),
+        # chỉ đổi sang biến thể có dấu c nếu cả cụm 3 từ [prev_tok, c, next_tok] thực sự tồn tại trong KB.
+        real_3gram_alt = any(
+            fwd.get(prev_tok, {}).get(c, 0) > 0
+            and fwd.get(c, {}).get(next_tok, 0) > 0
+            and index.lookup_real_phrase_score([prev_tok, c, next_tok])[0] > 0
+            for c in cands
+            if c != tok
+        )
+        return not real_3gram_alt
+
     if prev_acc:
         w_self = fwd.get(prev_tok, {}).get(tok, 0)
         w_alt = max((fwd.get(prev_tok, {}).get(c, 0) for c in cands if c != tok), default=0)
@@ -59,13 +73,6 @@ def is_normalized_anchor(
             return False
         if w_self > 0 and w_self > w_alt:
             return True
-
-    # Trong câu đã có dấu, nếu token là âm tiết thanh ngang hợp lệ đứng cạnh từ có dấu
-    # mà đồ thị không có bằng chứng cho biến thể có dấu khác (w_alt == 0), giữ nguyên từ gốc.
-    next_has_accent = bool(next_tok and next_tok != remove_accents(next_tok))
-    prev_has_accent = bool(prev_tok and prev_tok != remove_accents(prev_tok))
-    if (prev_acc or prev_has_accent) and (next_acc or next_has_accent):
-        return True
 
     if cands and cands[0] == tok:
         if prev_acc or next_acc:
@@ -507,6 +514,14 @@ def query_with_context(
                     f_candidates_map[m.phrase] = m
 
         f_candidates = sorted(f_candidates_map.values(), key=rank_key)[: MAX_CTX_CANDIDATES * 3]
+        is_unmapped_oov_in_accented = (
+            sentence_has_accent
+            and len(seg_tokens) == 1
+            and seg_tokens[0] not in index.unaccented_map
+            and not index.get_acronym_pids(seg_tokens[0])
+        )
+        if is_unmapped_oov_in_accented and not any(m.superstring_diff >= 0 for m in f_candidates):
+            f_candidates = []
         if not f_candidates:
             for i in range(len(sentence_beam)):
                 bw, wt, tcs, tcf, tm, mw, ld, ls, mp = sentence_beam[i]
@@ -562,6 +577,10 @@ def query_with_context(
                 scored.append((sort_k, f_m, ctx_info))
 
             scored.sort(key=lambda x: x[0])
+            if is_unmapped_oov_in_accented and (left_ctx or right_ctx) and scored and scored[0][2][0] >= 4:
+                # Nếu tách từ OOV (vd: "chip" -> "chi phí") không khớp ngữ cảnh xung quanh trong KB (tier >= 4), giữ nguyên từ OOV.
+                next_beam.append((bw + seg_tokens, max(wt, 5), tcs, tcf, tm, mw, -1, "", mp * 1e-6))
+                continue
             for _, f_m, (tier, span_len, ctx_freq, ctx_diff, ctx_src) in scored[: max(top_k, 5)]:
                 f_words = f_m.phrase.split()
                 f_stands_alone = (

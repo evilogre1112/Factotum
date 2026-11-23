@@ -86,6 +86,9 @@ def try_graph_spell_correction(
         # thì không phải lỗi chính tả, tránh sửa bừa làm hỏng từ đúng.
         if not is_nonword and (orig_l > 0 or orig_r > 0):
             continue
+        # Từ đã có dấu hợp lệ trong từ điển nằm ở biên câu dài (>= 3 từ) thiếu 1 bên ngữ cảnh thì giữ nguyên.
+        if not is_nonword and tok != remove_accents(tok) and n >= 3 and (i == 0 or i == n - 1):
+            continue
 
         has_l = bool(prev_w and prev_w in fwd)
         has_r = bool(next_w and next_w in rev)
@@ -100,9 +103,13 @@ def try_graph_spell_correction(
             cand_pool = index.unaccented_map.get(ua0, ())
 
         scored_cands: list[tuple[float, int, int, str]] = []
-        eff_min_sim = min_sim if is_nonword else max(min_sim, 0.72)
+        eff_min_sim = min_sim if is_nonword else max(min_sim, 0.75)
+        tok_has_tone = tok != remove_accents(tok)
         for w in cand_pool:
             if w == tok:
+                continue
+            # Nếu từ gốc đã có dấu trong từ điển (vd: "gì", "đỏ", "sổ"), không xóa dấu thanh về từ không dấu ("ghi").
+            if not is_nonword and tok_has_tone and w == remove_accents(w):
                 continue
             sim = vn_word_similarity(tok, w)
             if sim < eff_min_sim:
@@ -126,33 +133,33 @@ def try_graph_spell_correction(
                     0,
                     w,
                 )
+            elif n == 2:
+                kb_freq, kb_diff, kb_src = index.lookup_real_phrase_score(
+                    fixed_words, max_diff_k=max_diff_k
+                )
             else:
-                # Tra KB trên cả câu (nếu ngắn) hoặc cửa sổ cục bộ quanh vị trí sửa (cho câu dài > 5 từ)
+                # Với câu >= 3 từ: bắt buộc cửa sổ 3 từ thực tế quanh vị trí sửa phải tồn tại trong KB
+                # (không hạ xuống 2-gram 1 phía để tránh sửa sai kiểu "vượt đèn đỏ bị" -> "vượt đèn đó bị").
                 kb_freq, kb_diff, kb_src = (
                     index.lookup_real_phrase_score(fixed_words, max_diff_k=max_diff_k)
                     if n <= 6
                     else (0, -1, "")
                 )
                 if kb_freq <= 0:
-                    w_start = max(0, i - 1)
-                    w_end = min(n, i + 2)
+                    if i == 0:
+                        win3 = fixed_words[0:3]
+                    elif i == n - 1:
+                        win3 = fixed_words[n - 3 : n]
+                    else:
+                        win3 = fixed_words[i - 1 : i + 2]
                     kb_freq, kb_diff, kb_src = index.lookup_real_phrase_score(
-                        fixed_words[w_start:w_end], max_diff_k=max_diff_k
-                    )
-                if kb_freq <= 0 and prev_w:
-                    kb_freq, kb_diff, kb_src = index.lookup_real_phrase_score(
-                        [prev_w, w], max_diff_k=max_diff_k
-                    )
-                if kb_freq <= 0 and next_w:
-                    kb_freq, kb_diff, kb_src = index.lookup_real_phrase_score(
-                        [w, next_w], max_diff_k=max_diff_k
+                        win3, max_diff_k=max_diff_k
                     )
 
-            # Nếu từ gốc đã nằm trong từ vựng (real-word typo như "sử lý" -> "xử lý"),
-            # bắt buộc phương án sửa phải tạo ra cụm có thật trong KB.
+            # Mọi phép sửa chính tả phải có cụm thực tế trong KB (hoặc từ OOV nối khớp cả 2 đầu trong đồ thị).
             if not is_nonword and kb_freq <= 0:
                 continue
-            if kb_freq <= 0 and edge_w <= 0:
+            if is_nonword and kb_freq <= 0 and both_bonus == 0:
                 continue
 
             m_start = max(0, i - 2)

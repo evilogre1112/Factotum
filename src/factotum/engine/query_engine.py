@@ -145,12 +145,19 @@ class GraphQueryEngine(GraphIndex):
                     m.confidence = compute_confidence(m)
                 return _restore_class_tokens(ctx_matches, class_slots)
 
-        variants = expand_query_variants(self, effective_query)
+        if sentence_has_accent and not has_unknown:
+            # Mọi từ trong câu đã có dấu đều đã được xác nhận là từ neo chuẩn (anchor):
+            # khóa cứng các từ neo, không bung lại từ thanh ngang ("bao", "chi") qua UnaccentedMap.
+            variants = [[[t] for t in norm_tokens]]
+            eff_allow_missing = False
+        else:
+            variants = expand_query_variants(self, effective_query)
+            eff_allow_missing = allow_missing
         all_matches: dict[str, QueryMatch] = {}
 
         for columns in variants:
             matches = search_variant(
-                self, columns, allow_missing=allow_missing, max_diff_k=max_diff_k
+                self, columns, allow_missing=eff_allow_missing, max_diff_k=max_diff_k
             )
             for m in matches:
                 prev = all_matches.get(m.phrase)
