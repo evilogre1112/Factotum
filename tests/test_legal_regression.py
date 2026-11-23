@@ -130,6 +130,11 @@ class TestLegalModelRegression(unittest.TestCase):
             "tạm trú tạm vắng đăng ký online được không": "tạm trú tạm vắng đăng ký online được không",
             "trốn đóng bảo hiểm xã hội bị xử lý thế nào": "trốn đóng bảo hiểm xã hội bị xử lý thế nào",
             "khởi kiện đòi nợ cần chuẩn bị hồ sơ gì": "khởi kiện đòi nợ cần chuẩn bị hồ sơ gì",
+            "sử lý vi phạm hành chính": "xử lý vi phạm hành chính",
+            "quy định sử lý vi phạm hành chính": "quy định xử lý vi phạm hành chính",
+            "người có thẩm quyền sử phạt vi phạm hành chính": "người có thẩm quyền xử phạt vi phạm hành chính",
+            "việc sử lý vi phạm hành chính": "việc xử lý vi phạm hành chính",
+            "xử phạt vi phạm hành chính và sử lý vi phạm": "xử phạt vi phạm hành chính và xử lý vi phạm",
         }
         for query, expected in cases.items():
             self.assertEqual(self.model.restore(query), expected, query)

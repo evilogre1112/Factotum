@@ -321,6 +321,35 @@ def _decompose_vn_features(word: str) -> tuple[str, str, int]:
     return remove_accents(word), "".join(mod_chars), tone
 
 
+_VN_HOMOPHONE_ONSET_GROUPS = (
+    frozenset({"s", "x"}),
+    frozenset({"ch", "tr"}),
+    frozenset({"d", "gi", "r"}),
+    frozenset({"l", "n"}),
+    frozenset({"c", "k", "q"}),
+    frozenset({"g", "gh"}),
+    frozenset({"ng", "ngh"}),
+)
+
+
+def is_vn_orthographic_confusion(word_a: str, word_b: str) -> bool:
+    """Kiểm tra 2 từ có phải cặp nhầm chính tả đồng âm tiếng Việt (s/x, ch/tr, d/gi/r, l/n cùng vần+dấu, hoặc hỏi/ngã cùng âm)."""
+    if not word_a or not word_b or word_a == word_b:
+        return False
+    _, mod_a, tone_a = _decompose_vn_features(word_a)
+    _, mod_b, tone_b = _decompose_vn_features(word_b)
+    if mod_a == mod_b:
+        return (tone_a, tone_b) in ((3, 4), (4, 3))
+    if tone_a != tone_b:
+        return False
+    va = next((i for i, c in enumerate(mod_a) if c in _ALL_PLAIN_VOWELS), -1)
+    vb = next((i for i, c in enumerate(mod_b) if c in _ALL_PLAIN_VOWELS), -1)
+    if va == -1 or vb == -1 or mod_a[va:] != mod_b[vb:]:
+        return False
+    onset_a, onset_b = mod_a[:va], mod_b[:vb]
+    return any(onset_a in g and onset_b in g for g in _VN_HOMOPHONE_ONSET_GROUPS)
+
+
 def vn_word_similarity(raw_word: str, candidate: str) -> float:
     """Đo độ tương đồng âm tiết tiếng Việt [0.0 .. 1.0] theo khung không dấu, dấu mũ/móc, thanh điệu và phần vần."""
     if not raw_word or not candidate:

@@ -2,6 +2,7 @@ from factotum.core.extension import (
     collapse_repeated_chars,
     decode_telex_word,
     is_valid_vietnamese_syllable,
+    is_vn_orthographic_confusion,
     remove_accents,
     vn_word_similarity,
 )
@@ -82,13 +83,13 @@ def try_graph_spell_correction(
             continue
         if not is_nonword and tok == remove_accents(tok) and tok in index.unaccented_map:
             continue
-        # Từ đã có trong từ vựng và nối được với ít nhất 1 lân cận (vd: "giao thông" trong "giao thông ở đâu")
-        # thì không phải lỗi chính tả, tránh sửa bừa làm hỏng từ đúng.
-        if not is_nonword and (orig_l > 0 or orig_r > 0):
+        # Nếu từ đã nằm trong từ vựng và nối khớp cả 2 đầu hiện có thì không phải lỗi chính tả.
+        if not is_nonword and not broken_left and not broken_right:
             continue
-        # Từ đã có dấu hợp lệ trong từ điển nằm ở biên câu dài (>= 3 từ) thiếu 1 bên ngữ cảnh thì giữ nguyên.
-        if not is_nonword and tok != remove_accents(tok) and n >= 3 and (i == 0 or i == n - 1):
-            continue
+        one_side_connected_in_vocab = not is_nonword and (orig_l > 0 or orig_r > 0)
+        at_long_boundary_in_vocab = (
+            not is_nonword and tok != remove_accents(tok) and n >= 3 and (i == 0 or i == n - 1)
+        )
 
         has_l = bool(prev_w and prev_w in fwd)
         has_r = bool(next_w and next_w in rev)
@@ -111,12 +112,19 @@ def try_graph_spell_correction(
             # Nếu từ gốc đã có dấu trong từ điển (vd: "gì", "đỏ", "sổ"), không xóa dấu thanh về từ không dấu ("ghi").
             if not is_nonword and tok_has_tone and w == remove_accents(w):
                 continue
+            is_ortho_pair = not is_nonword and is_vn_orthographic_confusion(tok, w)
+            # Từ trong từ điển đã nối được 1 đầu (vd: "quy định sử lý") hoặc ở biên câu dài ("sử lý vi phạm"):
+            # chỉ xét sửa khi (tok, w) là cặp nhầm chính tả đồng âm chuẩn (s/x, ch/tr, d/gi/r, l/n, hỏi/ngã).
+            if (one_side_connected_in_vocab or at_long_boundary_in_vocab) and not is_ortho_pair:
+                continue
             sim = vn_word_similarity(tok, w)
             if sim < eff_min_sim:
                 continue
             e_l = fwd.get(prev_w, {}).get(w, 0) if prev_w else 0
             e_r = fwd.get(w, {}).get(next_w, 0) if next_w else 0
             both_bonus = 1 if (e_l > 0 and e_r > 0) else 0
+            if one_side_connected_in_vocab and has_l and has_r and both_bonus == 0:
+                continue
             edge_w = (e_l + e_r) if (has_l or has_r) else index.dict_freq.get(w, 0)
             scored_cands.append((sim, both_bonus, edge_w, w))
 
@@ -146,15 +154,24 @@ def try_graph_spell_correction(
                     else (0, -1, "")
                 )
                 if kb_freq <= 0:
-                    if i == 0:
-                        win3 = fixed_words[0:3]
-                    elif i == n - 1:
-                        win3 = fixed_words[n - 3 : n]
+                    windows_3: list[list[str]] = []
+                    if 0 < i < n - 1:
+                        windows_3.append(fixed_words[i - 1 : i + 2])
+                        if both_bonus > 0 and is_vn_orthographic_confusion(tok, w):
+                            if i + 2 < n:
+                                windows_3.append(fixed_words[i : i + 3])
+                            if i >= 2:
+                                windows_3.append(fixed_words[i - 2 : i + 1])
+                    elif i == 0:
+                        windows_3.append(fixed_words[0:3])
                     else:
-                        win3 = fixed_words[i - 1 : i + 2]
-                    kb_freq, kb_diff, kb_src = index.lookup_real_phrase_score(
-                        win3, max_diff_k=max_diff_k
-                    )
+                        windows_3.append(fixed_words[n - 3 : n])
+                    for win3 in windows_3:
+                        kb_freq, kb_diff, kb_src = index.lookup_real_phrase_score(
+                            win3, max_diff_k=max_diff_k
+                        )
+                        if kb_freq > 0:
+                            break
 
             # Mọi phép sửa chính tả phải có cụm thực tế trong KB (hoặc từ OOV nối khớp cả 2 đầu trong đồ thị).
             if not is_nonword and kb_freq <= 0:
