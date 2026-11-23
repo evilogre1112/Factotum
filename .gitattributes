@@ -1,1 +1,2 @@
-visual/*.html linguist-vendored
+visual/** linguist-vendored=true linguist-generated=true linguist-detectable=false
+*.html linguist-detectable=false
