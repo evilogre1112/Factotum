@@ -5,6 +5,7 @@ from factotum.core.extension import (
     clean_word,
     get_compatible_token_classes,
     is_class_token,
+    is_dangling_phrase,
     is_valid_vietnamese_syllable,
     remove_accents,
 )
@@ -22,6 +23,39 @@ from factotum.engine.search import (
     split_sticky_token,
 )
 from factotum.engine.spell import preprocess_tokens, try_graph_spell_correction
+
+
+def _filter_dangling_or_fallback(
+    index: GraphIndex, matches: list[QueryMatch], fallback_phrase: str, top_k: int
+) -> list[QueryMatch]:
+    """Loại bỏ các dự đoán kết thúc cụt lủn; nếu không còn phương án hợp lệ thì trả về câu gốc kèm is_fallback=True."""
+    had_dangling = any(is_dangling_phrase(m.phrase) for m in matches)
+    valid: list[QueryMatch] = []
+    for m in matches:
+        if is_dangling_phrase(m.phrase):
+            continue
+        if had_dangling and m.superstring_diff < 0:
+            words = m.phrase.split()
+            if len(words) >= 2 and index.fwd_graph.get(words[-2], {}).get(words[-1], 0) == 0:
+                continue
+        valid.append(m)
+    if valid:
+        return valid[:top_k]
+    if not fallback_phrase:
+        return []
+    return [
+        QueryMatch(
+            phrase=fallback_phrase,
+            freq=0,
+            missing_count=0,
+            superstring_diff=-1,
+            source_phrase="",
+            missing_words=[],
+            context_tier=5,
+            confidence=0.0,
+            is_fallback=True,
+        )
+    ]
 
 
 def _restore_class_tokens(
@@ -99,11 +133,21 @@ class GraphQueryEngine(GraphIndex):
             if n_raw >= 2 and all(len(t) >= 2 and is_valid_vietnamese_syllable(t) for t in norm_tokens):
                 ua_pids = self.get_ua_pids(" ".join(norm_tokens))
                 if ua_pids and (not allow_missing or len(ua_pids) >= top_k):
-                    return self.pids_to_exact_matches(ua_pids, top_k)
+                    exact = [
+                        m for m in self.pids_to_exact_matches(ua_pids, top_k + 8)
+                        if not is_dangling_phrase(m.phrase)
+                    ]
+                    if exact:
+                        return exact[:top_k]
             elif n_raw == 1 and len(norm_tokens[0]) >= 3 and not is_valid_vietnamese_syllable(norm_tokens[0]):
                 acr_pids = self.get_acronym_pids(norm_tokens[0])
                 if acr_pids:
-                    return self.pids_to_exact_matches(acr_pids, top_k)
+                    exact = [
+                        m for m in self.pids_to_exact_matches(acr_pids, top_k + 8)
+                        if not is_dangling_phrase(m.phrase)
+                    ]
+                    if exact:
+                        return exact[:top_k]
 
         anchor_flags = [
             is_normalized_anchor(
@@ -191,32 +235,36 @@ class GraphQueryEngine(GraphIndex):
         max_diff_k: int = MAX_SUPERSTRING_DIFF_K,
     ) -> list[QueryMatch]:
         """Truy vấn khôi phục dấu, viết tắt, thiếu từ và sửa lỗi chính tả cho 1 câu đầu vào."""
-        raw_tokens = [cleaned for t in raw_query.split() if (cleaned := clean_word(t))]
-        if not raw_tokens:
+        orig_tokens = [cleaned for t in raw_query.split() if (cleaned := clean_word(t))]
+        if not orig_tokens:
             return []
+        fallback_phrase = " ".join(orig_tokens)
+        search_k = max(top_k + 6, 10)
 
-        raw_tokens, preprocessed = preprocess_tokens(self, raw_tokens)
+        raw_tokens, preprocessed = preprocess_tokens(self, orig_tokens)
         class_variants = _expand_class_variants(raw_tokens)
 
         if len(class_variants) == 1:
             norm_tokens, class_slots = class_variants[0]
-            return self._query_single_variant(
-                norm_tokens, class_slots, raw_query, preprocessed, top_k, allow_missing, max_diff_k
+            raw_matches = self._query_single_variant(
+                norm_tokens, class_slots, raw_query, preprocessed, search_k, allow_missing, max_diff_k
             )
+            return _filter_dangling_or_fallback(self, raw_matches, fallback_phrase, top_k)
 
         merged: dict[str, QueryMatch] = {}
         for norm_tokens, class_slots in class_variants:
             for m in self._query_single_variant(
-                norm_tokens, class_slots, raw_query, preprocessed, top_k, allow_missing, max_diff_k
+                norm_tokens, class_slots, raw_query, preprocessed, search_k, allow_missing, max_diff_k
             ):
                 prev = merged.get(m.phrase)
                 if prev is None or (m.confidence, m.freq) > (prev.confidence, prev.freq):
                     merged[m.phrase] = m
 
-        return sorted(
+        ranked = sorted(
             merged.values(),
             key=lambda m: (-round(m.confidence, 4), m.missing_count, -m.freq, -m.markov_prob),
-        )[:top_k]
+        )
+        return _filter_dangling_or_fallback(self, ranked, fallback_phrase, top_k)
 
 
 def main() -> None:
@@ -242,12 +290,16 @@ def main() -> None:
 
         for i, m in enumerate(matches, start=1):
             tag = (
-                "Khớp chính xác"
-                if m.superstring_diff == 0
+                "Trả về câu gốc (kết thúc cụt lủn / không hợp lệ)"
+                if m.is_fallback
                 else (
-                    f"Trong chuỗi tối đại '{m.source_phrase}' (lệch +{m.superstring_diff})"
-                    if m.superstring_diff > 0
-                    else "Lý thuyết Markov"
+                    "Khớp chính xác"
+                    if m.superstring_diff == 0
+                    else (
+                        f"Trong chuỗi tối đại '{m.source_phrase}' (lệch +{m.superstring_diff})"
+                        if m.superstring_diff > 0
+                        else "Lý thuyết Markov"
+                    )
                 )
             )
             miss_info = f" | Thiếu từ: {m.missing_words}" if m.missing_words else ""

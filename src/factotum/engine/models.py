@@ -32,10 +32,13 @@ class QueryMatch:
     context_span_len: int = 0  # Số từ ngữ cảnh chuẩn khớp được quanh F
     markov_prob: float = 0.0   # Xác suất chuỗi Markov P(w1 -> ... -> wn)
     confidence: float = 0.0    # Độ tin cậy tổng hợp [0.0 .. 1.0]
+    is_fallback: bool = False  # True: câu bị cụt lủn / không đoán được nên trả lại nguyên văn câu người dùng nhập
 
 
 def compute_confidence(m: QueryMatch) -> float:
     """Tính độ tin cậy [0.0 .. 1.0] dựa trên mức khớp KB và xác suất Markov."""
+    if m.is_fallback:
+        return 0.0
     if m.context_tier == 1:
         return min(0.99, 0.90 + 0.09 * min(1.0, m.freq / 20.0))
     if m.context_tier in (0, 2) and m.superstring_diff == 0 and m.missing_count == 0:

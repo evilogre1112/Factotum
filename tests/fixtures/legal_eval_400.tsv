@@ -1,13 +1,10 @@
 category	query	expected
-khong_dau_moi	bang gia nay va	bảng giá này và
 khong_dau_moi	kien theo quy	kiện theo quy
 khong_dau_moi	co thue nha	có thuế nhà
 khong_dau_moi	le phan tram	lệ phần trăm
 khong_dau_moi	hoac toa an co tham	hoặc tòa án có thẩm
 khong_dau_moi	hanh quyet dinh cua trong	hành quyết định của trọng
 khong_dau_moi	bao lanh nhu da neu	bảo lãnh như đã nêu
-khong_dau_moi	lam trai nhung	làm trái những
-khong_dau_moi	gay bat loi cho	gây bất lợi cho
 khong_dau_moi	luc hanh vi	lực hành vi
 khong_dau_moi	phan anh tinh	phản ánh tình
 khong_dau_moi	cac ben cung thoa	các bên cùng thỏa
@@ -39,7 +36,6 @@ khong_dau_moi	trong lien danh thoa thuan	trong liên danh thỏa thuận
 khong_dau_moi	cac yeu cau ky	các yêu cầu kỹ
 khong_dau_moi	so hop dong hoac van	số hợp đồng hoặc văn
 khong_dau_moi	nghien co so giao	nghiện cơ sở giáo
-khong_dau_moi	toa an viet nam hoac	tòa án việt nam hoặc
 khong_dau_moi	duoc dai dien	được đại diện
 khong_dau_moi	dong phai bao	đồng phải bao
 khong_dau_moi	thoai he thong	thoại hệ thống
@@ -53,12 +49,10 @@ khong_dau_moi	an con phai quyet	án còn phải quyết
 khong_dau_moi	lanh du thau	lãnh dự thầu
 khong_dau_moi	hang hoa cung	hàng hóa cùng
 khong_dau_moi	chia thanh nhieu phan doc	chia thành nhiều phần độc
-khong_dau_moi	cac goi thau ma	các gói thầu mà
 khong_dau_moi	tai nhom nuoc vung	tại nhóm nước vùng
 khong_dau_moi	chu chot duoc	chủ chốt được
 khong_dau_moi	cau bat giu tau bien	cầu bắt giữ tàu biển
 khong_dau_moi	tri phan viec	trị phần việc
-khong_dau_moi	vao ket luan cua	vào kết luận của
 khong_dau_moi	du phong sau khi giam	dự phòng sau khi giảm
 khong_dau_moi	chu dong cai tien	chủ động cải tiến
 khong_dau_moi	yeu cau ve nhan	yêu cầu về nhãn
@@ -71,19 +65,16 @@ khong_dau_moi	ky thuat nhu	kỹ thuật như
 khong_dau_moi	nha may day	nhà máy dây
 khong_dau_moi	du nha thau	dụ nhà thầu
 khong_dau_moi	dat tai nuoc thanh vien	đặt tại nước thành viên
-khong_dau_moi	tinh cong bo doi voi	tỉnh công bố đối với
 khong_dau_moi	thuat tai bang	thuật tại bảng
 khong_dau_moi	su dung de so	sử dụng để so
 khong_dau_moi	tau nguoi khai thac	tàu người khai thác
 khong_dau_moi	neu linh vuc tong quat	nêu lĩnh vực tổng quát
 khong_dau_moi	duoc nghiem thu it	được nghiệm thu ít
-khong_dau_moi	thanh ly nhung	thanh lý nhưng
 khong_dau_moi	ap dung thong	áp dụng thống
 khong_dau_moi	hop dong chung toi	hợp đồng chúng tôi
 khong_dau_moi	dinh duoc ma	định được mã
 khong_dau_moi	to chuyen gia dua	tổ chuyên gia đưa
 khong_dau_moi	trung thau nha thau co	trúng thầu nhà thầu có
-khong_dau_moi	cac dieu kien ve	các điều kiện về
 khong_dau_moi	chung thuc mot	chứng thực một
 khong_dau_moi	ve ho tich dang ky	về hộ tịch đăng ký
 khong_dau_moi	ben bao lanh cam	bên bảo lãnh cam
@@ -99,14 +90,21 @@ khong_dau_moi	muon hoa chat vat tu	mượn hóa chất vật tư
 khong_dau_moi	nam ve viec thuc	năm về việc thực
 khong_dau_moi	hang nam neu khong truc	hằng năm nếu không trực
 khong_dau_moi	trung thau thi khi huy	trúng thầu thì khi huy
+khong_dau_moi	nhat cua nuoc	nhất của nước
+khong_dau_moi	voi bo giao thong van	với bộ giao thông vận
+khong_dau_moi	dien hop phap cua ho	diện hợp pháp của họ
+khong_dau_moi	thau tu san	thầu tự sản
+khong_dau_moi	phong ve truot gia	phòng về trượt giá
+khong_dau_moi	nang di bien	năng đi biển
+khong_dau_moi	cong ty thanh vien	công ty thành viên
+khong_dau_moi	sau yeu cau toi	sau yêu cầu tối
+khong_dau_moi	lien quan den viec cung	liên quan đến việc cung
 viet_tat_hon_hop	đảm nha t	đảm nhà thầu
 viet_tat_hon_hop	triệu tap cua kiem s	triệu tập của kiểm sát
 viet_tat_hon_hop	không thuoc t	không thuộc trường
 viet_tat_hon_hop	có kha nang t	có khả năng thực
 viet_tat_hon_hop	tại uy ban nhan d	tại ủy ban nhân dân
-viet_tat_hon_hop	khác theo yeu cau t	khác theo yêu cầu tại
 viet_tat_hon_hop	người khoi k	người khởi kiện
-viet_tat_hon_hop	trung gian d	trung gian để
 viet_tat_hon_hop	tên nha t	tên nhà thầu
 viet_tat_hon_hop	chỉ quy dinh linh v	chỉ quy định lĩnh vực
 viet_tat_hon_hop	đáp ung yeu cau c	đáp ứng yêu cầu chủ
@@ -118,7 +116,6 @@ viet_tat_hon_hop	tổ chuc cac k	tổ chức các kỳ
 viet_tat_hon_hop	nhật tru truong h	nhật trừ trường hợp
 viet_tat_hon_hop	cáo chong tham nhung d	cáo chống tham nhũng được
 viet_tat_hon_hop	cung cap ma h	cung cấp mã hàng
-viet_tat_hon_hop	hợp phap c	hợp pháp của
 viet_tat_hon_hop	thì cach tinh doanh t	thì cách tính doanh thu
 viet_tat_hon_hop	đề nghi t	đề nghị trúng
 viet_tat_hon_hop	trong muc nay c	trong mục này chủ
@@ -140,7 +137,6 @@ viet_tat_hon_hop	nộp cho c	nộp cho cơ
 viet_tat_hon_hop	tòa an ra q	tòa án ra quyết
 viet_tat_hon_hop	bảo lanh d	bảo lãnh dự
 viet_tat_hon_hop	toàn ven l	toàn vẹn lãnh
-viet_tat_hon_hop	lao dong thuong binh v	lao động thương binh và
 viet_tat_hon_hop	thống bang de x	thống bảng đề xuất
 viet_tat_hon_hop	hiệu suat c	hiệu suất công
 viet_tat_hon_hop	ngày thang nam lam d	ngày tháng năm làm đơn
@@ -154,13 +150,9 @@ viet_tat_hon_hop	hợp nha thau k	hợp nhà thầu không
 viet_tat_hon_hop	đối voi cac thiet b	đối với các thiết bị
 viet_tat_hon_hop	chữ va dong t	chữ và đồng tiền
 viet_tat_hon_hop	bắt giu t	bắt giữ tàu
-viet_tat_hon_hop	kỹ thuat c	kỹ thuật của
 viet_tat_hon_hop	giá cho t	giá cho từng
-viet_tat_hon_hop	nhật theo don gia m	nhật theo đơn giá mà
-viet_tat_hon_hop	đầu tu doi voi n	đầu tư đối với những
 viet_tat_hon_hop	thành vien nao co q	thành viên nào có quyền
 viet_tat_hon_hop	thầu da co tai c	thầu đã có tại công
-viet_tat_hon_hop	thanh toan c	thanh toán của
 viet_tat_hon_hop	động thiet b	động thiết bị
 viet_tat_hon_hop	các cong v	các công việc
 viet_tat_hon_hop	dân viet nam da d	dân việt nam đã được
@@ -174,9 +166,6 @@ viet_tat_hon_hop	trường hop dich vu p	trường hợp dịch vụ phi
 viet_tat_hon_hop	kinh doanh va xac n	kinh doanh và xác nhận
 viet_tat_hon_hop	kê khai chinh xac t	kê khai chính xác trung
 viet_tat_hon_hop	hiệu luc p	hiệu lực pháp
-viet_tat_hon_hop	họ ten dia chi c	họ tên địa chỉ của
-viet_tat_hon_hop	quy dinh c	quy định các
-viet_tat_hon_hop	hoặc trong lanh tho c	hoặc trong lãnh thổ của
 viet_tat_hon_hop	không hoan thanh do l	không hoàn thành do lỗi
 viet_tat_hon_hop	diện hop phap cua t	diện hợp pháp của thành
 viet_tat_hon_hop	hộ kinh doanh va x	hộ kinh doanh và xác
@@ -192,13 +181,24 @@ viet_tat_hon_hop	với cac p	với các phần
 viet_tat_hon_hop	năng luc cua nha t	năng lực của nhà thầu
 viet_tat_hon_hop	ròng cua n	ròng của nhà
 viet_tat_hon_hop	viện kiem s	viện kiểm sát
-viet_tat_hon_hop	đánh gia l	đánh giá là
 viet_tat_hon_hop	thỏa thuan k	thỏa thuận khung
 viet_tat_hon_hop	việc phan cong trach n	việc phân công trách nhiệm
 viet_tat_hon_hop	đơn vi co nhu c	đơn vị có nhu cầu
-viet_tat_hon_hop	đóng thau v	đóng thầu và
 viet_tat_hon_hop	trưởng bo cong t	trưởng bộ công thương
 viet_tat_hon_hop	có quy dinh k	có quy định khác
+viet_tat_hon_hop	tư khong dien vao b	tư không điền vào bảng
+viet_tat_hon_hop	cấp cong trinh d	cấp công trình được
+viet_tat_hon_hop	trường hop nay thi h	trường hợp này thì hàng
+viet_tat_hon_hop	sau khi don vi c	sau khi đơn vị có
+viet_tat_hon_hop	và cac t	và các tổn
+viet_tat_hon_hop	gia cong ngoai nuoc d	gia công ngoài nước đã
+viet_tat_hon_hop	trong mot h	trong một hồ
+viet_tat_hon_hop	định dung p	định đúng pháp
+viet_tat_hon_hop	khuyết de thay t	khuyết để thay thế
+viet_tat_hon_hop	bản an quyet dinh d	bản án quyết định đã
+viet_tat_hon_hop	hợp dong c	hợp đồng căn
+viet_tat_hon_hop	bảo ve moi t	bảo vệ môi trường
+viet_tat_hon_hop	hợp trung thau k	hợp trúng thầu không
 thieu_1_tu	dong ich	động công ích
 thieu_1_tu	danh thanh vien	danh từng thành viên
 thieu_1_tu	va dau	và đóng dấu
@@ -215,7 +215,6 @@ thieu_1_tu	tren thong	trên hệ thống
 thieu_1_tu	ke tu ngay bao	kể từ ngày thông báo
 thieu_1_tu	chinh ra	chính phủ ra
 thieu_1_tu	va suat cua thiet	và công suất của thiết
-thieu_1_tu	tiep tuc xem ve	tiếp tục xem xét về
 thieu_1_tu	toan quy	toán theo quy
 thieu_1_tu	doc vu hang	đốc cảng vụ hàng
 thieu_1_tu	nay tai muc	này nếu tại mục
@@ -223,10 +222,8 @@ thieu_1_tu	hinh thuc tau	hình thức thuê tàu
 thieu_1_tu	ten rieng cua tau	tên gọi riêng của tàu
 thieu_1_tu	tru hop cong	trừ trường hợp công
 thieu_1_tu	nguoi van chuyen gay	người thuê vận chuyển gây
-thieu_1_tu	phai khai quat de	phải đủ khái quát để
 thieu_1_tu	noi dung cong	nội dung các công
 thieu_1_tu	cac thanh tu	các thành viên tự
-thieu_1_tu	quyen chua cua	quyền bào chữa của
 thieu_1_tu	phi phi	phí lệ phí
 thieu_1_tu	thay theo	thay thế theo
 thieu_1_tu	thau ghi ten thau	thầu ghi tên gói thầu
@@ -241,7 +238,6 @@ thieu_1_tu	ky ket chu	ký kết ghi chú
 thieu_1_tu	bao ve lieu	bảo vệ dữ liệu
 thieu_1_tu	tau nguoi	tàu tên người
 thieu_1_tu	dinh ap theo	định áp dụng theo
-thieu_1_tu	thuoc so cua	thuộc sở hữu của
 thieu_1_tu	xuat so	xuất với số
 thieu_1_tu	nha bi loai truong	nhà thầu bị loại trường
 thieu_1_tu	bao cam	bảo lãnh cam
@@ -261,7 +257,6 @@ thieu_1_tu	voi tri	với giá trị
 thieu_1_tu	cua an cap	của tòa án cấp
 thieu_1_tu	ngoai truong	ngoại tệ trường
 thieu_1_tu	cua chu tu	của chủ đầu tư
-thieu_1_tu	cap tam cua	cấp tạm thời của
 thieu_1_tu	nam chu	nam ghi chú
 thieu_1_tu	giam cong	giám đốc công
 thieu_1_tu	cua nam	của các năm
@@ -270,7 +265,6 @@ thieu_1_tu	tu hop	tư cách hợp
 thieu_1_tu	trong tong	trong bảng tổng
 thieu_1_tu	tuong voi gia tri	tương tự với giá trị
 thieu_1_tu	chi can	chi phí cần
-thieu_1_tu	tai ve	tài sản về
 thieu_1_tu	le ho tich	lệ phí hộ tịch
 thieu_1_tu	nhiem thuc	nhiệm để thực
 thieu_1_tu	dau quy dinh	đầu tư quy định
@@ -287,18 +281,24 @@ thieu_1_tu	gian hien	gian thực hiện
 thieu_1_tu	nham dich	nhằm mục đích
 thieu_1_tu	tai diem	tại thời điểm
 thieu_1_tu	du la tong	dự thầu là tổng
-thieu_1_tu	lam cong ly cua	làm công đại lý của
 thieu_1_tu	tuoc mot quyen	tước một số quyền
 thieu_1_tu	thau trach	thầu có trách
 thieu_1_tu	tai cong	tài chính công
 thieu_1_tu	viec thuc te	việc trong thực tế
-thieu_1_tu	tieu dac biet neu	tiêu thụ đặc biệt nếu
 thieu_1_tu	duyet ket lua	duyệt kết quả lựa
 thieu_1_tu	thue thu dac	thuế tiêu thụ đặc
 thieu_1_tu	la ung	là đáp ứng
 thieu_1_tu	nhiem su	nhiệm dân sự
 thieu_1_tu	mot nam nam	một năm đến năm
-thieu_1_tu	lieu cac	liệu khác các
+thieu_1_tu	toi nhan	tôi xác nhận
+thieu_1_tu	truong pho dan	trường phổ thông dân
+thieu_1_tu	thau chua duoc thong	thầu chưa được hệ thống
+thieu_1_tu	thau cac thanh	thầu của các thành
+thieu_1_tu	hau nghiem trong	hậu quả nghiêm trọng
+thieu_1_tu	co nhieu muc	có nhiều hạng mục
+thieu_1_tu	cau nhan su chu	cầu về nhân sự chủ
+thieu_1_tu	hanh dan	hành vi dân
+thieu_1_tu	cac noi da	các nội dung đã
 viet_tat_toan_cum	hcstg	hạn chế sự tham gia
 viet_tat_toan_cum	tdk	trong điều kiện
 viet_tat_toan_cum	cyck	các yêu cầu khác
@@ -313,7 +313,6 @@ viet_tat_toan_cum	mndh	mười năm đến hai
 viet_tat_toan_cum	xvts	xứ và trụ sở
 viet_tat_toan_cum	tnddk	thẩm nhân dân dự khuyết
 viet_tat_toan_cum	dcktq	được công khai theo quy
-viet_tat_toan_cum	vqdt	vụ quy định tại
 viet_tat_toan_cum	btktn	bốn tháng kể từ ngày
 viet_tat_toan_cum	tnb	trách nhiệm bố
 viet_tat_toan_cum	nbvq	người bảo vệ quyền
@@ -323,15 +322,12 @@ viet_tat_toan_cum	tann	tòa án nước ngoài
 viet_tat_toan_cum	scchs	sở chính của hãng sản
 viet_tat_toan_cum	ltv	là thành viên
 viet_tat_toan_cum	dvk	dịch vụ kỹ
-viet_tat_toan_cum	annt	án nước ngoài tại
 viet_tat_toan_cum	yccct	yêu cầu cung cấp trong
 viet_tat_toan_cum	tdtgt	tham dự thầu gói thầu
-viet_tat_toan_cum	pnc	phải nộp cho
 viet_tat_toan_cum	dhmc	đó hạng mục công
 viet_tat_toan_cum	dtcp	đầu tư cho phép
 viet_tat_toan_cum	ddnch	đại diện nước cộng hòa
 viet_tat_toan_cum	nnb	nhà nước bảng
-viet_tat_toan_cum	dgcl	đây gọi chung là
 viet_tat_toan_cum	nts	nhà thầu sẽ
 viet_tat_toan_cum	ptd	phạm tội đối
 viet_tat_toan_cum	tctcl	tư có thể có lợi
@@ -366,12 +362,10 @@ viet_tat_toan_cum	bct	bị các tài
 viet_tat_toan_cum	dtq	đồng theo quy
 viet_tat_toan_cum	chv	có hành vi
 viet_tat_toan_cum	nvgqk	nại và giải quyết khiếu
-viet_tat_toan_cum	ctcc	cáo tài chính của
 viet_tat_toan_cum	ltttp	lại theo thủ tục phúc
 viet_tat_toan_cum	pttg	phương tiện tham gia
 viet_tat_toan_cum	kcknt	không có khả năng thực
 viet_tat_toan_cum	tcct	ty con công ty
-viet_tat_toan_cum	ycn	yêu cầu nếu
 viet_tat_toan_cum	hdtt	hợp đồng tương tự
 viet_tat_toan_cum	ccdyc	chốt chỉ được yêu cầu
 viet_tat_toan_cum	dsd	được sửa đổi
@@ -398,4 +392,10 @@ viet_tat_toan_cum	hvctd	huyện và các trường dự
 viet_tat_toan_cum	ttvm	tối thiểu về mức
 viet_tat_toan_cum	pttb	phạt tù từ ba
 viet_tat_toan_cum	ccpc	các chi phí cần
-viet_tat_toan_cum	hmh	hiện một hoặc
+viet_tat_toan_cum	tsbd	thông số bảo đảm
+viet_tat_toan_cum	dthhd	đảm thực hiện hợp đồng
+viet_tat_toan_cum	hdht	hợp đồng hoàn thành
+viet_tat_toan_cum	tvktt	thuyền viên khác trong thuyền
+viet_tat_toan_cum	sttvn	sự thỏa thuận với nhau
+viet_tat_toan_cum	ntt	nhà thầu tham
+viet_tat_toan_cum	qhn	quân hằng năm

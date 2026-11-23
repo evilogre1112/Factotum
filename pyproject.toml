@@ -18,4 +18,5 @@ where = ["src"]
 include = ["factotum*"]
 
 [tool.setuptools.package-data]
+"factotum" = ["resources/*.txt"]
 "factotum.builder" = ["native/*.dll", "native/*.so", "native/*.dylib", "native/*.cpp"]

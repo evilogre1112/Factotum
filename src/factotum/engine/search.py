@@ -4,6 +4,7 @@ from factotum.core.extension import (
     clean_word,
     is_class_token,
     is_valid_vietnamese_syllable,
+    load_dangling_end_words,
     remove_accents,
 )
 from factotum.engine.graph_index import GraphIndex
@@ -95,11 +96,18 @@ def expand_query_variants(index: GraphIndex, raw_query: str) -> list[list[list[s
             else:
                 per_token_options.append([[[tok]]])
 
+    dangling_words = load_dangling_end_words()
+    last_tok = raw_tokens[-1]
+    last_is_abbr = len(last_tok) == 1 or not is_valid_vietnamese_syllable(last_tok)
     variants: list[list[list[str]]] = []
     for combo in product(*per_token_options):
         merged: list[list[str]] = []
         for part in combo:
             merged.extend(part)
+        if last_is_abbr and len(merged) >= 2 and len(merged[-1]) > 1:
+            non_dangling_last = [w for w in merged[-1] if w not in dangling_words]
+            if non_dangling_last:
+                merged[-1] = non_dangling_last
         variants.append(merged)
         if len(variants) >= MAX_QUERY_VARIANTS:
             break

@@ -1,9 +1,49 @@
 from datetime import datetime
 import os
+from pathlib import Path
 import re
 import sys
 import time
 import unicodedata
+
+_DANGLING_WORDS_PATH = Path(__file__).resolve().parent.parent / "resources" / "dangling_end_words.txt"
+_DANGLING_CACHE: tuple[Path, float, frozenset[str]] | None = None
+
+
+def load_dangling_end_words(path: str | Path | None = None) -> frozenset[str]:
+    """Đọc danh sách từ kết thúc cụt lủn từ file .txt thô (tự động nạp lại khi người dùng sửa file)."""
+    global _DANGLING_CACHE, DANGLING_END_WORDS
+    target = Path(path) if path is not None else _DANGLING_WORDS_PATH
+    if not target.is_file():
+        return frozenset()
+    mtime = target.stat().st_mtime
+    if _DANGLING_CACHE is not None and _DANGLING_CACHE[0] == target and _DANGLING_CACHE[1] == mtime:
+        return _DANGLING_CACHE[2]
+    words: set[str] = set()
+    for line in target.read_text(encoding="utf-8").splitlines():
+        clean_line = line.strip().lower()
+        if not clean_line:
+            continue
+        for part in re.split(r"[,;\s]+", clean_line):
+            if part:
+                words.add(part)
+    result = frozenset(words)
+    _DANGLING_CACHE = (target, mtime, result)
+    if path is None:
+        DANGLING_END_WORDS = result
+    return result
+
+
+DANGLING_END_WORDS: frozenset[str] = load_dangling_end_words()
+
+
+def is_dangling_phrase(phrase: str, dangling_words: frozenset[str] | None = None) -> bool:
+    """Kiểm tra cụm từ dự đoán có bị kết thúc cụt lủn bởi từ trong file dangling_end_words.txt hay không."""
+    tokens = phrase.strip().lower().split()
+    if not tokens:
+        return False
+    banned = load_dangling_end_words() if dangling_words is None else dangling_words
+    return tokens[-1] in banned
 
 def init_console() -> None:
     """Bật màu ANSI & UTF-8 cho console Windows (chỉ gọi ở CLI, không chạy khi import thư viện)."""

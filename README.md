@@ -117,7 +117,7 @@ model.save("my_domain.ftm")
 
 ```bash
 python src/app.py                              # Giao diện dòng lệnh tương tác
-python -m unittest discover -s tests -v        # Chạy 22 test (15 unit đa miền + 6 hồi quy mô hình luật + 1 cổng held-out tùy chọn)
+python -m unittest discover -s tests -v        # Chạy 23 test (16 unit đa miền + 6 hồi quy mô hình luật + 1 cổng held-out tùy chọn)
 FACTOTUM_RUN_HELDOUT_GATE=1 python -m unittest discover -s tests -v  # Bật thêm cổng held-out 124/32 văn bản (cần thư mục data/)
 python benchmark/run_benchmark.py 10000        # Tái lập toàn bộ benchmark (seed=42)
 ```
