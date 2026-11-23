@@ -10,8 +10,9 @@ dist/
 venv/
 .pytest_cache/
 
-# Raw training documents (not tracked in repo)
+# Raw training documents & local HTML visual demos (not tracked in repo)
 data/
+visual/
 
 # Generated caches & intermediate outputs (keep only pre-built .ftm model)
 output/*

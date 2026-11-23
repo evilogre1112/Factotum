@@ -134,8 +134,6 @@ Factotum gồm 2 luồng tách biệt: luồng huấn luyện (chạy khi nạp 
 
 ![Minh họa cấu trúc đồ thị cụm tối đại và bảng tra cứu không dấu](docs/images/knowledge_graph_flower.png)
 
-*(Thư mục `visual/` có sẵn các file HTML tương tác để phóng to và kéo thả từng nút trên trình duyệt.)*
-
 | Thuật ngữ | Giải thích ngắn |
 | :--- | :--- |
 | **Suffix Array & LCP** | Sắp xếp mọi hậu tố của văn bản theo thứ tự từ điển kèm độ dài tiền tố chung dài nhất (Longest Common Prefix), giúp tìm toàn bộ cụm lặp trong hàng triệu từ chỉ trong vài giây. |
