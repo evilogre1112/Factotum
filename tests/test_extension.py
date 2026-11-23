@@ -10,6 +10,7 @@ from factotum.core.extension import (
     clean_word,
     collapse_repeated_chars,
     decode_telex_word,
+    get_compatible_token_classes,
     is_valid_vietnamese_syllable,
     normalize_vietnamese_tone,
     remove_accents,
@@ -20,6 +21,9 @@ from factotum.core.extension import (
 class TestExtension(unittest.TestCase):
     def test_clean_and_normalize(self) -> None:
         self.assertEqual(clean_word("  Hoà, "), "hòa")
+        self.assertEqual(clean_word("0.4"), "0.4")
+        self.assertEqual(clean_word("0.4."), "0.4")
+        self.assertEqual(get_compatible_token_classes("0.4"), ["<num>", "<code>"])
         self.assertEqual(normalize_vietnamese_tone("thuý"), "thúy")
         self.assertEqual(normalize_vietnamese_tone("quý"), "quý")
         self.assertEqual(remove_accents("đường bộ"), "duong bo")

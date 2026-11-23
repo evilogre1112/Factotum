@@ -424,13 +424,20 @@ def query_with_context(
                 scored.append((sort_k, f_m, ctx_info))
 
             scored.sort(key=lambda x: x[0])
-            if (
+            keep_oov = (
                 is_unmapped_oov_in_accented
                 and (left_ctx or right_ctx)
                 and scored
                 and scored[0][2][0] >= 4
                 and len(scored[0][1].phrase.split()) <= 2
-            ):
+            ) or (
+                left_is_code
+                and scored
+                and scored[0][2][0] >= 5
+                and len(seg_tokens) == 1
+                and not is_valid_vietnamese_syllable(seg_tokens[0])
+            )
+            if keep_oov:
                 next_beam.append((bw + seg_tokens, max(wt, 5), tcs, tcf, tm, mw, -1, "", mp * 1e-6))
                 continue
 

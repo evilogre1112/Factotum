@@ -6,6 +6,7 @@ from factotum.builder.extractor import process_document
 from factotum.core.doc_reader import read_all_files, read_single_file
 from factotum.core.extension import format_duration, init_console, print_progress
 from factotum.engine import GraphQueryEngine
+from factotum.engine.models import OUTPUT_DIR
 
 SRC_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SRC_DIR.parent
@@ -163,7 +164,7 @@ def show_stats(engine: GraphQueryEngine) -> None:
     print(f"- Số cụm tri thức (KnowledgeBase): {len(engine.phrases):,}")
     print(f"- Số từ đơn có dấu (Real Vocab):   {len(engine.real_vocab):,}")
     print(f"- Số khóa không dấu & viết tắt:    {len(engine.unaccented_map):,}")
-    print(f"- Thư mục dữ liệu đồ thị:          {Maketree.OUTPUT_DIR}\n")
+    print(f"- Thư mục dữ liệu đồ thị:          {OUTPUT_DIR}\n")
 
 
 def main() -> None:

@@ -94,10 +94,16 @@ def normalize_vietnamese_tone(w: str) -> str:
     return w
 
 
+_DECIMAL_NUM_RE = re.compile(r"^\d+(?:[.,]\d+)+$")
+
+
 def clean_word(w: str) -> str:
     if w in CLASS_TOKENS:
         return w
     w = unicodedata.normalize("NFC", w).lower()
+    dec_cand = w.strip(".,;:!?()[]{}\"'/-_")
+    if _DECIMAL_NUM_RE.match(dec_cand):
+        return dec_cand
     cleaned = re.sub(r"[^\w/-]", "", w).strip("/-_")
     return normalize_vietnamese_tone(cleaned) if cleaned else ""
 
@@ -132,7 +138,7 @@ def get_compatible_token_classes(tok: str, prev_tok: str = "") -> list[str]:
             if 1 <= d <= 31 and 1 <= m <= 12:
                 return ["<code>", "<date>"]
             return ["<code>"]
-        if tok.isdigit():
+        if tok.isdigit() or _DECIMAL_NUM_RE.match(tok):
             return ["<num>", "<code>"]
         return ["<code>"]
     if len(tok) >= 2 and _UNAMBIGUOUS_ROMAN_RE.match(tok) and not is_valid_vietnamese_syllable(tok):
@@ -151,7 +157,7 @@ def get_token_class(tok: str, prev_tok: str = "") -> str:
     if any(ch.isdigit() for ch in tok):
         if _DATE_TOKEN_RE.match(tok):
             return "<date>"
-        if tok.isdigit():
+        if tok.isdigit() or _DECIMAL_NUM_RE.match(tok):
             return "<num>"
         return "<code>"
     if len(tok) >= 2 and _UNAMBIGUOUS_ROMAN_RE.match(tok) and not is_valid_vietnamese_syllable(tok):

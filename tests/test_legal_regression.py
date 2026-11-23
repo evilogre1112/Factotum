@@ -111,6 +111,12 @@ class TestLegalModelRegression(unittest.TestCase):
         for query, expected in contextual_acronyms.items():
             self.assertEqual(self.model.restore(query), expected, query)
 
+        # Khóa chống băm nhầm số thập phân, đơn vị đo sau số và từ khẩu ngữ/sai chính tả ngắn trong câu dài
+        self.assertIn("0.4 mg", self.model.restore("thoi nong do con xe may kich khung 0.4 mg"))
+        self.assertIn("bị phạt", self.model.restore("o to k that day an toan bi phat bn"))
+        self.assertIn("nhiu tiền", self.model.restore("xe may di nham len cao toc phat nhiu tien"))
+        self.assertIn("oto", self.model.restore("vua lai oto vua nhan tin dt phat may tr"))
+
     def test_accented_sentence_typo_and_oov_preservation(self) -> None:
         """Câu đã có dấu: sửa đúng lỗi chính tả (kể cả câu >12 từ) và không làm hỏng từ đúng hay OOV hợp lệ."""
         cases = {

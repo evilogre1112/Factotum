@@ -97,6 +97,14 @@ class GraphQueryEngine(GraphIndex):
         )
         n_raw = len(norm_tokens)
 
+        if sentence_has_accent and all(len(t) >= 2 or is_class_token(t) for t in norm_tokens):
+            exact_phrase = " ".join(norm_tokens)
+            exact_freq = self.dict_freq.get(exact_phrase, 0)
+            if exact_freq > 0:
+                m = QueryMatch(exact_phrase, exact_freq, 0, 0, exact_phrase, [], markov_prob=1.0)
+                m.confidence = compute_confidence(m)
+                return _restore_class_tokens([m], class_slots)
+
         if not sentence_has_accent and not class_slots:
             if n_raw >= 2 and all(len(t) >= 2 and is_valid_vietnamese_syllable(t) for t in norm_tokens):
                 ua_pids = self.get_ua_pids(" ".join(norm_tokens))

@@ -88,20 +88,34 @@ def expand_query_variants(index: GraphIndex, raw_query: str) -> list[list[list[s
                 opts_2.append([c0, c1])
             per_token_options.append(opts_2 if opts_2 else [[[tok]]])
         else:
-            splits = split_sticky_token(index, no_accent)
+            # Trong câu dài (>= 4 từ), không băm từ OOV ngắn 3-4 ký tự không có trong chỉ mục viết tắt
+            # (vd: "oto", "nhiu") thành 3-4 chữ cái đơn rời rạc; chỉ tách khi là viết tắt đã biết hoặc >= 5 ký tự.
+            if (
+                len(raw_tokens) >= 4
+                and len(no_accent) <= 4
+                and any(ch in "aeiou" for ch in no_accent)
+                and not index.get_acronym_pids(no_accent)
+            ):
+                splits = [
+                    sp for sp in split_sticky_token(index, no_accent)
+                    if len(sp) <= 2 and all(len(p) >= 2 for p in sp)
+                ]
+            else:
+                splits = split_sticky_token(index, no_accent)
             if splits:
                 options = [[ua_map[piece] for piece in sp] for sp in splits]
                 per_token_options.append(options)
             else:
                 per_token_options.append([[[tok]]])
 
+    max_vars = 4 if len(raw_tokens) >= 6 else (8 if len(raw_tokens) >= 4 else MAX_QUERY_VARIANTS)
     variants: list[list[list[str]]] = []
     for combo in product(*per_token_options):
         merged: list[list[str]] = []
         for part in combo:
             merged.extend(part)
         variants.append(merged)
-        if len(variants) >= MAX_QUERY_VARIANTS:
+        if len(variants) >= max_vars:
             break
     return variants
 
@@ -297,11 +311,15 @@ def search_variant(
             prob_neighbors = fwd_prob.get(last_w, {})
 
             found_direct = False
+            hit_top0 = False
+            top0 = target_list[0] if target_list else ""
             if len(target_list) < len(prob_neighbors):
                 for nxt in target_list:
                     p_edge = prob_neighbors.get(nxt)
                     if p_edge is not None:
                         found_direct = True
+                        if nxt == top0:
+                            hit_top0 = True
                         next_beam.append(
                             (path_words + [nxt], curr_prob * p_edge, miss_cnt, miss_words)
                         )
@@ -309,9 +327,17 @@ def search_variant(
                 for nxt, p_edge in prob_neighbors.items():
                     if nxt in target_set:
                         found_direct = True
+                        if nxt == top0:
+                            hit_top0 = True
                         next_beam.append(
                             (path_words + [nxt], curr_prob * p_edge, miss_cnt, miss_words)
                         )
+
+            if found_direct and top0 and not hit_top0:
+                backoff_p = 1e-5 * (max(dict_freq.get(top0, 1), 1) / 100000.0)
+                next_beam.append(
+                    (path_words + [top0], curr_prob * backoff_p, miss_cnt, miss_words)
+                )
 
             if not found_direct:
                 for nxt in target_list[:4]:
@@ -320,7 +346,7 @@ def search_variant(
                         (path_words + [nxt], curr_prob * backoff_p, miss_cnt, miss_words)
                     )
 
-                if allow_missing and MAX_MISSING_GAP >= 1 and len(trimmed_cols) <= 12 and miss_cnt < 1:
+                if allow_missing and MAX_MISSING_GAP >= 1 and len(trimmed_cols) <= 6 and miss_cnt < 1:
                     t_len = len(target_list)
                     for mid, p1 in fwd_prob_top.get(last_w, ()):
                         mid_neighbors = fwd_prob.get(mid, {})

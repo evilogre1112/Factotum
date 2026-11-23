@@ -168,17 +168,17 @@ Tách hoàn toàn theo đơn vị file (`seed = 42`, tập kiểm tra rút các 
 
 | Nhóm câu hỏi | Số câu | Base-1g (`T1 / T3 / Phrase`) | Base-2g (`T1 / T3 / Phrase`) | Factotum (`T1 / T3 / Phrase`) |
 | :--- | :---: | :---: | :---: | :---: |
-| Không dấu đã có trong tập học | 936 | 52,7 / 78,8 / 54,8% (`0,08 ms`) | 99,4 / 100,0 / 99,5% (`0,10 ms`) | **100,0 / 100,0 / 100,0%** (`1,21 ms`) |
-| Không dấu mới hoàn toàn | 3.064 | 42,3 / 69,3 / 43,0% (`0,08 ms`) | **90,9 / 98,1 / 91,8%** (`0,11 ms`) | 88,2 / 96,8 / 91,5% (`1,95 ms`) |
-| Viết tắt hỗn hợp | 2.000 | 11,2 / 23,2 / 16,2% (`0,09 ms`) | 59,6 / 75,7 / 69,0% (`0,37 ms`) | **69,5 / 80,7 / 80,5%** (`3,11 ms`) |
-| Thiếu 1 từ ở giữa | 2.000 | 0,0 / 0,0 / 25,3% (`0,06 ms`) | 0,0 / 0,0 / 32,2% (`0,07 ms`) | **33,6 / 46,6 / 60,9%** (`1,41 ms`) |
-| Viết tắt toàn cụm | 2.000 | 0,4 / 0,9 / 4,1% (`0,09 ms`) | 14,3 / 24,1 / 47,0% (`11,21 ms`) | **24,3 / 31,1 / 89,4%** (**`4,11 ms`**) |
-| **Tổng (bỏ nhóm thiếu từ)** | **8.000** | **25,3 / 41,8 / 28,0%** | **64,9 / 74,2 / 75,8%** | **68,9 / 76,7 / 89,3%** |
-| **Tổng cộng (tất cả)** | **10.000** | **20,2 / 33,4 / 27,4%** (`0,08 ms`) | **51,9 / 59,4 / 67,1%** (`2,38 ms`) | **61,8 / 70,7 / 83,6%** (**`2,44 ms`**, `P50 = 1,35 ms`) |
+| Không dấu đã có trong tập học | 936 | 52,7 / 78,8 / 54,8% (`0,08 ms`) | 99,4 / 100,0 / 99,5% (`0,10 ms`) | **100,0 / 100,0 / 100,0%** (`1,18 ms`) |
+| Không dấu mới hoàn toàn | 3.064 | 42,3 / 69,3 / 43,0% (`0,08 ms`) | **90,9 / 98,1 / 91,8%** (`0,11 ms`) | 88,2 / 97,1 / 91,5% (`1,85 ms`) |
+| Viết tắt hỗn hợp | 2.000 | 11,2 / 23,2 / 16,2% (`0,09 ms`) | 59,6 / 75,7 / 69,0% (`0,37 ms`) | **69,5 / 80,8 / 80,5%** (`2,93 ms`) |
+| Thiếu 1 từ ở giữa | 2.000 | 0,0 / 0,0 / 25,3% (`0,06 ms`) | 0,0 / 0,0 / 32,2% (`0,07 ms`) | **33,6 / 46,5 / 60,9%** (`1,41 ms`) |
+| Viết tắt toàn cụm | 2.000 | 0,4 / 0,9 / 4,1% (`0,09 ms`) | 14,3 / 24,1 / 47,0% (`11,29 ms`) | **24,3 / 31,1 / 89,4%** (**`4,38 ms`**) |
+| **Tổng (bỏ nhóm thiếu từ)** | **8.000** | **25,3 / 41,8 / 28,0%** | **64,9 / 74,2 / 75,8%** | **68,9 / 76,9 / 89,3%** |
+| **Tổng cộng (tất cả)** | **10.000** | **20,2 / 33,4 / 27,4%** (`0,08 ms`) | **51,9 / 59,4 / 67,1%** (`2,39 ms`) | **61,9 / 70,8 / 83,6%** (**`2,42 ms`**, `P50 = 1,35 ms`) |
 
 Hai baseline đạt `0%` Top-1/Top-3 ở nhóm thiếu từ vì không có cơ chế chèn từ. Khi bỏ nhóm này (`8.000` câu), Factotum hơn `Base-2g` `+4,0%` Top-1 (`68,9%` vs `64,9%`) và `+13,5%` Phrase validity (`89,3%` vs `75,8%`). Riêng ở nhóm không dấu mới hoàn toàn (`3.064` câu), `Base-2g` cao hơn Factotum `2,7%` Top-1 (`90,9%` vs `88,2%`) và nhanh hơn.
 
-Trên bộ **Stress Test 10.000 câu** (in-sample), Factotum đạt **`91,1%` Top-1 / `98,1%` Top-3 / `99,9%` LV** (`1,81 ms/câu`, `P50 = 1,24 ms`, `552 câu/s`, vượt `Base-2g` `+19,8%` Top-1). Bộ hồi quy thủ công đạt **`60/60` (`100%`)**, bộ bảo toàn câu hỏi có dấu chuẩn đạt **`20/20` (`100%`)**. Chi tiết xem tại [benchmark/README.md](benchmark/README.md) và danh sách `4.709` câu lệch Top-1 tại `benchmark/failures.csv`.
+Trên bộ **Stress Test 10.000 câu** (in-sample), Factotum đạt **`91,1%` Top-1 / `98,1%` Top-3 / `99,9%` LV** (`1,94 ms/câu`, `P50 = 1,25 ms`, `516 câu/s`, vượt `Base-2g` `+19,8%` Top-1). Bộ hồi quy thủ công đạt **`60/60` (`100%`)**, bộ bảo toàn câu hỏi có dấu chuẩn đạt **`20/20` (`100%`)**. Chi tiết xem tại [benchmark/README.md](benchmark/README.md) và danh sách `4.708` câu lệch Top-1 tại `benchmark/failures.csv`.
 
 ### 2. Độ tin cậy (`confidence`) & Ablation Study (10.000 câu Document-level Held-out)
 
@@ -188,11 +188,11 @@ Trên bộ **Stress Test 10.000 câu** (in-sample), Factotum đạt **`91,1%` To
 | :---: | :---: | :---: | :---: | :---: | :---: |
 | `90 – 100%` | 3.885 | 95,3% | 67,4% | 75,5% | **99,7%** |
 | `70 – 90%` | 2.106 | 80,6% | 70,8% | 79,2% | **93,5%** |
-| `50 – 70%` | 1.981 | 57,7% | 63,7% | 73,9% | **75,9%** |
-| `30 – 50%` | 1.313 | 44,4% | 50,6% | 60,5% | **63,3%** |
-| `< 30%` | 715 | 9,3% | 20,8% | 29,4% | **25,2%** |
+| `50 – 70%` | 1.981 | 57,7% | 63,7% | 74,1% | **75,9%** |
+| `30 – 50%` | 1.314 | 44,4% | 50,6% | 61,0% | **63,2%** |
+| `< 30%` | 714 | 9,3% | 21,0% | 29,4% | **25,4%** |
 
-Với ngưỡng `confidence >= 70%` (`5.991/10.000` câu), Phrase validity đạt `93,5% – 99,7%` nên có thể tự áp dụng hoặc ưu tiên hiển thị; mức `50–70%` (`75,9%`) phù hợp hiển thị dạng gợi ý; mức `< 30%` (`25,2%`) hoặc `is_fallback = True` nên giữ nguyên câu gốc. Sai số hiệu chuẩn hiện tại: `ECE (Phrase validity) = 11,7%`, `ECE (Top-1) = 15,7%`.
+Với ngưỡng `confidence >= 70%` (`5.991/10.000` câu), Phrase validity đạt `93,5% – 99,7%` nên có thể tự áp dụng hoặc ưu tiên hiển thị; mức `50–70%` (`75,9%`) phù hợp hiển thị dạng gợi ý; mức `< 30%` (`25,4%`) hoặc `is_fallback = True` nên giữ nguyên câu gốc. Sai số hiệu chuẩn hiện tại: `ECE (Phrase validity) = 11,7%`, `ECE (Top-1) = 15,7%`.
 
 Ablation Study trên cùng 10.000 câu:
 
@@ -200,7 +200,7 @@ Ablation Study trên cùng 10.000 câu:
 | :--- | :---: | :---: | :--- |
 | Chỉ Maximal Repeats (bỏ đồ thị Markov) | `17,7%` | `30,6%` | Khớp cụm đã học (`100%`), `0%` cụm mới và thiếu từ. |
 | Chỉ Đồ thị Bigram (`Base-2g`, bỏ Maximal Repeats) | `51,9%` | `67,1%` | Tốt ở không dấu mới (`90,9%`), yếu ở viết tắt (`47,0%` PV) và `0%` thiếu từ. |
-| **Factotum đầy đủ (Maximal Repeats + Đồ thị + Chèn từ)** | **`61,8%`** | **`83,6%`** | Giữ cụm trọn nghĩa ở viết tắt và ghép cụm mới/chèn từ bằng đồ thị. |
+| **Factotum đầy đủ (Maximal Repeats + Đồ thị + Chèn từ)** | **`61,9%`** | **`83,6%`** | Giữ cụm trọn nghĩa ở viết tắt và ghép cụm mới/chèn từ bằng đồ thị. |
 
 ### 3. Đối đầu trực tiếp với LLM (Held-out, zero-shot)
 
