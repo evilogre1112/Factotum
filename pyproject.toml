@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "factotum-vn-nlp"
 version = "0.1.0"
-description = "Factotum: Vietnamese diacritic restoration, abbreviation expansion, missing-word recovery and graph-based spell correction"
+description = "Khôi phục tiếng Việt gõ nhanh (không dấu, viết tắt, thiếu từ, lỗi chính tả, Telex) thành câu chuẩn; chạy nhanh, offline và tự học từ chính tài liệu của bạn."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
