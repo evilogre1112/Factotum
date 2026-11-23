@@ -4,11 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "factotum-vn-nlp"
-version = "0.1.0"
+version = "1.0.0"
 description = "Khôi phục tiếng Việt gõ nhanh (không dấu, viết tắt, thiếu từ, lỗi chính tả, Telex) thành câu chuẩn; chạy nhanh, offline và tự học từ chính tài liệu của bạn."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
+license = { text = "MIT" }
+keywords = ["vietnamese", "nlp", "diacritics-restoration", "abbreviation-expansion", "text-normalization", "spell-correction", "legal-tech"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: Vietnamese",
+    "Topic :: Text Processing :: Linguistic",
+    "Operating System :: OS Independent",
+]
+
+[project.optional-dependencies]
+demo = ["gradio>=4.0"]
+
+[project.urls]
+Homepage = "https://github.com/evilogre1112/Factotum"
+Issues = "https://github.com/evilogre1112/Factotum/issues"
+Changelog = "https://github.com/evilogre1112/Factotum/blob/main/CHANGELOG.md"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

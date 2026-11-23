@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "Nếu bạn dùng Factotum trong nghiên cứu, vui lòng trích dẫn như sau."
+title: "Factotum: Context-aware restoration of fast-typed Vietnamese text with maximal-repeat phrase graphs"
+authors:
+  - name: "NhatPhi"
+    alias: "evilogre1112"
+repository-code: "https://github.com/evilogre1112/Factotum"
+license: MIT
+version: 1.0.0
+date-released: 2026-11-23
+keywords:
+  - vietnamese-nlp
+  - diacritics-restoration
+  - abbreviation-expansion
+  - text-normalization
+  - spell-correction
+  - legal-tech

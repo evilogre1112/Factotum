@@ -142,6 +142,7 @@ class TestLegalModelRegression(unittest.TestCase):
             "việc sử lý vi phạm hành chính": "việc xử lý vi phạm hành chính",
             "xử phạt vi phạm hành chính và sử lý vi phạm": "xử phạt vi phạm hành chính và xử lý vi phạm",
             "xkcbsx có bị xử phạt không": "xe không có biển số xe có bị xử phạt không",
+            "xkcbs có bị phạt không": "xe không có biển số có bị phạt không",
         }
         for query, expected in cases.items():
             self.assertEqual(self.model.restore(query), expected, query)

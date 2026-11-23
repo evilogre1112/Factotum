@@ -4,7 +4,26 @@
 
 <h1 align="center">Factotum (<code>factotum-vn-nlp</code>)</h1>
 
-> **Tóm tắt:** Khôi phục tiếng Việt gõ nhanh (không dấu, viết tắt, thiếu từ, lỗi chính tả, Telex) thành câu chuẩn; chạy nhanh, offline trên CPU (Python 3.10+, không cần GPU hay thư viện ngoài) và tự học từ chính tài liệu của bạn.
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" />
+  <img src="https://img.shields.io/badge/dependencies-zero-2EA043" alt="Zero Dependencies" />
+  <img src="https://img.shields.io/badge/runtime-CPU--only-orange" alt="CPU only" />
+  <img src="https://img.shields.io/badge/release-v1.0.0-blue" alt="Release v1.0.0" />
+  <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="MIT License" />
+</p>
+
+> **Tiếng Việt:** Khôi phục tiếng Việt gõ nhanh (không dấu, viết tắt theo ngữ cảnh, thiếu từ, lỗi chính tả, Telex) thành câu chuẩn; chạy offline trên CPU, không cần GPU hay thư viện ngoài, và tự học từ chính tài liệu của bạn.
+>
+> **English:** Context-aware restoration for fast-typed Vietnamese (missing diacritics, abbreviations, dropped words, typos, raw Telex). Offline, CPU-only, zero external dependencies, learned directly from your own documents.
+
+### Tóm tắt trong 10 giây
+
+| | |
+| :--- | :--- |
+| **Giải quyết vấn đề gì?** | Chuẩn hóa câu tiếng Việt gõ tắt, không dấu, thiếu từ hoặc sai chính tả, đặc biệt khi một từ viết tắt mang nhiều nghĩa tùy ngữ cảnh (ví dụ `nd` → `nghị định` hoặc `nhân dân`). |
+| **Khác biệt ở đâu?** | Không cần GPU hay LLM; tự học trực tiếp từ bộ tài liệu của bạn, gói gọn trong 1 file mô hình nhỏ nhẹ, chạy offline trên CPU và giữ nguyên câu gốc nếu không đủ chắc chắn. |
+| **Đánh giá thực tế** | Đã đo kiểm độc lập trên văn bản chưa từng học, có đối chiếu với mô hình thống kê chuẩn và các LLM phổ biến (chi tiết xem mục [Benchmark](#benchmark)). |
+| **Thử ngay** | Giao diện web cục bộ (`python demo/app.py`, hướng dẫn đưa lên Hugging Face Spaces tại [demo/README.md](demo/README.md)), dòng lệnh (`python src/app.py`), hoặc 3 dòng Python bên dưới. |
 
 ## Factotum làm được gì?
 
@@ -117,13 +136,16 @@ model = Factotum().fit([
 model.save("my_domain.ftm")
 ```
 
-### 4. Dùng thử trực tiếp, chạy kiểm thử và Benchmark
+### 4. Dùng thử trực tiếp, giao diện web và Benchmark
 
 ```bash
 python src/app.py                              # Mở giao diện dòng lệnh để gõ thử trực tiếp
+pip install gradio && python demo/app.py       # Mở giao diện web Gradio (http://127.0.0.1:7860)
 python -m unittest discover -s tests -v        # Chạy bộ kiểm thử tự động (23 bài kiểm tra)
 python benchmark/run_benchmark.py 10000        # Chạy lại toàn bộ bộ đo Benchmark (seed=42)
 ```
+
+Muốn đưa bản demo lên **Hugging Face Spaces** (miễn phí, chạy trên CPU basic) để người khác bấm thử ngay trên trình duyệt, xem hướng dẫn 3 bước tại [demo/README.md](demo/README.md).
 
 ## Cách hoạt động
 
@@ -178,7 +200,7 @@ Tách hoàn toàn theo đơn vị file (`seed = 42`, tập kiểm tra rút các 
 
 Hai baseline đạt `0%` Top-1/Top-3 ở nhóm thiếu từ vì không có cơ chế chèn từ. Khi bỏ nhóm này (`8.000` câu), Factotum hơn `Base-2g` `+4,0%` Top-1 (`68,9%` vs `64,9%`) và `+13,5%` Phrase validity (`89,3%` vs `75,8%`). Riêng ở nhóm không dấu mới hoàn toàn (`3.064` câu), `Base-2g` cao hơn Factotum `2,7%` Top-1 (`90,9%` vs `88,2%`) và nhanh hơn.
 
-Trên bộ **Stress Test 10.000 câu** (in-sample), Factotum đạt **`91,1%` Top-1 / `98,1%` Top-3 / `99,9%` LV** (`1,94 ms/câu`, `P50 = 1,25 ms`, `516 câu/s`, vượt `Base-2g` `+19,8%` Top-1). Bộ hồi quy thủ công đạt **`60/60` (`100%`)**, bộ bảo toàn câu hỏi có dấu chuẩn đạt **`20/20` (`100%`)**. Chi tiết xem tại [benchmark/README.md](benchmark/README.md) và danh sách `4.708` câu lệch Top-1 tại `benchmark/failures.csv`.
+Trên bộ **Stress Test 10.000 câu** (in-sample), Factotum đạt **`91,1%` Top-1 / `98,1%` Top-3 / `99,9%` LV** (`1,71 ms/câu`, `P50 = 1,20 ms`, `584 câu/s`, vượt `Base-2g` `+19,8%` Top-1). Bộ hồi quy thủ công đạt **`60/60` (`100%`)**, bộ bảo toàn câu hỏi có dấu chuẩn đạt **`20/20` (`100%`)**. Chi tiết xem tại [benchmark/README.md](benchmark/README.md) và danh sách `4.708` câu lệch Top-1 tại `benchmark/failures.csv`.
 
 ### 2. Độ tin cậy (`confidence`) & Ablation Study (10.000 câu Document-level Held-out)
 
@@ -254,10 +276,16 @@ Số liệu `Base-1g`, `Base-2g` và `Factotum` lấy từ Document-level Held-o
 | Sửa lỗi chính tả & gõ Telex | Không | Không | Sửa lỗi chính tả, giữ nguyên câu đúng | Tốt (từng từ đơn) | Tốt |
 | Tự huấn luyện trên dữ liệu riêng | Nhanh | Nhanh | `~32 giây` (CPU + C++) / `~105 giây` (Python thuần) | Nhanh | Chậm, thường cần GPU |
 | Dung lượng (Đĩa / RAM) | Vài MB | Vài MB | `1,29 MB` đĩa / `~147–197 MB` RAM | Rất nhỏ | `400 MB` – hàng chục GB* |
-| Tốc độ suy luận | `0,08 ms/câu` (CPU) | `2,38 ms/câu` (CPU) | `1,81 – 2,44 ms/câu` (CPU offline) | `< 1 ms/câu`* | `~15 ms` (batch) – `1,2 s/câu` (cloud) |
+| Tốc độ suy luận | `0,08 ms/câu` (CPU) | `2,40 ms/câu` (CPU) | `1,71 – 2,42 ms/câu` (CPU offline) | `< 1 ms/câu`* | `~15 ms` (batch) – `1,2 s/câu` (cloud) |
 | Hiểu ngữ nghĩa mở đa lĩnh vực | Không | Không | Không | Không | Cao |
 
 *\*Khoảng tham khảo tùy kiến trúc mô hình, mức lượng tử hóa và phần cứng.*
+
+## Đóng góp, Lịch sử phiên bản & Trích dẫn
+
+- **Báo lỗi hoặc góp câu test thực tế:** xem [CONTRIBUTING.md](CONTRIBUTING.md) (mọi câu nhập thật bị đoán sai đều rất có ích).
+- **Lịch sử phiên bản:** xem [CHANGELOG.md](CHANGELOG.md).
+- **Trích dẫn nghiên cứu:** repo có sẵn file [CITATION.cff](CITATION.cff) (nút *Cite this repository* trên GitHub).
 
 ## Giấy phép
 

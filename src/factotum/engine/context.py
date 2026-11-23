@@ -446,10 +446,13 @@ def query_with_context(
                 f_stands = ctx_can_stand_alone and tier >= 4 and f_m.superstring_diff == 0 and len(f_words) >= 2
                 b_prob = f_m.markov_prob if f_m.markov_prob > 0 else 1e-6
                 if tier >= 4 and not f_stands:
+                    long_f = len(f_words) >= 4 and len(seg_tokens) == 1
                     if left_ctx:
-                        b_prob *= index.fwd_prob.get(left_ctx[-1], {}).get(f_words[0], 1e-8)
+                        p_l = index.fwd_prob.get(left_ctx[-1], {}).get(f_words[0], 0.0)
+                        b_prob *= (1.0 if p_l > 0.0 else 1e-8) if long_f else (p_l or 1e-8)
                     if right_ctx:
-                        b_prob *= index.fwd_prob.get(f_words[-1], {}).get(right_ctx[0], 1e-8)
+                        p_r = index.fwd_prob.get(f_words[-1], {}).get(right_ctx[0], 0.0)
+                        b_prob *= (1.0 if p_r > 0.0 else 1e-8) if long_f else (p_r or 1e-8)
                 next_beam.append(
                     (
                         bw + f_words,
