@@ -18,28 +18,69 @@ def preprocess_tokens(index: GraphIndex, raw_tokens: list[str]) -> tuple[list[st
     ua_map = index.unaccented_map
 
     for tok in raw_tokens:
-        if tok in real_vocab:
+        if tok in real_vocab or is_valid_vietnamese_syllable(tok):
             out.append(tok)
             continue
-        if not is_valid_vietnamese_syllable(tok):
-            collapsed = collapse_repeated_chars(tok)
-            # Chỉ gộp ký tự lặp khi kết quả là âm tiết tiếng Việt >= 2 ký tự (tránh gộp nhầm viết tắt 'dd', 'tt', 'nn' -> 'd', 't', 'n')
-            if collapsed != tok and len(collapsed) >= 2 and is_valid_vietnamese_syllable(collapsed):
-                if collapsed in real_vocab:
-                    out.append(collapsed)
-                    changed = True
-                    continue
-                if len(tok) >= 4 and collapsed in ua_map:
-                    out.append(collapsed)
-                    changed = True
-                    continue
-            telex = decode_telex_word(tok)
-            if telex and telex in real_vocab:
-                out.append(telex)
+        collapsed = collapse_repeated_chars(tok)
+        if collapsed != tok and len(collapsed) >= 2 and is_valid_vietnamese_syllable(collapsed):
+            if collapsed in real_vocab or (len(tok) >= 4 and collapsed in ua_map):
+                out.append(collapsed)
                 changed = True
                 continue
+        telex = decode_telex_word(tok)
+        if telex and telex in real_vocab:
+            out.append(telex)
+            changed = True
+            continue
         out.append(tok)
     return out, changed
+
+
+def _lookup_spell_kb_window(
+    index: GraphIndex,
+    fixed_words: list[str],
+    pos: int,
+    *,
+    is_ortho_pair: bool,
+    both_connected: bool,
+    max_diff_k: int,
+) -> tuple[int, int, str]:
+    """Tra cụm KB thực tế trên toàn câu (n <= 6) hoặc cửa sổ 3 từ quanh vị trí sửa."""
+    n = len(fixed_words)
+    w = fixed_words[pos]
+    if n == 1:
+        return index.dict_freq.get(w, 0) or index.word_freq.get(w, 0), 0, w
+    if n <= 6:
+        freq, diff, src = index.lookup_real_phrase_score(fixed_words, max_diff_k=max_diff_k)
+        if freq > 0 or n == 2:
+            return freq, diff, src
+
+    # Với câu >= 3 từ: bắt buộc tồn tại cửa sổ 3 từ thực tế trong KB (không hạ xuống 2-gram 1 phía).
+    windows: list[list[str]] = []
+    if 0 < pos < n - 1:
+        windows.append(fixed_words[pos - 1 : pos + 2])
+        if both_connected and is_ortho_pair:
+            if pos + 2 < n:
+                windows.append(fixed_words[pos : pos + 3])
+            if pos >= 2:
+                windows.append(fixed_words[pos - 2 : pos + 1])
+    else:
+        windows.append(fixed_words[0:3] if pos == 0 else fixed_words[n - 3 : n])
+
+    for win3 in windows:
+        freq, diff, src = index.lookup_real_phrase_score(win3, max_diff_k=max_diff_k)
+        if freq > 0:
+            return freq, diff, src
+    return 0, -1, ""
+
+
+def _local_markov_prob(index: GraphIndex, words: list[str], center: int) -> float:
+    m_prob = 1.0
+    start = max(0, center - 2)
+    end = min(len(words), center + 3)
+    for j in range(start, end - 1):
+        m_prob *= index.fwd_prob.get(words[j], {}).get(words[j + 1], 1e-6)
+    return m_prob
 
 
 def try_graph_spell_correction(
@@ -49,16 +90,14 @@ def try_graph_spell_correction(
     max_diff_k: int = MAX_SUPERSTRING_DIFF_K,
     min_sim: float = 0.58,
 ) -> list[QueryMatch]:
-    """Sửa lỗi chính tả bằng đồ thị cạnh xuôi/ngược kết hợp độ tương đồng âm tiết tiếng Việt."""
+    """Sửa lỗi chính tả bằng đồ thị cạnh xuôi/ngược kết hợp bằng chứng cụm 3 từ KB và cặp đồng âm tiếng Việt."""
     n = len(raw_tokens)
-    if n == 0 or n > 64:
+    if not (1 <= n <= 64):
         return []
 
-    fwd = index.fwd_graph
-    rev = index.rev_graph
+    fwd, rev = index.fwd_graph, index.rev_graph
     found: dict[str, tuple[tuple[int, int, float, int], QueryMatch]] = {}
-    best_per_pos: list[tuple[int, str, int, float, int]] = []
-
+    best_per_pos: list[tuple[int, str, int, float]] = []
     unacc_positions = {
         idx
         for idx, t in enumerate(raw_tokens)
@@ -70,9 +109,9 @@ def try_graph_spell_correction(
             continue
         if i in unacc_positions and len(unacc_positions) >= 2:
             continue
+
         prev_w = raw_tokens[i - 1] if i > 0 else ""
         next_w = raw_tokens[i + 1] if i + 1 < n else ""
-
         is_nonword = tok not in index.real_vocab and tok not in index.unaccented_map
         orig_l = fwd.get(prev_w, {}).get(tok, 0) if prev_w else 0
         orig_r = fwd.get(tok, {}).get(next_w, 0) if next_w else 0
@@ -83,16 +122,11 @@ def try_graph_spell_correction(
             continue
         if not is_nonword and tok == remove_accents(tok) and tok in index.unaccented_map:
             continue
-        # Nếu từ đã nằm trong từ vựng và nối khớp cả 2 đầu hiện có thì không phải lỗi chính tả.
-        if not is_nonword and not broken_left and not broken_right:
-            continue
-        one_side_connected_in_vocab = not is_nonword and (orig_l > 0 or orig_r > 0)
-        at_long_boundary_in_vocab = (
-            not is_nonword and tok != remove_accents(tok) and n >= 3 and (i == 0 or i == n - 1)
-        )
 
-        has_l = bool(prev_w and prev_w in fwd)
-        has_r = bool(next_w and next_w in rev)
+        one_side_ok = not is_nonword and (orig_l > 0 or orig_r > 0)
+        at_long_edge = not is_nonword and tok != remove_accents(tok) and n >= 3 and (i == 0 or i == n - 1)
+        has_l, has_r = bool(prev_w and prev_w in fwd), bool(next_w and next_w in rev)
+
         if has_l and has_r:
             cand_pool = set(fwd[prev_w]) | set(rev[next_w])
         elif has_r:
@@ -100,123 +134,66 @@ def try_graph_spell_correction(
         elif has_l:
             cand_pool = fwd[prev_w].keys()
         else:
-            ua0 = remove_accents(tok)[:1]
-            cand_pool = index.unaccented_map.get(ua0, ())
+            cand_pool = index.unaccented_map.get(remove_accents(tok)[:1], ())
 
-        scored_cands: list[tuple[float, int, int, str]] = []
         eff_min_sim = min_sim if is_nonword else max(min_sim, 0.75)
         tok_has_tone = tok != remove_accents(tok)
+        scored_cands: list[tuple[float, int, int, str, bool]] = []
+
         for w in cand_pool:
-            if w == tok:
+            if w == tok or (not is_nonword and tok_has_tone and w == remove_accents(w)):
                 continue
-            # Nếu từ gốc đã có dấu trong từ điển (vd: "gì", "đỏ", "sổ"), không xóa dấu thanh về từ không dấu ("ghi").
-            if not is_nonword and tok_has_tone and w == remove_accents(w):
-                continue
-            is_ortho_pair = not is_nonword and is_vn_orthographic_confusion(tok, w)
-            # Từ trong từ điển đã nối được 1 đầu (vd: "quy định sử lý") hoặc ở biên câu dài ("sử lý vi phạm"):
-            # chỉ xét sửa khi (tok, w) là cặp nhầm chính tả đồng âm chuẩn (s/x, ch/tr, d/gi/r, l/n, hỏi/ngã).
-            if (one_side_connected_in_vocab or at_long_boundary_in_vocab) and not is_ortho_pair:
+            is_ortho = not is_nonword and is_vn_orthographic_confusion(tok, w)
+            if (one_side_ok or at_long_edge) and not is_ortho:
                 continue
             sim = vn_word_similarity(tok, w)
             if sim < eff_min_sim:
                 continue
             e_l = fwd.get(prev_w, {}).get(w, 0) if prev_w else 0
             e_r = fwd.get(w, {}).get(next_w, 0) if next_w else 0
-            both_bonus = 1 if (e_l > 0 and e_r > 0) else 0
-            if one_side_connected_in_vocab and has_l and has_r and both_bonus == 0:
+            both = 1 if (e_l > 0 and e_r > 0) else 0
+            if one_side_ok and has_l and has_r and not both:
                 continue
             edge_w = (e_l + e_r) if (has_l or has_r) else index.dict_freq.get(w, 0)
-            scored_cands.append((sim, both_bonus, edge_w, w))
+            scored_cands.append((sim, both, edge_w, w, is_ortho))
 
-        if not scored_cands:
-            continue
         scored_cands.sort(key=lambda x: (-round(x[0], 2), -x[1], -x[2]))
-
-        pos_best_recorded = False
-        for sim, both_bonus, edge_w, w in scored_cands[:6]:
+        pos_recorded = False
+        for sim, both, edge_w, w, is_ortho in scored_cands[:6]:
             fixed_words = raw_tokens[:i] + [w] + raw_tokens[i + 1 :]
-            if n == 1:
-                kb_freq, kb_diff, kb_src = (
-                    index.dict_freq.get(w, 0) or index.word_freq.get(w, 0),
-                    0,
-                    w,
-                )
-            elif n == 2:
-                kb_freq, kb_diff, kb_src = index.lookup_real_phrase_score(
-                    fixed_words, max_diff_k=max_diff_k
-                )
-            else:
-                # Với câu >= 3 từ: bắt buộc cửa sổ 3 từ thực tế quanh vị trí sửa phải tồn tại trong KB
-                # (không hạ xuống 2-gram 1 phía để tránh sửa sai kiểu "vượt đèn đỏ bị" -> "vượt đèn đó bị").
-                kb_freq, kb_diff, kb_src = (
-                    index.lookup_real_phrase_score(fixed_words, max_diff_k=max_diff_k)
-                    if n <= 6
-                    else (0, -1, "")
-                )
-                if kb_freq <= 0:
-                    windows_3: list[list[str]] = []
-                    if 0 < i < n - 1:
-                        windows_3.append(fixed_words[i - 1 : i + 2])
-                        if both_bonus > 0 and is_vn_orthographic_confusion(tok, w):
-                            if i + 2 < n:
-                                windows_3.append(fixed_words[i : i + 3])
-                            if i >= 2:
-                                windows_3.append(fixed_words[i - 2 : i + 1])
-                    elif i == 0:
-                        windows_3.append(fixed_words[0:3])
-                    else:
-                        windows_3.append(fixed_words[n - 3 : n])
-                    for win3 in windows_3:
-                        kb_freq, kb_diff, kb_src = index.lookup_real_phrase_score(
-                            win3, max_diff_k=max_diff_k
-                        )
-                        if kb_freq > 0:
-                            break
-
-            # Mọi phép sửa chính tả phải có cụm thực tế trong KB (hoặc từ OOV nối khớp cả 2 đầu trong đồ thị).
-            if not is_nonword and kb_freq <= 0:
+            kb_freq, kb_diff, kb_src = _lookup_spell_kb_window(
+                index, fixed_words, i, is_ortho_pair=is_ortho, both_connected=bool(both), max_diff_k=max_diff_k
+            )
+            if kb_freq <= 0 and (not is_nonword or not both):
                 continue
-            if is_nonword and kb_freq <= 0 and both_bonus == 0:
-                continue
-
-            m_start = max(0, i - 2)
-            m_end = min(n, i + 3)
-            m_prob = 1.0
-            for j in range(m_start, m_end - 1):
-                m_prob *= index.fwd_prob.get(fixed_words[j], {}).get(fixed_words[j + 1], 1e-6)
 
             phrase_str = " ".join(fixed_words)
             is_kb = 0 if kb_freq > 0 else 1
             m = QueryMatch(
                 phrase=phrase_str,
-                freq=kb_freq if kb_freq > 0 else edge_w,
+                freq=kb_freq or edge_w,
                 missing_count=0,
                 superstring_diff=kb_diff if kb_freq > 0 else -1,
                 source_phrase=kb_src if kb_freq > 0 else "",
                 missing_words=[],
                 context_tier=2 if kb_freq > 0 else 4,
                 context_span_len=min(n - 1, 2) if kb_freq > 0 else 1,
-                markov_prob=m_prob,
+                markov_prob=_local_markov_prob(index, fixed_words, i),
             )
-            base_conf = compute_confidence(m)
-            m.confidence = round(min(0.96, base_conf * (0.50 + 0.50 * sim)), 4)
-
+            m.confidence = round(min(0.96, compute_confidence(m) * (0.50 + 0.50 * sim)), 4)
             rank_k = (is_kb, kb_diff if kb_freq > 0 else 99, -round(sim, 3), -(kb_freq or edge_w))
-            prev = found.get(phrase_str)
-            if prev is None or rank_k < prev[0]:
+            if phrase_str not in found or rank_k < found[phrase_str][0]:
                 found[phrase_str] = (rank_k, m)
-            if not pos_best_recorded and is_nonword and (kb_freq > 0 or both_bonus > 0):
-                best_per_pos.append((i, w, kb_freq or edge_w, sim, is_kb))
-                pos_best_recorded = True
+            if not pos_recorded and is_nonword and (kb_freq > 0 or both):
+                best_per_pos.append((i, w, kb_freq or edge_w, sim))
+                pos_recorded = True
 
     if len(best_per_pos) >= 2:
         combined = list(raw_tokens)
-        min_sim_all = 1.0
-        total_freq = 0
-        for pos_i, rep_w, freq_v, sim_v, _ in best_per_pos:
+        for pos_i, rep_w, _, _ in best_per_pos:
             combined[pos_i] = rep_w
-            min_sim_all = min(min_sim_all, sim_v)
-            total_freq += freq_v
+        min_sim_all = min(x[3] for x in best_per_pos)
+        total_freq = sum(x[2] for x in best_per_pos)
         phrase_str = " ".join(combined)
         m = QueryMatch(
             phrase=phrase_str,
@@ -232,6 +209,4 @@ def try_graph_spell_correction(
         m.confidence = round(min(0.96, compute_confidence(m) * (0.50 + 0.50 * min_sim_all)), 4)
         found[phrase_str] = ((0, 0, -round(min_sim_all, 3), -total_freq), m)
 
-    if not found:
-        return []
     return [m for _, m in sorted(found.values(), key=lambda x: x[0])[:top_k]]

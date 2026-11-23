@@ -39,15 +39,15 @@ Kết quả hiện tại: Factotum đạt `60/60` Top-1 (`100%`) và `60/60` Top
 
 ### Bộ 3: Stress Test 10.000 câu (in-sample)
 
-Lấy mẫu theo trọng số tần suất từ chính các cụm `2–6` từ trọn nghĩa đã học (`seed = 42`), dùng để đo tốc độ (`1,70 ms/câu`, `P50 = 1,17 ms`, `590 câu/s`) và khả năng giải mã trên thuật ngữ quen thuộc, không dùng thay cho Held-out.
+Lấy mẫu theo trọng số tần suất từ chính các cụm `2–6` từ trọn nghĩa đã học (`seed = 42`), dùng để đo tốc độ (`1,81 ms/câu`, `P50 = 1,24 ms`, `552 câu/s`) và khả năng giải mã trên thuật ngữ quen thuộc, không dùng thay cho Held-out.
 
 | Nhóm câu hỏi | Số câu | Base-1g (`T1 / T3 / Local`) | Base-2g (`T1 / T3 / Local`) | Factotum (`T1 / T3 / Local`) |
 | :--- | :---: | :---: | :---: | :---: |
-| Không dấu (`auto_unaccented`) | 5.000 | 56,8 / 82,6 / 62,6% (`0,07 ms`) | 98,8 / 100,0 / 100,0% (`0,07 ms`) | **99,6 / 100,0 / 100,0%** (`1,50 ms`) |
-| Viết tắt hỗn hợp (`auto_mixed_abbr`) | 2.000 | 13,1 / 29,9 / 35,1% (`0,08 ms`) | 81,5 / 91,2 / 99,0% (`0,36 ms`) | **94,2 / 98,6 / 99,7%** (`3,67 ms`) |
-| Viết tắt toàn cụm (`auto_acronym`) | 1.500 | 1,1 / 2,4 / 19,7% (`0,07 ms`) | 37,0 / 54,0 / 98,1% (`9,76 ms`) | **75,2 / 90,9 / 99,6%** (**`0,11 ms`**) |
-| Thiếu 1 từ ở giữa (`auto_missing`) | 1.500 | 0,0 / 0,0 / 31,6% (`0,05 ms`) | 0,0 / 0,0 / 45,9% (`0,06 ms`) | **74,3 / 98,4 / 99,9%** (`1,29 ms`) |
-| **Tổng cộng** | **10.000** | **31,2 / 47,6 / 46,0%** (`0,07 ms`) | **71,2 / 76,3 / 91,4%** (`1,58 ms`) | **91,1 / 98,1 / 99,9%** (**`1,70 ms`**, `590 câu/s`) |
+| Không dấu (`auto_unaccented`) | 5.000 | 56,8 / 82,6 / 62,6% (`0,08 ms`) | 98,8 / 100,0 / 100,0% (`0,08 ms`) | **99,6 / 100,0 / 100,0%** (`1,59 ms`) |
+| Viết tắt hỗn hợp (`auto_mixed_abbr`) | 2.000 | 13,1 / 29,9 / 35,1% (`0,09 ms`) | 81,5 / 91,2 / 99,0% (`0,37 ms`) | **94,2 / 98,6 / 99,7%** (`3,93 ms`) |
+| Viết tắt toàn cụm (`auto_acronym`) | 1.500 | 1,1 / 2,4 / 19,7% (`0,07 ms`) | 37,0 / 54,0 / 98,1% (`10,22 ms`) | **75,2 / 90,9 / 99,6%** (**`0,12 ms`**) |
+| Thiếu 1 từ ở giữa (`auto_missing`) | 1.500 | 0,0 / 0,0 / 31,6% (`0,06 ms`) | 0,0 / 0,0 / 45,9% (`0,06 ms`) | **74,3 / 98,4 / 99,9%** (`1,42 ms`) |
+| **Tổng cộng** | **10.000** | **31,2 / 47,6 / 46,0%** (`0,08 ms`) | **71,2 / 76,3 / 91,4%** (`1,66 ms`) | **91,1 / 98,1 / 99,9%** (**`1,81 ms`**, `552 câu/s`) |
 
 ## 3. Tiêu chí chấm và 2 baseline
 

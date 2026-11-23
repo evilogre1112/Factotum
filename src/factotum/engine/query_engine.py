@@ -13,6 +13,7 @@ from factotum.engine.models import (
     MAX_SUPERSTRING_DIFF_K,
     QueryMatch,
     compute_confidence,
+    finalize_matches,
     rank_key,
 )
 from factotum.engine.reviewer import review_matches
@@ -129,14 +130,7 @@ class GraphQueryEngine(GraphIndex):
                 sentence_has_accent=sentence_has_accent,
             )
             if ctx_matches and any(m.superstring_diff >= 0 for m in ctx_matches):
-                for m in ctx_matches:
-                    m.confidence = compute_confidence(m)
-                kb_part = [m for m in ctx_matches if m.superstring_diff >= 0]
-                mk_part = sorted(
-                    (m for m in ctx_matches if m.superstring_diff < 0),
-                    key=lambda m: (-round(m.confidence, 4), m.missing_count, -m.markov_prob, -m.freq),
-                )
-                return _restore_class_tokens(kb_part + mk_part, class_slots)
+                return _restore_class_tokens(finalize_matches(ctx_matches, preserve_kb_order=True), class_slots)
             spell_matches = try_graph_spell_correction(
                 self, norm_tokens, top_k=top_k, max_diff_k=max_diff_k
             )
@@ -147,12 +141,7 @@ class GraphQueryEngine(GraphIndex):
             ):
                 return _restore_class_tokens(spell_matches, class_slots)
             if ctx_matches:
-                for m in ctx_matches:
-                    m.confidence = compute_confidence(m)
-                ctx_matches.sort(
-                    key=lambda m: (-round(m.confidence, 4), m.missing_count, -m.markov_prob, -m.freq)
-                )
-                return _restore_class_tokens(ctx_matches, class_slots)
+                return _restore_class_tokens(finalize_matches(ctx_matches, preserve_kb_order=True), class_slots)
 
         if sentence_has_accent and not has_unknown:
             # Mọi từ trong câu đã có dấu đều đã được xác nhận là từ neo chuẩn (anchor):
@@ -187,9 +176,7 @@ class GraphQueryEngine(GraphIndex):
             if spell_matches:
                 return _restore_class_tokens(spell_matches, class_slots)
 
-        ranked = sorted(all_matches.values(), key=rank_key)[: top_k + 4]
-        for m in ranked:
-            m.confidence = compute_confidence(m)
+        ranked = finalize_matches(list(all_matches.values()), top_k=top_k + 4, sort_markov_by_conf=False)
         return _restore_class_tokens(ranked, class_slots)
 
     def query(
