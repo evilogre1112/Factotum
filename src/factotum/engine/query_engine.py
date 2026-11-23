@@ -131,7 +131,12 @@ class GraphQueryEngine(GraphIndex):
             if ctx_matches and any(m.superstring_diff >= 0 for m in ctx_matches):
                 for m in ctx_matches:
                     m.confidence = compute_confidence(m)
-                return _restore_class_tokens(ctx_matches, class_slots)
+                kb_part = [m for m in ctx_matches if m.superstring_diff >= 0]
+                mk_part = sorted(
+                    (m for m in ctx_matches if m.superstring_diff < 0),
+                    key=lambda m: (-round(m.confidence, 4), m.missing_count, -m.markov_prob, -m.freq),
+                )
+                return _restore_class_tokens(kb_part + mk_part, class_slots)
             spell_matches = try_graph_spell_correction(
                 self, norm_tokens, top_k=top_k, max_diff_k=max_diff_k
             )
@@ -144,6 +149,9 @@ class GraphQueryEngine(GraphIndex):
             if ctx_matches:
                 for m in ctx_matches:
                     m.confidence = compute_confidence(m)
+                ctx_matches.sort(
+                    key=lambda m: (-round(m.confidence, 4), m.missing_count, -m.markov_prob, -m.freq)
+                )
                 return _restore_class_tokens(ctx_matches, class_slots)
 
         if sentence_has_accent and not has_unknown:
