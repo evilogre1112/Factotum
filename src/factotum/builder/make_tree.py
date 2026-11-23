@@ -9,8 +9,11 @@ from factotum.core.extension import is_class_token, is_valid_vietnamese_syllable
 logger = get_logger("factotum.builder.make_tree")
 
 
+_VN_DIGRAPH_ONSETS = frozenset(("ch", "gh", "kh", "ng", "nh", "ph", "qu", "th", "tr"))
+
+
 def generate_unaccented_keys(word: str) -> list[str]:
-    """Sinh các khóa không dấu, chữ cái đầu và viết tắt đầu+cuối cho 1 từ đơn tiếng Việt."""
+    """Sinh các khóa không dấu, chữ cái đầu, phụ âm ghép 2 ký tự (ng, kh, nh...) và viết tắt đầu+cuối."""
     if is_class_token(word):
         return []
     keys: list[str] = []
@@ -23,6 +26,10 @@ def generate_unaccented_keys(word: str) -> list[str]:
         keys.append(no_accent[0])
         if word[0] != no_accent[0]:
             keys.append(word[0])
+    if len(no_accent) >= 3 and is_vn:
+        onset2 = no_accent[:2]
+        if onset2 in _VN_DIGRAPH_ONSETS:
+            keys.append(onset2)
     if len(word) >= 2 and word[0].isalpha() and word[-1].isalpha() and is_vn:
         first_variants = (word[0], no_accent[0]) if word[0] != no_accent[0] else (word[0],)
         last_variants = (word[-1], no_accent[-1]) if word[-1] != no_accent[-1] else (word[-1],)

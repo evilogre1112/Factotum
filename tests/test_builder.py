@@ -55,6 +55,10 @@ class TestBuilder(unittest.TestCase):
         self.assertIn("đ", keys)
         self.assertIn("dc", keys)
         self.assertIn("đc", keys)
+        self.assertIn("ng", set(generate_unaccented_keys("người")))
+        self.assertIn("kh", set(generate_unaccented_keys("khác")))
+        self.assertIn("nh", set(generate_unaccented_keys("nhà")))
+        self.assertIn("gh", set(generate_unaccented_keys("ghi")))
 
     def test_build_graph_isolated_paths(self) -> None:
         text = (
