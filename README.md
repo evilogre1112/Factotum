@@ -9,32 +9,32 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/dependencies-zero-2EA043" alt="Zero Dependencies" />
   <img src="https://img.shields.io/badge/runtime-CPU--only-orange" alt="CPU only" />
-  <img src="https://img.shields.io/badge/release-v1.0.0-blue" alt="Release v1.0.0" />
+  <img src="https://img.shields.io/badge/release-v1.1.0-blue" alt="Release v1.1.0" />
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="MIT License" />
 </p>
 
-> **Tiếng Việt:** Khôi phục tiếng Việt gõ nhanh (không dấu, viết tắt theo ngữ cảnh, thiếu từ, lỗi chính tả, Telex) thành câu chuẩn; chạy offline trên CPU, không cần GPU hay thư viện ngoài, và tự học từ chính tài liệu của bạn.
+> **Tiếng Việt:** Thư viện Python khôi phục tiếng Việt gõ nhanh (không dấu, viết tắt theo ngữ cảnh, thiếu từ, lỗi chính tả, Telex) thành câu chuẩn; chạy offline trên CPU, không cần GPU hay thư viện ngoài, và tự học từ chính tài liệu của bạn.
 >
-> **English:** Context-aware restoration for fast-typed Vietnamese (missing diacritics, abbreviations, dropped words, typos, raw Telex). Offline, CPU-only, zero external dependencies, learned directly from your own documents.
+> **English:** Zero-dependency Python library for context-aware restoration of fast-typed Vietnamese (missing diacritics, abbreviations, dropped words, typos, raw Telex). Offline, CPU-only, learned directly from your own documents.
 
 ### Tóm tắt trong 10 giây
 
 | | |
 | :--- | :--- |
 | **Giải quyết vấn đề gì?** | Chuẩn hóa câu tiếng Việt gõ tắt, không dấu, thiếu từ hoặc sai chính tả, đặc biệt khi một từ viết tắt mang nhiều nghĩa tùy ngữ cảnh (ví dụ `nd` → `nghị định` hoặc `nhân dân`). |
-| **Khác biệt ở đâu?** | Không cần GPU hay LLM; tự học trực tiếp từ bộ tài liệu của bạn, gói gọn trong 1 file mô hình nhỏ nhẹ, chạy offline trên CPU và giữ nguyên câu gốc nếu không đủ chắc chắn. |
-| **Đánh giá thực tế** | Đã đo kiểm độc lập trên văn bản chưa từng học, có đối chiếu với mô hình thống kê chuẩn và các LLM phổ biến (chi tiết xem mục [Benchmark](#benchmark)). |
+| **Khác biệt ở đâu?** | Không cần GPU hay LLM; tự học trực tiếp từ bộ tài liệu của bạn, gói gọn trong 1 file dữ liệu đã học (`.ftm`) nhỏ nhẹ, chạy offline trên CPU và giữ nguyên câu gốc nếu không đủ chắc chắn. |
+| **Đánh giá thực tế** | Đã đo kiểm độc lập trên văn bản chưa từng học, có đối chiếu với thuật toán thống kê chuẩn và các LLM phổ biến (chi tiết xem mục [Benchmark](#benchmark)). |
 | **Thử ngay** | **[Demo trực tuyến trên trình duyệt](https://huggingface.co/spaces/evilogre1112/factotum)** (không cần cài đặt), chạy giao diện web cục bộ (`python demo/app.py`), dòng lệnh (`python src/app.py`), hoặc 3 dòng Python bên dưới. |
 
 ## Factotum làm được gì?
 
-Factotum chuẩn hóa nhanh câu nhập tiếng Việt gõ tắt, gõ thiếu hoặc gõ lỗi trên CPU. Điểm chính là khả năng tự suy ra từ viết tắt theo ngữ cảnh, sửa lỗi chính tả có dấu mà vẫn giữ nguyên các từ đúng, và lọc bỏ các dự đoán kết thúc cụt lủn:
+Factotum là thư viện Python giúp chuẩn hóa nhanh câu nhập tiếng Việt gõ tắt, gõ thiếu hoặc gõ lỗi trên CPU. Điểm chính là khả năng tự suy ra từ viết tắt theo ngữ cảnh, sửa lỗi chính tả có dấu mà vẫn giữ nguyên các từ đúng, và lọc bỏ các dự đoán kết thúc cụt lủn:
 
 | Tác vụ | Đầu vào | Kết quả |
 | :--- | :--- | :--- |
 | Khôi phục dấu tiếng Việt | `xu phat vi pham hanh chinh` | `xử phạt vi phạm hành chính` |
 | Khôi phục viết tắt theo chữ cái đầu | `xpvphc atgt` | `xử phạt vi phạm hành chính an toàn giao thông` |
-| Tự suy viết tắt theo ngữ cảnh | `quyền sử dd`, `tòa án nd tối cao`, `xkcbsx có bị xử phạt không` | `quyền sử dụng đất`, `tòa án nhân dân tối cao`, `xe không có biển số xe có bị xử phạt không` |
+| Tự suy viết tắt theo ngữ cảnh | `quyền sử dd`, `tòa án nd tối cao`, `xkcbs có bị phạt không` | `quyền sử dụng đất`, `tòa án nhân dân tối cao`, `xe không có biển số có bị phạt không` |
 | Đoán từ bị thiếu ở giữa | `an toan thong` | `an toàn giao thông` |
 | Sửa lỗi gõ Telex & lặp phím | `buowcs`, `vi pham phappp luat` | `bước`, `vi phạm pháp luật` |
 | Sửa lỗi chính tả trên câu có dấu | `uống dượu bia phạt bao nhiêu`, `quy định sử lý vi phạm hành chính` | `uống rượu bia phạt bao nhiêu`, `quy định xử lý vi phạm hành chính` |
@@ -55,12 +55,12 @@ Cùng một chuỗi nhập nhưng đứng trong ngữ cảnh khác nhau sẽ cho
 
 ### Phạm vi sử dụng và vị trí trong hệ thống
 
-Factotum không dùng Deep Learning hay GPU. Thay vào đó, công cụ tự học các cụm từ và cách ghép câu hay lặp lại từ chính bộ tài liệu của bạn, rồi đóng vai trò bước làm sạch câu hỏi trước khi đưa vào công cụ tìm kiếm hoặc hệ thống hỏi đáp:
+Factotum không dùng Deep Learning hay GPU. Thay vào đó, thư viện tự học các cụm từ và cách ghép câu hay lặp lại từ chính bộ tài liệu của bạn, rồi đóng vai trò bước làm sạch câu hỏi trước khi đưa vào công cụ tìm kiếm hoặc hệ thống hỏi đáp:
 
 ```text
 Người dùng gõ: "nd 23/24 quy định điều gì"
        ↓
-  [ Factotum ]        Chuẩn hóa câu nhập (~2 ms trên CPU)
+  [ Factotum ]        Chuẩn hóa câu nhập (~2 – 6 ms trên CPU)
        ↓
 "nghị định 23/24 quy định điều gì"
        ↓
@@ -71,8 +71,8 @@ Factotum chạy tốt nhất trên một lĩnh vực cụ thể có thuật ng�
 
 Ưu điểm chính:
 - **Gọn nhẹ, chạy offline:** chạy trên CPU thông thường, không cần GPU và không phải cài thêm thư viện ngoài (chỉ cần Python 3.10+).
-- **File mô hình rất nhỏ:** chỉ `1,29 MB` trên đĩa (chiếm khoảng `150 – 200 MB` RAM khi chạy cho hơn `113.000` cụm từ chuyên ngành).
-- **Phản hồi gần như tức thì:** xử lý trung bình khoảng `2 ms` mỗi câu (hơn `400 câu/giây` trên 1 nhân CPU) và tự học xong `2,6 triệu từ` trong khoảng `32 giây`.
+- **File dữ liệu đã học rất nhỏ:** chỉ `1,29 MB` trên đĩa (chiếm khoảng `150 – 200 MB` RAM khi chạy cho hơn `113.000` cụm từ chuyên ngành).
+- **Phản hồi gần như tức thì:** xử lý trung bình khoảng `2 – 6 ms` mỗi câu trên 1 nhân CPU và tự học xong `2,6 triệu từ` trong khoảng `32 giây`.
 - **Sửa cẩn thận, tránh làm hỏng câu:** hiểu được cả viết tắt ngắn theo chữ cái đầu (`ng` → `người`, `kh` → `khác`...), giữ nguyên các câu đã gõ đúng dấu, và tự trả lại câu gốc nếu không tìm được gợi ý trọn nghĩa (bạn có thể tự thêm/bớt danh sách từ không được đứng cuối câu trong [output/dangling_end_words.txt](output/dangling_end_words.txt)).
 
 Hạn chế:
@@ -100,9 +100,9 @@ g++ -O3 -std=c++17 -shared -fPIC src/factotum/builder/native/sa_lcp.cpp -o src/f
 g++ -O3 -std=c++17 -shared -fPIC src/factotum/builder/native/sa_lcp.cpp -o src/factotum/builder/native/libsa_lcp.dylib
 ```
 
-### 2. Dùng mô hình có sẵn (`.ftm`)
+### 2. Dùng file dữ liệu đã học có sẵn (`.ftm`)
 
-File `output/factotum_law.ftm` (`1,29 MB`) nằm sẵn trong repo, huấn luyện từ 156 văn bản quy phạm pháp luật công khai (nguồn VBPL).
+File `output/factotum_law.ftm` (`1,29 MB`) nằm sẵn trong repo, được xây dựng từ 156 văn bản quy phạm pháp luật công khai (nguồn VBPL).
 
 ```python
 from factotum import Factotum
@@ -168,7 +168,7 @@ Factotum gồm 2 luồng tách biệt: **học từ tài liệu** (chạy 1 lầ
 | **Maximal Repeats (Cụm lặp tối đại)** | Cụm từ xuất hiện lặp lại trọn vẹn trong tài liệu (ví dụ `xử phạt vi phạm hành chính`), được rút tự động bằng thuật toán `Suffix Array & LCP` mà không cần gán nhãn thủ công. |
 | **Đồ thị Markov (2 chiều)** | Lưu xác suất hai từ đứng liền nhau (`A → B` và `B ← A`), giúp ghép câu mới chưa từng thấy nguyên vẹn và đoán từ bị thiếu ở giữa. |
 | **OOV (Out-of-Vocabulary)** | Từ hoàn toàn mới chưa từng xuất hiện trong tập tài liệu đã học. |
-| **ECE (Expected Calibration Error)** | Độ lệch trung bình (%) giữa điểm `confidence` mô hình báo ra và tỷ lệ đúng thực tế; ECE càng nhỏ thì điểm tin cậy càng sát thực tế. |
+| **ECE (Expected Calibration Error)** | Độ lệch trung bình (%) giữa điểm `confidence` thư viện báo ra và tỷ lệ đúng thực tế; ECE càng nhỏ thì điểm tin cậy càng sát thực tế. |
 
 ### Đọc các chỉ số Top-1, Top-3 và Phrase validity
 
@@ -249,7 +249,7 @@ Rút `1.000` câu độc nhất từ 32 văn bản kiểm tra chưa từng học
 
 ![Đường cong tăng trưởng dữ liệu Factotum](docs/images/scaling_curve.png)
 
-| Số văn bản | Số từ đầu vào (`N`) | Dung lượng văn bản thô | File kiến thức `.txt` (chưa nén) | Số từ lưu trong cụm kiến thức | File mô hình đóng gói `.ftm` |
+| Số văn bản | Số từ đầu vào (`N`) | Dung lượng văn bản thô | File kiến thức `.txt` (chưa nén) | Số từ lưu trong cụm kiến thức | File dữ liệu đóng gói `.ftm` |
 | :---: | :---: | :---: | :---: | :---: | :---: |
 | 10 | 365.615 từ | 2,13 MB | 8,57 MB (**402%**) | 232.179 từ (**63,5%**) | 434,9 KB (**20,0%**) |
 | 30 | 860.123 từ | 5,01 MB | 13,58 MB (**271%**) | 400.387 từ (**46,5%**) | 707,4 KB (**13,8%**) |
