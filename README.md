@@ -5,6 +5,7 @@
 <h1 align="center">Factotum (<code>factotum-vn-nlp</code>)</h1>
 
 <p align="center">
+  <a href="https://huggingface.co/spaces/evilogre1112/factotum"><img src="https://img.shields.io/badge/demo-Hugging%20Face%20Spaces-FFD21E?logo=huggingface&logoColor=black" alt="Live Demo on Hugging Face Spaces" /></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/dependencies-zero-2EA043" alt="Zero Dependencies" />
   <img src="https://img.shields.io/badge/runtime-CPU--only-orange" alt="CPU only" />
@@ -23,7 +24,7 @@
 | **Giải quyết vấn đề gì?** | Chuẩn hóa câu tiếng Việt gõ tắt, không dấu, thiếu từ hoặc sai chính tả, đặc biệt khi một từ viết tắt mang nhiều nghĩa tùy ngữ cảnh (ví dụ `nd` → `nghị định` hoặc `nhân dân`). |
 | **Khác biệt ở đâu?** | Không cần GPU hay LLM; tự học trực tiếp từ bộ tài liệu của bạn, gói gọn trong 1 file mô hình nhỏ nhẹ, chạy offline trên CPU và giữ nguyên câu gốc nếu không đủ chắc chắn. |
 | **Đánh giá thực tế** | Đã đo kiểm độc lập trên văn bản chưa từng học, có đối chiếu với mô hình thống kê chuẩn và các LLM phổ biến (chi tiết xem mục [Benchmark](#benchmark)). |
-| **Thử ngay** | Giao diện web cục bộ (`python demo/app.py`, hướng dẫn đưa lên Hugging Face Spaces tại [demo/README.md](demo/README.md)), dòng lệnh (`python src/app.py`), hoặc 3 dòng Python bên dưới. |
+| **Thử ngay** | **[Demo trực tuyến trên trình duyệt](https://huggingface.co/spaces/evilogre1112/factotum)** (không cần cài đặt), chạy giao diện web cục bộ (`python demo/app.py`), dòng lệnh (`python src/app.py`), hoặc 3 dòng Python bên dưới. |
 
 ## Factotum làm được gì?
 
@@ -145,7 +146,7 @@ python -m unittest discover -s tests -v        # Chạy bộ kiểm thử tự �
 python benchmark/run_benchmark.py 10000        # Chạy lại toàn bộ bộ đo Benchmark (seed=42)
 ```
 
-Muốn đưa bản demo lên **Hugging Face Spaces** (miễn phí, chạy trên CPU basic) để người khác bấm thử ngay trên trình duyệt, xem hướng dẫn 3 bước tại [demo/README.md](demo/README.md).
+Bản demo trực tuyến chạy ngay trên trình duyệt (WebAssembly, không cần server) tại **[huggingface.co/spaces/evilogre1112/factotum](https://huggingface.co/spaces/evilogre1112/factotum)**; cách tự đóng gói và triển khai xem tại [demo/README.md](demo/README.md).
 
 ## Cách hoạt động
 

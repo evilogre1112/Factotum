@@ -1,32 +1,35 @@
-# Demo trực tuyến (Gradio / Hugging Face Spaces)
+# Demo trực tuyến (WebAssembly / Gradio)
 
-## Chạy cục bộ
+## 1. Dùng thử trực tuyến ngay
 
-```bash
-pip install gradio
-python demo/app.py        # mở http://127.0.0.1:7860
-```
+Bản demo chạy 100% trên trình duyệt qua **Pyodide (Python WebAssembly)**, không cần cài đặt hay server backend:
 
-## Đưa lên Hugging Face Spaces (miễn phí, CPU basic)
+- **Live Demo:** https://huggingface.co/spaces/evilogre1112/factotum
 
-1. Tạo Space mới tại https://huggingface.co/new-space (SDK: **Gradio**, phần cứng: **CPU basic**).
-2. Đóng gói thư mục Space:
+## 2. Chạy cục bộ
 
+- **Bản Gradio:**
+  ```bash
+  pip install gradio
+  python demo/app.py        # mở http://127.0.0.1:7860
+  ```
+- **Bản Static WebAssembly:**
+  ```bash
+  python demo/build_space.py
+  python -m http.server 8000 --directory dist/hf_space
+  # mở http://127.0.0.1:8000
+  ```
+
+## 3. Tự triển khai lên Hugging Face Static Space (miễn phí)
+
+1. Đóng gói thư mục tĩnh (`~1,42 MB`):
    ```bash
-   python demo/build_space.py      # tạo dist/hf_space/ (~1,5 MB)
+   python demo/build_space.py
    ```
-
-3. Đẩy lên Space (thay `<user>`):
-
-   ```bash
-   cd dist/hf_space
-   git init -b main
-   git add .
-   git commit -m "Factotum demo"
-   git remote add origin https://huggingface.co/spaces/<user>/factotum
-   git push -u origin main
+2. Đăng nhập Hugging Face (`hf auth login`, dùng Write token) rồi tạo Static Space và đẩy thư mục `dist/hf_space/` lên bằng `huggingface_hub`:
+   ```python
+   from huggingface_hub import HfApi
+   api = HfApi()
+   api.create_repo("<user>/factotum", repo_type="space", space_sdk="static", exist_ok=True)
+   api.upload_folder(folder_path="dist/hf_space", repo_id="<user>/factotum", repo_type="space")
    ```
-
-4. Sau khi Space chạy, dán link vào phần **Thử ngay** trong README chính và vào mục *Website* của repo GitHub.
-
-Bản Space không kèm thư viện C++ (`sa_lcp`) vì demo chỉ nạp mô hình `.ftm` có sẵn, không cần huấn luyện.
