@@ -1,5 +1,8 @@
 from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor
+try:
+    from concurrent.futures import ProcessPoolExecutor
+except (ImportError, ModuleNotFoundError):
+    ProcessPoolExecutor = None  # Môi trường WebAssembly/Pyodide không có _multiprocessing
 import os
 from pathlib import Path
 import re
@@ -147,7 +150,7 @@ def extract_phrases_batch(
     if not texts:
         return []
     workers = max_workers or max(1, min(os.cpu_count() or 1, 8))
-    if workers <= 1 or len(texts) < 4:
+    if ProcessPoolExecutor is None or workers <= 1 or len(texts) < 4:
         return [_extract_worker(t) for t in texts]
     with ProcessPoolExecutor(max_workers=workers) as pool:
         return list(pool.map(_extract_worker, texts, chunksize=max(1, len(texts) // (workers * 4))))
