@@ -126,6 +126,16 @@ class TestFactotum(unittest.TestCase):
         self.assertFalse(matches_ok[0].is_fallback)
         self.assertEqual(matches_ok[0].phrase, "bộ tư pháp")
 
+    def test_post_review_deep_pass(self) -> None:
+        """Tầng hậu kiểm review cả Top-5 và rà lại Top-1 mà không làm hỏng kết quả chuẩn."""
+        deep_matches = self.model.predict("xu phat vi pham hanh chinh", top_k=5)
+        self.assertTrue(deep_matches)
+        self.assertEqual(deep_matches[0].phrase, "xử phạt vi phạm hành chính")
+        self.assertEqual(
+            self.model.restore("an toan giao thong"),
+            "an toàn giao thông",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

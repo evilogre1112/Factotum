@@ -141,7 +141,10 @@ class Factotum:
     ) -> list[QueryMatch]:
         """Trả về danh sách top-K kết quả khôi phục kèm điểm tin cậy."""
         return self.engine.query(
-            query, top_k=top_k, allow_missing=allow_missing, max_diff_k=max_diff_k
+            query,
+            top_k=top_k,
+            allow_missing=allow_missing,
+            max_diff_k=max_diff_k,
         )
 
     def restore(self, query: str, allow_missing: bool = True) -> str:

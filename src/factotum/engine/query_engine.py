@@ -211,6 +211,7 @@ class GraphQueryEngine(GraphIndex):
         if not orig_tokens:
             return []
         fallback_phrase = " ".join(orig_tokens)
+        eff_top_k = max(top_k, 5)
 
         raw_tokens, preprocessed = preprocess_tokens(self, orig_tokens)
         class_variants = _expand_class_variants(raw_tokens, ua_map=self.unaccented_map)
@@ -219,7 +220,7 @@ class GraphQueryEngine(GraphIndex):
             norm_tokens, class_slots = class_variants[0]
             # Pha 1: Sinh ứng viên thuần đồ thị/KB
             raw_matches = self._query_single_variant(
-                norm_tokens, class_slots, raw_query, preprocessed, top_k, allow_missing, max_diff_k
+                norm_tokens, class_slots, raw_query, preprocessed, eff_top_k, allow_missing, max_diff_k
             )
             # Pha 2: Hậu kiểm độc lập trên toàn bộ câu đáp án vừa tạo
             return review_matches(self, raw_matches, fallback_phrase, top_k)
@@ -227,7 +228,7 @@ class GraphQueryEngine(GraphIndex):
         merged: dict[str, QueryMatch] = {}
         for norm_tokens, class_slots in class_variants:
             for m in self._query_single_variant(
-                norm_tokens, class_slots, raw_query, preprocessed, top_k, allow_missing, max_diff_k
+                norm_tokens, class_slots, raw_query, preprocessed, eff_top_k, allow_missing, max_diff_k
             ):
                 prev = merged.get(m.phrase)
                 if prev is None or (m.confidence, m.freq) > (prev.confidence, prev.freq):

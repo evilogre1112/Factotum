@@ -239,8 +239,10 @@ def direct_kb_search(
                     p_words[start + i + 1] in col_sets[i] for i in range(gap_i, L - 1)
                 ):
                     sub_words = p_words[start : start + L + 1]
-                    sub_phrase = " ".join(sub_words)
                     mid_word = p_words[start + gap_i]
+                    if is_class_token(mid_word):
+                        continue
+                    sub_phrase = " ".join(sub_words)
                     m_prob = 1.0
                     for i in range(L):
                         m_prob *= fwd_prob.get(sub_words[i], {}).get(sub_words[i + 1], 1e-6)
@@ -295,7 +297,10 @@ def search_variant(
     trimmed_cols = [col[:MAX_CANDIDATES_PER_KEY] for col in columns]
     dict_freq = index.dict_freq
     fwd_prob = index.fwd_prob
+    rev_prob = index.rev_prob
     fwd_prob_top = index.fwd_prob_top
+    is_syllable_chain = all(len(c) <= 15 for c in trimmed_cols)
+    max_per_state = 2 if is_syllable_chain else BEAM_WIDTH
 
     beam: list[tuple[list[str], float, int, list[str]]] = [
         ([w], max(dict_freq.get(w, 1), 1) / 100000.0, 0, []) for w in trimmed_cols[0]
@@ -304,51 +309,67 @@ def search_variant(
     for col_idx in range(1, len(trimmed_cols)):
         target_list = trimmed_cols[col_idx]
         target_set = set(target_list)
-        next_beam: list[tuple[list[str], float, int, list[str]]] = []
+        per_state_zero: dict[str, list[tuple[list[str], float, int, list[str]]]] = {}
+        with_miss_next: list[tuple[list[str], float, int, list[str]]] = []
 
-        for path_words, curr_prob, miss_cnt, miss_words in beam:
+        def _push_zero(nxt_w: str, item: tuple[list[str], float, int, list[str]]) -> None:
+            bucket = per_state_zero.get(nxt_w)
+            if bucket is None:
+                per_state_zero[nxt_w] = [item]
+            elif len(bucket) < max_per_state:
+                bucket.append(item)
+                bucket.sort(key=lambda x: -x[1])
+            elif item[1] > bucket[-1][1]:
+                bucket[-1] = item
+                bucket.sort(key=lambda x: -x[1])
+
+        best_prev_zero: tuple[list[str], float, int, list[str]] | None = None
+
+        for state in beam:
+            path_words, curr_prob, miss_cnt, miss_words = state
+            if miss_cnt == 0 and (best_prev_zero is None or curr_prob > best_prev_zero[1]):
+                best_prev_zero = state
             last_w = path_words[-1]
             prob_neighbors = fwd_prob.get(last_w, {})
 
             found_direct = False
-            hit_top0 = False
-            top0 = target_list[0] if target_list else ""
+            use_rev = is_syllable_chain
             if len(target_list) < len(prob_neighbors):
                 for nxt in target_list:
                     p_edge = prob_neighbors.get(nxt)
                     if p_edge is not None:
                         found_direct = True
-                        if nxt == top0:
-                            hit_top0 = True
-                        next_beam.append(
-                            (path_words + [nxt], curr_prob * p_edge, miss_cnt, miss_words)
-                        )
+                        step_p = (p_edge ** 0.85) * (rev_prob.get(nxt, {}).get(last_w, p_edge) ** 0.15) if use_rev else p_edge
+                        cand_item = (path_words + [nxt], curr_prob * step_p, miss_cnt, miss_words)
+                        if miss_cnt == 0:
+                            _push_zero(nxt, cand_item)
+                        else:
+                            with_miss_next.append(cand_item)
             else:
                 for nxt, p_edge in prob_neighbors.items():
                     if nxt in target_set:
                         found_direct = True
-                        if nxt == top0:
-                            hit_top0 = True
-                        next_beam.append(
-                            (path_words + [nxt], curr_prob * p_edge, miss_cnt, miss_words)
-                        )
-
-            if found_direct and top0 and not hit_top0:
-                backoff_p = 1e-5 * (max(dict_freq.get(top0, 1), 1) / 100000.0)
-                next_beam.append(
-                    (path_words + [top0], curr_prob * backoff_p, miss_cnt, miss_words)
-                )
+                        step_p = (p_edge ** 0.85) * (rev_prob.get(nxt, {}).get(last_w, p_edge) ** 0.15) if use_rev else p_edge
+                        cand_item = (path_words + [nxt], curr_prob * step_p, miss_cnt, miss_words)
+                        if miss_cnt == 0:
+                            _push_zero(nxt, cand_item)
+                        else:
+                            with_miss_next.append(cand_item)
 
             if not found_direct:
                 for nxt in target_list[:4]:
                     backoff_p = 1e-5 * (max(dict_freq.get(nxt, 1), 1) / 100000.0)
-                    next_beam.append(
-                        (path_words + [nxt], curr_prob * backoff_p, miss_cnt, miss_words)
-                    )
+                    cand_item = (path_words + [nxt], curr_prob * backoff_p, miss_cnt, miss_words)
+                    if miss_cnt == 0:
+                        _push_zero(nxt, cand_item)
+                    else:
+                        with_miss_next.append(cand_item)
 
                 if allow_missing and MAX_MISSING_GAP >= 1 and len(trimmed_cols) <= 6 and miss_cnt < 1:
                     t_len = len(target_list)
                     for mid, p1 in fwd_prob_top.get(last_w, ()):
+                        if is_class_token(mid):
+                            continue
                         mid_neighbors = fwd_prob.get(mid, {})
                         if not mid_neighbors:
                             continue
@@ -356,40 +377,40 @@ def search_variant(
                             for nxt in target_list:
                                 p2 = mid_neighbors.get(nxt)
                                 if p2 is not None:
-                                    next_beam.append(
-                                        (
-                                            path_words + [mid, nxt],
-                                            curr_prob * p1 * p2,
-                                            miss_cnt + 1,
-                                            miss_words + [mid],
-                                        )
+                                    with_miss_next.append(
+                                        (path_words + [mid, nxt], curr_prob * p1 * p2, miss_cnt + 1, miss_words + [mid])
                                     )
                         else:
                             for nxt, p2 in mid_neighbors.items():
                                 if nxt in target_set:
-                                    next_beam.append(
-                                        (
-                                            path_words + [mid, nxt],
-                                            curr_prob * p1 * p2,
-                                            miss_cnt + 1,
-                                            miss_words + [mid],
-                                        )
+                                    with_miss_next.append(
+                                        (path_words + [mid, nxt], curr_prob * p1 * p2, miss_cnt + 1, miss_words + [mid])
                                     )
 
-        if not next_beam and target_list:
-            top_targets = target_list[:3]
-            for path_words, curr_prob, miss_cnt, miss_words in beam[:5]:
-                for nxt in top_targets:
-                    next_beam.append(
-                        (path_words + [nxt], curr_prob * 1e-6, miss_cnt, miss_words)
-                    )
+        # Luôn cho phép trạng thái dẫn đầu toàn cục chuyển tiếp backoff sang top-6 ứng viên đích
+        # (tránh trường hợp từ đầu tần suất cao bị cắt mất đường tới ứng viên đích đúng chỉ vì vướng 1 cạnh nhiễu khác).
+        if best_prev_zero is not None:
+            bp_words, bp_prob, _, bp_miss = best_prev_zero
+            for nxt in target_list[:6]:
+                backoff_p = 1e-5 * (max(dict_freq.get(nxt, 1), 1) / 100000.0)
+                _push_zero(nxt, (bp_words + [nxt], bp_prob * backoff_p, 0, bp_miss))
 
-        if not next_beam:
+        zero_flat = [item for bucket in per_state_zero.values() for item in bucket]
+        if not zero_flat and not with_miss_next and target_list:
+            for path_words, curr_prob, miss_cnt, miss_words in beam[:5]:
+                for nxt in target_list[:3]:
+                    item = (path_words + [nxt], curr_prob * 1e-6, miss_cnt, miss_words)
+                    if miss_cnt == 0:
+                        zero_flat.append(item)
+                    else:
+                        with_miss_next.append(item)
+
+        if not zero_flat and not with_miss_next:
             break
 
-        zero_miss = sorted((x for x in next_beam if x[2] == 0), key=lambda x: -x[1])
-        with_miss = sorted((x for x in next_beam if x[2] > 0), key=lambda x: -x[1])
-        beam = zero_miss[:BEAM_WIDTH] + with_miss[:10]
+        zero_flat.sort(key=lambda x: -x[1])
+        with_miss_next.sort(key=lambda x: -x[1])
+        beam = zero_flat[:BEAM_WIDTH] + with_miss_next[:10]
 
     for path_words, m_prob, miss_cnt, miss_words in beam:
         phrase = " ".join(path_words)
@@ -407,8 +428,9 @@ def query_by_kb_composition(
     raw_tokens: list[str],
     top_k: int = 5,
     max_diff_k: int = MAX_SUPERSTRING_DIFF_K,
+    min_bridge: int = 0,
 ) -> list[QueryMatch]:
-    """Thử tách câu thành 2 cụm KB độc lập (vd: 'xpvphc atgt') khi cả câu không nằm trong 1 cụm duy nhất."""
+    """Thử tách câu thành 2 cụm KB độc lập (vd: 'xpvphc atgt' hoặc 'quy định' + 'thời hạn') nối qua cạnh đồ thị."""
     n_tok = len(raw_tokens)
     if n_tok < 2 or n_tok > 8:
         return []
@@ -466,6 +488,8 @@ def query_by_kb_composition(
             for rm in right_cands:
                 r_first = rm.phrase.split()[0]
                 bridge_e = index.fwd_graph.get(l_last, {}).get(r_first, 0)
+                if bridge_e < min_bridge:
+                    continue
                 min_f = min(lm.freq, rm.freq)
                 sum_f = lm.freq + rm.freq
                 full_p = f"{lm.phrase} {rm.phrase}"

@@ -46,6 +46,7 @@ class GraphIndex:
         self.fwd_graph: dict[str, dict[str, int]] = {}                     # Đồ thị cạnh xuôi u -> {v: freq}
         self.rev_graph: dict[str, dict[str, int]] = {}                     # Đồ thị cạnh ngược v -> {u: freq}
         self.fwd_prob: dict[str, dict[str, float]] = {}                    # Xác suất Markov P(v | u)
+        self.rev_prob: dict[str, dict[str, float]] = {}                    # Xác suất ngược P(u | v)
         self.fwd_prob_top: dict[str, list[tuple[str, float]]] = {}         # Top 25 từ kế tiếp có xác suất cao nhất
         self.unaccented_map: dict[str, list[str]] = {}                     # Khóa không dấu/viết tắt -> danh sách từ có dấu
         self.ua_phrase_to_pids: dict[str, int | tuple[int, ...]] = {}      # Cụm không dấu -> pid (int) hoặc tuple[pid]
@@ -94,6 +95,18 @@ class GraphIndex:
         for u, v, w in real_edges:
             self._record_class_edge(self.fwd_graph, u, v, w)
 
+    @staticmethod
+    def _filter_unaccented_candidates(key: str, candidates: list[str]) -> list[str]:
+        ua_key = remove_accents(key)
+        if len(key) >= 2 and key.isalpha():
+            if not is_valid_vietnamese_syllable(key):
+                return [v for v in candidates if v != remove_accents(v) or is_valid_vietnamese_syllable(v)]
+            if key == ua_key:
+                exact_syll = [v for v in candidates if remove_accents(v) == ua_key]
+                if exact_syll:
+                    return exact_syll
+        return candidates
+
     def _rebuild_col_id_indexes(self) -> None:
         self.col_id_to_pids.clear()
         self.col_id_to_set.clear()
@@ -103,6 +116,11 @@ class GraphIndex:
             self.col_id_to_set[cid] = set(candidates)
             ua_k = remove_accents(key)
             self.col_id_to_initial[cid] = ua_k[0] if ua_k else ""
+        self.rev_prob = {}
+        for v, us in self.rev_graph.items():
+            tot_in = sum(us.values())
+            if tot_in > 0:
+                self.rev_prob[v] = {u: w / tot_in for u, w in us.items()}
 
     def get_col_pids(self, col: list[str]) -> set[int]:
         """Tra cứu lười tập PID cho một cột ứng viên, có cache giới hạn dung lượng."""
@@ -267,10 +285,11 @@ class GraphIndex:
         self.rev_graph = {}
         self.fwd_prob = {}
         self.fwd_prob_top = {}
-        self.unaccented_map = {
-            intern(k): [intern(w) for w in cands]
-            for k, cands in data["unaccented_map"].items()
-        }
+        self.unaccented_map = {}
+        for k, cands in data["unaccented_map"].items():
+            filtered = self._filter_unaccented_candidates(k, cands)
+            if k and filtered:
+                self.unaccented_map[intern(k)] = [intern(w) for w in filtered]
         self.ua_phrase_to_pids = {}
         self.acronym_to_pids = {}
 
@@ -560,18 +579,9 @@ class GraphIndex:
                         continue
                     key, vals = line.split(":", 1)
                     key = key.strip()
-                    candidates = [v.strip() for v in vals.split(",") if v.strip()]
-                    ua_key = remove_accents(key)
-                    if len(key) >= 2 and key.isalpha():
-                        if not is_valid_vietnamese_syllable(key):
-                            candidates = [
-                                v for v in candidates
-                                if v != remove_accents(v) or is_valid_vietnamese_syllable(v)
-                            ]
-                        elif key == ua_key:
-                            exact_syll = [v for v in candidates if remove_accents(v) == ua_key]
-                            if exact_syll:
-                                candidates = exact_syll
+                    candidates = self._filter_unaccented_candidates(
+                        key, [v.strip() for v in vals.split(",") if v.strip()]
+                    )
                     if key and candidates:
                         self.unaccented_map[intern(key)] = [intern(w) for w in candidates]
 
@@ -827,6 +837,11 @@ class GraphIndex:
             self.col_id_to_initial[cid] = ua_key[0] if ua_key else ""
 
         self.len_range_cache.clear()
+        self.rev_prob = {
+            v: {u: w / tot for u, w in us.items()}
+            for v, us in self.rev_graph.items()
+            if (tot := sum(us.values())) > 0
+        }
         return {"added": added, "updated": updated}
 
     def pids_to_exact_matches(

@@ -23,7 +23,12 @@ def preprocess_tokens(index: GraphIndex, raw_tokens: list[str]) -> tuple[list[st
             out.append(tok)
             continue
         collapsed = collapse_repeated_chars(tok)
-        if collapsed != tok and len(collapsed) >= 2 and is_valid_vietnamese_syllable(collapsed):
+        if (
+            collapsed != tok
+            and len(collapsed) >= 2
+            and any(ch in "aeiouy" for ch in remove_accents(tok))
+            and is_valid_vietnamese_syllable(collapsed)
+        ):
             if collapsed in real_vocab or (len(tok) >= 4 and collapsed in ua_map):
                 out.append(collapsed)
                 changed = True

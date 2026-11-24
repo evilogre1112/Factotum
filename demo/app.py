@@ -89,7 +89,7 @@ with gr.Blocks(title="Factotum: Vietnamese text restoration") as demo:
     gr.Examples(EXAMPLES, inputs=inp)
     gr.Markdown(
         "Lưu ý: độ chính xác phụ thuộc tài liệu đã học (miền pháp luật). "
-        "Trên 10.000 câu từ 32 văn bản chưa từng học: Top-1 ~62%, Top-3 ~71% "
+        "Trên 10.000 câu từ 32 văn bản chưa từng học: Top-1 ~62%, Top-3 ~72% "
         "(chi tiết và giới hạn của phép đo xem README)."
     )
     btn.click(restore, [inp, k], [out, table, info])
