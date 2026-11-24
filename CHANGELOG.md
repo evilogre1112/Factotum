@@ -13,8 +13,8 @@ Nâng cấp lõi tìm đường, tầng hậu kiểm, hỗ trợ chạy thử tr
 
 ### Cải tiến
 
-- **Tìm đường Viterbi + Markov hai chiều (`search.py`, `graph_index.py`):** giữ trạng thái theo từng từ, bổ sung backoff `best_prev_zero` và kết hợp xác suất thuận + ngược (`p_fwd^0.85 * p_rev^0.15`), đẩy Held-out 10.000 câu lên `62,3%` Top-1 / `71,8%` Top-3 / `84,1%` Phrase validity (viết tắt hỗn hợp đạt `70,5%` Top-1).
-- **Nâng cấp tầng hậu kiểm (`reviewer.py`):** duyệt 1 lượt Top-5, sửa từ cầu nối `A - F' - B` bằng ngữ cảnh 2 đầu, mở nâng cấp 3-gram từ KB (`allow_kb_upgrade`) và xếp hạng lại Top-5 bằng mạch Markov.
+- **Tìm đường Viterbi chuẩn + Markov hai chiều (`search.py`, `graph_index.py`):** bỏ cắt tham lam sớm trên cột viết tắt (giữ đủ tập ứng viên chuyển tiếp và đường tốt nhất cho từng từ đích), bổ sung backoff `best_prev_zero` và kết hợp xác suất thuận + ngược (`p_fwd^0.85 * p_rev^0.15`), đẩy Held-out 10.000 câu lên `62,4%` Top-1 / `72,0%` Top-3 / `84,2%` Phrase validity (viết tắt hỗn hợp `70,8%` Top-1, viết tắt toàn cụm `90,0%` PV).
+- **Nâng cấp tầng hậu kiểm tổng thể (`reviewer.py`):** căn chỉnh token gốc với đoạn viết tắt bung nhiều từ, hậu kiểm theo khối viết tắt KB (`atgt`, `tngt`, `xpvphc`), sửa cầu nối `A - F' - B` kèm nâng cấp 3-gram KB và xếp hạng lại Top-5 theo điểm tổng thể toàn câu.
 - **Chuẩn hóa xếp hạng 7 tầng (`models.py`):** gộp toàn bộ tiêu chí xếp hạng về `evidence_tier`, `rank_key` và `finalize_matches`; bổ sung fast-path O(1) cho câu khớp trực tiếp KB và giảm độ trễ câu dài nhiễu từ `172 ms` xuống `6,4 ms`.
 
 ### Sửa lỗi

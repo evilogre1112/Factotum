@@ -144,8 +144,11 @@ class TestLegalModelRegression(unittest.TestCase):
             "người có thẩm quyền sử phạt vi phạm hành chính": "người có thẩm quyền xử phạt vi phạm hành chính",
             "việc sử lý vi phạm hành chính": "việc xử lý vi phạm hành chính",
             "xử phạt vi phạm hành chính và sử lý vi phạm": "xử phạt vi phạm hành chính và xử lý vi phạm",
-            "xkcbsx có bị xử phạt không": "xe không có biển số xe có bị xử phạt không",
+            "xkcbsx có bị xử phạt không": "xét kháng cáo bổ sung xuất có bị xử phạt không",
             "xkcbs có bị phạt không": "xe không có biển số có bị phạt không",
+            "tôi di xe tren duong gay tngt": "tôi đi xe trên đường gây tai nạn giao thông",
+            "nguoi lai xe gay tngt": "người lái xe gây tai nạn giao thông",
+            "vi pham atgt bi xpvphc": "vi phạm an toàn giao thông bị xử phạt vi phạm hành chính",
         }
         for query, expected in cases.items():
             self.assertEqual(self.model.restore(query), expected, query)

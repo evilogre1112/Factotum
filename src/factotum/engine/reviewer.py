@@ -3,6 +3,90 @@ from factotum.engine.graph_index import GraphIndex
 from factotum.engine.models import QueryMatch, compute_confidence, evidence_tier
 
 
+def _align_tokens_to_words(
+    orig_tokens: list[str],
+    words: list[str],
+) -> list[tuple[str, int, int]] | None:
+    """Căn chỉnh mỗi token gốc (kể cả viết tắt bung nhiều từ như 'tngt') với đoạn [start, end) trong câu đáp án."""
+    n_orig = len(orig_tokens)
+    n_words = len(words)
+    if n_orig == 0 or n_words == 0 or n_words < n_orig:
+        return None
+    if n_orig == n_words:
+        return [(tok, i, i + 1) for i, tok in enumerate(orig_tokens)]
+
+    memo: dict[tuple[int, int], list[tuple[str, int, int]] | None] = {}
+
+    def _dp(ti: int, wi: int) -> list[tuple[str, int, int]] | None:
+        if ti == n_orig and wi == n_words:
+            return []
+        if ti == n_orig or wi == n_words or (n_words - wi) < (n_orig - ti):
+            return None
+        key = (ti, wi)
+        if key in memo:
+            return memo[key]
+
+        tok = orig_tokens[ti]
+        ua = remove_accents(tok)
+        # Thử khớp khối viết tắt (len >= 2, không phải âm tiết chuẩn) với đúng len(ua) từ có chữ cái đầu khớp
+        if len(ua) >= 2 and ua.isalpha() and not is_valid_vietnamese_syllable(ua) and wi + len(ua) <= n_words:
+            if all(
+                (rw := remove_accents(words[wi + k])) and rw[0] == ua[k]
+                for k in range(len(ua))
+            ):
+                rest = _dp(ti + 1, wi + len(ua))
+                if rest is not None:
+                    res = [(tok, wi, wi + len(ua))] + rest
+                    memo[key] = res
+                    return res
+
+        # Thử khớp 1-1
+        rest1 = _dp(ti + 1, wi + 1)
+        if rest1 is not None:
+            res = [(tok, wi, wi + 1)] + rest1
+            memo[key] = res
+            return res
+
+        memo[key] = None
+        return None
+
+    return _dp(0, 0)
+
+
+def _sentence_global_metrics(
+    index: GraphIndex,
+    words: list[str],
+) -> tuple[int, int, int, int, float]:
+    """Đánh giá tổng thể toàn câu: (số cạnh đứt, số từ được phủ bởi cụm KB >=3 từ, số cụm 4 từ KB, số cụm 3 từ KB, xác suất Markov)."""
+    n = len(words)
+    fwd = index.fwd_graph
+    fwd_prob = index.fwd_prob
+    broken_edges = (
+        sum(1 for i in range(n - 1) if fwd.get(words[i], {}).get(words[i + 1], 0) == 0)
+        if n >= 2
+        else 0
+    )
+    covered = [False] * n
+    kb3_hits = 0
+    kb4_hits = 0
+    if n >= 3:
+        for i in range(n - 2):
+            if index.lookup_real_phrase_score(words[i : i + 3])[0] > 0:
+                kb3_hits += 1
+                covered[i] = covered[i + 1] = covered[i + 2] = True
+    if n >= 4:
+        for i in range(n - 3):
+            if index.lookup_real_phrase_score(words[i : i + 4])[0] > 0:
+                kb4_hits += 1
+                covered[i] = covered[i + 1] = covered[i + 2] = covered[i + 3] = True
+    kb_covered = sum(covered)
+
+    m_prob = max(index.dict_freq.get(words[0], 1), 1) / 100000.0 if n >= 1 else 0.0
+    for i in range(n - 1):
+        m_prob *= fwd_prob.get(words[i], {}).get(words[i + 1], 1e-6)
+    return broken_edges, kb_covered, kb4_hits, kb3_hits, m_prob
+
+
 def _repair_broken_markov_bridge(
     index: GraphIndex,
     match: QueryMatch,
@@ -11,26 +95,84 @@ def _repair_broken_markov_bridge(
     allow_kb_upgrade: bool = False,
 ) -> QueryMatch:
     """
-    Hậu kiểm cầu nối A - F - B trên nhánh Markov thuần (`superstring_diff < 0`):
-    - Lượt thường: nếu `F` làm đứt cạnh (`A->F == 0` hoặc `F->B == 0`), tìm `F'` hợp lệ từ
-      từ gốc ban đầu sao cho `A -> F' -> B` có xác suất thực tế trên đồ thị.
-    - Lượt sâu (`allow_kb_upgrade=True`): kiểm tra thêm cửa sổ 3 từ KB `(A, F', B)` — nếu
-      cả 3 từ không có trong KB nhưng tồn tại `F'` hợp lệ tạo thành cụm 3 từ có thật trong KB
-      thì nâng cấp `F -> F'`.
+    Hậu kiểm tổng thể toàn câu trên nhánh Markov thuần (`superstring_diff < 0`):
+    - Căn chỉnh token gốc với câu đáp án (hỗ trợ cả viết tắt bung nhiều từ như 'tngt').
+    - Với khối viết tắt (>=2 từ): thử thay cả khối bằng cụm viết tắt KB nếu làm điểm tổng thể toàn câu tốt hơn.
+    - Với từ đơn không dấu: sửa cầu nối `A - F' - B` và nâng cấp cụm 3 từ KB (`allow_kb_upgrade=True`).
     """
-    if match.superstring_diff >= 0 or match.is_fallback:
+    if match.superstring_diff >= 0 or match.is_fallback or match.missing_count > 0:
         return match
     words = match.phrase.split()
     n = len(words)
-    if n < 2 or n != len(orig_tokens):
+    if n < 2:
+        return match
+    spans = _align_tokens_to_words(orig_tokens, words)
+    if spans is None:
         return match
 
     fwd_prob = index.fwd_prob
     ua_map = index.unaccented_map
     changed = False
 
-    for i in range(n):
-        orig = orig_tokens[i]
+    # 1. Hậu kiểm theo khối cho token viết tắt bung nhiều từ (vd: 'tngt' -> 'tai nạn giao thông', 'atgt' -> 'an toàn giao thông')
+    if allow_kb_upgrade and n > len(orig_tokens):
+        cur_broken, cur_cov, cur_kb4, cur_kb3, cur_prob = _sentence_global_metrics(index, words)
+        fwd_g = index.fwd_graph
+        for orig, st, ed in spans:
+            span_len = ed - st
+            if span_len < 2:
+                continue
+            ua_orig = remove_accents(orig)
+            acr_pids = index.get_acronym_pids(ua_orig)
+            if not acr_pids:
+                continue
+            cand_phrases = [
+                list(index.phrases[pid][1])
+                for pid in acr_pids
+                if len(index.phrases[pid][1]) == span_len
+            ]
+            cand_phrases.sort(key=lambda pw: -index.dict_freq.get(" ".join(pw), 0))
+            cur_block_freq = index.dict_freq.get(" ".join(words[st:ed]), 0)
+            left_b = words[st - 1] if st > 0 else ""
+            right_b = words[ed] if ed < n else ""
+
+            def _block_key(
+                trial_words: list[str],
+                block_freq: int,
+                tb: int,
+                tc: int,
+                t4: int,
+                t3: int,
+                tp: float,
+            ) -> tuple[int, int, int, int, int, int, float]:
+                l_ok = (not left_b) or (fwd_g.get(left_b, {}).get(trial_words[st], 0) > 0)
+                r_ok = (not right_b) or (fwd_g.get(trial_words[ed - 1], {}).get(right_b, 0) > 0)
+                both_broken = 1 if (left_b and right_b and not l_ok and not r_ok) else 0
+                strong_kb = 1 if (span_len >= 3 and block_freq >= 5) else 0
+                return (strong_kb, -both_broken, -tb, tc, t4, t3, tp)
+
+            best_block: list[str] | None = None
+            best_key = _block_key(words, cur_block_freq, cur_broken, cur_cov, cur_kb4, cur_kb3, cur_prob)
+            for c_words in cand_phrases[:8]:
+                if c_words == words[st:ed]:
+                    continue
+                c_freq = index.dict_freq.get(" ".join(c_words), 0)
+                trial = words[:st] + c_words + words[ed:]
+                tb, tc, t4, t3, tp = _sentence_global_metrics(index, trial)
+                t_key = _block_key(trial, c_freq, tb, tc, t4, t3, tp)
+                if t_key > best_key:
+                    best_key = t_key
+                    best_block = c_words
+                    cur_broken, cur_cov, cur_kb4, cur_kb3, cur_prob = tb, tc, t4, t3, tp
+            if best_block is not None:
+                words[st:ed] = best_block
+                changed = True
+
+    # 2. Hậu kiểm cầu nối từng từ đơn không dấu A - F' - B và cụm 3 từ KB
+    for orig, st, ed in spans:
+        if ed - st != 1:
+            continue
+        i = st
         ua_orig = remove_accents(orig)
         if orig != ua_orig:
             continue
@@ -106,25 +248,41 @@ def _repair_broken_markov_bridge(
     return repaired
 
 
-def _deep_rerank_score(index: GraphIndex, m: QueryMatch) -> tuple[int, int, int, int, float, float, int]:
-    """Khóa xếp hạng lại nhánh Markov trong Top-5: ưu tiên hạng KB, ít cạnh đứt, nhiều cụm 3 từ KB và xác suất Markov."""
+def _count_strong_acronym_kb_hits(
+    index: GraphIndex,
+    orig_tokens: list[str],
+    words: list[str],
+) -> int:
+    """Đếm số khối viết tắt (>=3 ký tự, vd: 'atgt', 'tngt', 'xpvphc') khớp đúng cụm KB mạnh (freq >= 5)."""
+    if len(words) <= len(orig_tokens):
+        return 0
+    spans = _align_tokens_to_words(orig_tokens, words)
+    if not spans:
+        return 0
+    hits = 0
+    for _orig, st, ed in spans:
+        if ed - st >= 3 and index.dict_freq.get(" ".join(words[st:ed]), 0) >= 5:
+            hits += 1
+    return hits
+
+
+def _deep_rerank_score(
+    index: GraphIndex,
+    m: QueryMatch,
+    orig_tokens: list[str],
+) -> tuple[int, int, int, int, int, int, float, float, int]:
+    """Khóa xếp hạng tổng thể toàn câu cho nhánh Markov: ưu tiên hạng KB, khối viết tắt KB chuẩn, ít cạnh đứt, cụm KB và xác suất Markov."""
     words = m.phrase.split()
-    fwd = index.fwd_graph
-    broken_edges = (
-        sum(1 for i in range(len(words) - 1) if fwd.get(words[i], {}).get(words[i + 1], 0) == 0)
-        if len(words) >= 2
-        else 0
-    )
-    kb3_hits = (
-        sum(1 for i in range(len(words) - 2) if index.lookup_real_phrase_score(words[i : i + 3])[0] > 0)
-        if len(words) >= 3
-        else 0
-    )
+    is_acr_exp = m.missing_count == 0 and len(words) > len(orig_tokens)
+    broken_edges, _kb_covered, kb4_hits, kb3_hits, _ = _sentence_global_metrics(index, words)
+    acr_kb_hits = _count_strong_acronym_kb_hits(index, orig_tokens, words) if is_acr_exp else 0
     return (
         evidence_tier(m),
         m.missing_count,
+        -acr_kb_hits,
         broken_edges,
-        -kb3_hits,
+        0 if (is_acr_exp and m.context_tier > 0) else -kb4_hits,
+        0 if is_acr_exp else -kb3_hits,
         -round(m.confidence, 4),
         -m.markov_prob,
         -m.freq,
@@ -173,17 +331,10 @@ def review_matches(
     if valid:
         if orig_tokens:
             head_slice = valid[:deep_limit]
-            n_orig = len(orig_tokens)
-            head_keep = [
-                item for item in head_slice
-                if item.superstring_diff >= 0 or (item.missing_count == 0 and len(item.phrase.split()) != n_orig)
-            ]
+            head_keep = [item for item in head_slice if item.superstring_diff >= 0]
             head_mk = sorted(
-                (
-                    item for item in head_slice
-                    if item.superstring_diff < 0 and not (item.missing_count == 0 and len(item.phrase.split()) != n_orig)
-                ),
-                key=lambda item: _deep_rerank_score(index, item),
+                (item for item in head_slice if item.superstring_diff < 0),
+                key=lambda item: _deep_rerank_score(index, item, orig_tokens),
             )
             head = head_keep + head_mk
             valid = head + valid[deep_limit:]

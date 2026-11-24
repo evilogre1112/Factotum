@@ -300,15 +300,16 @@ def search_variant(
     rev_prob = index.rev_prob
     fwd_prob_top = index.fwd_prob_top
     is_syllable_chain = all(len(c) <= 15 for c in trimmed_cols)
-    max_per_state = 2 if is_syllable_chain else BEAM_WIDTH
+    max_per_state = 2
 
     beam: list[tuple[list[str], float, int, list[str]]] = [
         ([w], max(dict_freq.get(w, 1), 1) / 100000.0, 0, []) for w in trimmed_cols[0]
     ]
 
-    for col_idx in range(1, len(trimmed_cols)):
+    for col_idx in range(1, len(columns)):
+        full_col = columns[col_idx]
         target_list = trimmed_cols[col_idx]
-        target_set = set(target_list)
+        target_set = set(full_col)
         per_state_zero: dict[str, list[tuple[list[str], float, int, list[str]]]] = {}
         with_miss_next: list[tuple[list[str], float, int, list[str]]] = []
 
@@ -334,8 +335,8 @@ def search_variant(
 
             found_direct = False
             use_rev = is_syllable_chain
-            if len(target_list) < len(prob_neighbors):
-                for nxt in target_list:
+            if len(full_col) < len(prob_neighbors):
+                for nxt in full_col:
                     p_edge = prob_neighbors.get(nxt)
                     if p_edge is not None:
                         found_direct = True
@@ -410,7 +411,16 @@ def search_variant(
 
         zero_flat.sort(key=lambda x: -x[1])
         with_miss_next.sort(key=lambda x: -x[1])
-        beam = zero_flat[:BEAM_WIDTH] + with_miss_next[:10]
+        if col_idx < len(columns) - 1 and len(full_col) > 15:
+            # Viterbi chuẩn trên cột viết tắt: giữ đường tốt nhất cho từng từ đích (tối đa 60 trạng thái)
+            # để không cắt tham lam nhánh đúng (vd: gây -> tai -> nạn -> giao -> thông) ở bước đầu.
+            best_per_word = [bucket[0] for bucket in per_state_zero.values()]
+            best_per_word.sort(key=lambda x: -x[1])
+            second_per_word = [bucket[1] for bucket in per_state_zero.values() if len(bucket) > 1]
+            second_per_word.sort(key=lambda x: -x[1])
+            beam = best_per_word[:60] + second_per_word[:10] + with_miss_next[:10]
+        else:
+            beam = zero_flat[:BEAM_WIDTH] + with_miss_next[:10]
 
     for path_words, m_prob, miss_cnt, miss_words in beam:
         phrase = " ".join(path_words)
