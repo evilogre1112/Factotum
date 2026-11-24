@@ -231,14 +231,14 @@ Rút `1.000` câu độc nhất từ 32 văn bản kiểm tra chưa từng học
 
 | Nhóm câu hỏi | Số câu | Factotum (`T1 / PV`) | Gemini Hydrogen, zero-shot (`T1 / PV`) | Claude Sonnet 5.5, zero-shot (`T1 / PV`) |
 | :--- | :---: | :---: | :---: | :---: |
-| Không dấu mới hoàn toàn | 231 | **85,7% / 91,3%** (`96,1%` T3) | **85,7%** / 87,9% | 79,7% / 81,8% |
-| Viết tắt hỗn hợp | 228 | 64,9% / **79,4%** (`78,5%` T3) | 64,0% / 78,1% | **65,8%** / 78,9% |
-| Thiếu 1 từ ở giữa | 234 | **36,8% / 67,5%** (`48,7%` T3) | 33,3% / 59,0% | **36,8%** / 51,7% |
-| Viết tắt toàn cụm | 226 | **23,5% / 89,4%** (`31,9%` T3) | 6,6% / 43,8% | 2,2% / 29,6% |
-| **Tổng cộng (cụm trọn nghĩa)** | **919** | **52,8% / 81,8%** (`63,9%` T3) | **47,6% / 67,2%** | **46,2% / 60,6%** |
-| **Thời gian chạy 1.000 câu** | | **`3,35 giây`** (1 CPU offline, `1,29 MB`) | `~15 giây` (batch cloud) | `~20 phút` (cloud) |
+| Không dấu mới hoàn toàn | 231 | 84,4% / **90,0%** (`91,8%` T3) | **85,7%** / 87,9% | 79,7% / 81,8% |
+| Viết tắt hỗn hợp | 228 | 63,6% / **78,9%** (`75,4%` T3) | 64,0% / 78,1% | **65,8%** / **78,9%** |
+| Thiếu 1 từ ở giữa | 234 | 34,6% / **64,5%** (`51,7%` T3) | 33,3% / 59,0% | **36,8%** / 51,7% |
+| Viết tắt toàn cụm | 226 | **22,6% / 92,0%** (`30,5%` T3) | 6,6% / 43,8% | 2,2% / 29,6% |
+| **Tổng cộng (cụm trọn nghĩa)** | **919** | **51,4% / 81,3%** (`62,5%` T3) | **47,6% / 67,2%** | **46,2% / 60,6%** |
+| **Thời gian chạy 1.000 câu** | | **`3,04 giây`** (1 CPU offline, `1,29 MB`) | `~15 giây` (batch cloud) | `~20 phút` (cloud) |
 
-*Lưu ý công bằng:* tính trên cả `1.000` câu thô (gồm `81` câu cụt lủn mà tầng hậu kiểm của Factotum chủ động trả về câu gốc), Factotum vẫn dẫn đầu với `48,5%` Top-1 / `77,5%` PV so với Gemini (`46,4% / 66,3%`) và Claude (`45,4% / 60,2%`). Hai LLM chạy zero-shot (không RAG, không fine-tune trên 124 văn bản luật), trong khi Factotum đã học trực tiếp phân phối cụm từ của lĩnh vực pháp luật. Ở nhóm viết tắt hỗn hợp, Claude Sonnet 5.5 nhỉnh hơn `+0,9%` Top-1 (`65,8%` vs `64,9%`); ngược lại ở nhóm viết tắt toàn cụm chuyên ngành, Factotum đạt `23,5%` Top-1 và `89,4%` Phrase validity (so với `6,6% / 43,8%` của Gemini và `2,2% / 29,6%` của Claude) với chi phí tính toán nhỏ hơn nhiều lần.
+*Lưu ý công bằng:* trong tập `919` câu cố định giữ nguyên để so đối xứng với Gemini và Claude, có `26` câu kết thúc bằng từ `"của"` nay được tầng hậu kiểm của Factotum chủ động giữ nguyên câu gốc theo `output/dangling_end_words.txt`; nếu loại hết `107` cụm cụt lủn (còn `893` cụm trọn nghĩa), Factotum đạt **`52,9%` Top-1 / `82,8%` PV** (`64,3%` T3; riêng viết tắt hỗn hợp `66,2%` Top-1 và viết tắt toàn cụm `93,2%` PV). Tính trên cả `1.000` câu thô, Factotum vẫn dẫn đầu với `47,2%` Top-1 / `77,2%` PV so với Gemini (`46,4% / 66,3%`) và Claude (`45,4% / 60,2%`). Hai LLM chạy zero-shot (không RAG, không fine-tune trên 124 văn bản luật), trong khi Factotum đã học trực tiếp phân phối cụm từ của lĩnh vực pháp luật. Ở nhóm viết tắt toàn cụm chuyên ngành, Factotum vượt trội về cả Top-1 (`22,6%`) lẫn Phrase validity (`92,0%`) với chi phí tính toán nhỏ hơn nhiều lần.
 
 ### 4. Giới hạn của bộ đo
 
