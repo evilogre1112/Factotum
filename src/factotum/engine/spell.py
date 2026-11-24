@@ -1,6 +1,7 @@
 from factotum.core.extension import (
     collapse_repeated_chars,
     decode_telex_word,
+    get_compatible_token_classes,
     is_valid_vietnamese_syllable,
     is_vn_orthographic_confusion,
     remove_accents,
@@ -18,7 +19,7 @@ def preprocess_tokens(index: GraphIndex, raw_tokens: list[str]) -> tuple[list[st
     ua_map = index.unaccented_map
 
     for tok in raw_tokens:
-        if tok in real_vocab or is_valid_vietnamese_syllable(tok):
+        if tok in real_vocab or is_valid_vietnamese_syllable(tok) or get_compatible_token_classes(tok):
             out.append(tok)
             continue
         collapsed = collapse_repeated_chars(tok)

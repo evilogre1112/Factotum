@@ -2,6 +2,8 @@ from itertools import product
 
 from factotum.engine.context import is_normalized_anchor, query_with_context
 from factotum.core.extension import (
+    _AMBIGUOUS_ROMAN,
+    _ROMAN_PREFIX_WORDS,
     clean_word,
     get_compatible_token_classes,
     is_class_token,
@@ -52,9 +54,11 @@ def _restore_class_tokens(
 
 
 def _expand_class_variants(
-    tokens: list[str], max_variants: int = 4
+    tokens: list[str],
+    max_variants: int = 4,
+    ua_map: dict[str, list[str]] | None = None,
 ) -> list[tuple[list[str], list[tuple[str, str]]]]:
-    """Sinh tối đa `max_variants` biến thể nhãn lớp tương thích cho các token số/mã/ngày trong câu."""
+    """Sinh tối đa `max_variants` biến thể nhãn lớp tương thích cho các token số/mã/ngày/La Mã trong câu."""
     per_pos: list[list[tuple[str, tuple[str, str] | None]]] = []
     prev = ""
     for tok in tokens:
@@ -62,6 +66,14 @@ def _expand_class_variants(
         if compat and not is_class_token(tok):
             per_pos.append([(cls, (cls, tok)) for cls in compat])
             prev = compat[0]
+        elif (
+            ua_map
+            and tok in _AMBIGUOUS_ROMAN
+            and prev
+            and any(w in _ROMAN_PREFIX_WORDS for w in ua_map.get(prev, ()))
+        ):
+            per_pos.append([("<roman>", ("<roman>", tok)), (tok, None)])
+            prev = "<roman>"
         else:
             per_pos.append([(tok, None)])
             prev = tok
@@ -201,7 +213,7 @@ class GraphQueryEngine(GraphIndex):
         fallback_phrase = " ".join(orig_tokens)
 
         raw_tokens, preprocessed = preprocess_tokens(self, orig_tokens)
-        class_variants = _expand_class_variants(raw_tokens)
+        class_variants = _expand_class_variants(raw_tokens, ua_map=self.unaccented_map)
 
         if len(class_variants) == 1:
             norm_tokens, class_slots = class_variants[0]

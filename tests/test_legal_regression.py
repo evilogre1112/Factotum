@@ -116,6 +116,9 @@ class TestLegalModelRegression(unittest.TestCase):
         self.assertIn("bị phạt", self.model.restore("o to k that day an toan bi phat bn"))
         self.assertIn("nhiu tiền", self.model.restore("xe may di nham len cao toc phat nhiu tien"))
         self.assertIn("oto", self.model.restore("vua lai oto vua nhan tin dt phat may tr"))
+        self.assertEqual(self.model.restore("ch XXI"), "chương xxi")
+        self.assertEqual(self.model.restore("ch I"), "chương i")
+        self.assertEqual(self.model.restore("cg i"), "chương i")
 
     def test_accented_sentence_typo_and_oov_preservation(self) -> None:
         """Câu đã có dấu: sửa đúng lỗi chính tả (kể cả câu >12 từ) và không làm hỏng từ đúng hay OOV hợp lệ."""

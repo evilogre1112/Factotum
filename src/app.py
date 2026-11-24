@@ -157,6 +157,26 @@ def query_test_flow(engine: GraphQueryEngine) -> None:
         print()
 
 
+def rebuild_kb_flow(engine: GraphQueryEngine) -> None:
+    print("\n--- [4] CẬP NHẬT LẠI ĐỒ THỊ & .FTM TỪ KNOWLEDGEBASE.TXT ---")
+    kb_path = OUTPUT_DIR / "KnowledgeBase.txt"
+    if not kb_path.exists():
+        print(f"[Lỗi] Không tìm thấy {kb_path}. Hãy chọn [1] để nạp dữ liệu trước.\n")
+        return
+
+    t0 = time.perf_counter()
+    total = make_tree.rebuild_from_kb(show_progress=True)
+    engine.load(use_cache=True)
+    ftm_path = OUTPUT_DIR / "factotum_law.ftm"
+    engine.save_standalone(ftm_path)
+    print(
+        f">> Đã dựng lại xong ({time.perf_counter() - t0:.2f} s): "
+        f"{total:,} cụm | {len(engine.real_vocab):,} từ đơn | "
+        f"{len(engine.unaccented_map):,} khóa."
+    )
+    print(f">> Đã cập nhật Data.txt, UnaccentedMap.txt và xuất lại {ftm_path}\n")
+
+
 def show_stats(engine: GraphQueryEngine) -> None:
     if not engine.phrases:
         engine.load()
@@ -179,10 +199,11 @@ def main() -> None:
         print("  [1] Thêm dữ liệu mới (.doc / .docx) vào đồ thị")
         print("  [2] Test truy vấn (không dấu / viết tắt / thiếu từ)")
         print("  [3] Xem thống kê đồ thị hiện tại")
+        print("  [4] Cập nhật lại đồ thị & .ftm từ KnowledgeBase.txt")
         print("  [0] Thoát")
 
         try:
-            choice = input("Nhập lựa chọn (0-3): ").strip()
+            choice = input("Nhập lựa chọn (0-4): ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nTạm biệt!")
             break
@@ -193,11 +214,13 @@ def main() -> None:
             query_test_flow(engine)
         elif choice == "3":
             show_stats(engine)
+        elif choice == "4":
+            rebuild_kb_flow(engine)
         elif choice == "0":
             print("Tạm biệt!")
             break
         else:
-            print("[!] Lựa chọn không hợp lệ, vui lòng nhập 0, 1, 2 hoặc 3.\n")
+            print("[!] Lựa chọn không hợp lệ, vui lòng nhập 0, 1, 2, 3 hoặc 4.\n")
 
 
 if __name__ == "__main__":

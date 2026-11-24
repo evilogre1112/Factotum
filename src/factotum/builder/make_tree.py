@@ -279,6 +279,73 @@ def build_graph(paths: FactotumPaths = DEFAULT_PATHS, show_progress: bool = True
     logger.info("MakeTree hoàn tất trong %.3fs -> %s", time.perf_counter() - t_start, paths.output_dir)
 
 
+def rebuild_from_kb(paths: FactotumPaths = DEFAULT_PATHS, show_progress: bool = True) -> int:
+    """Dựng lại toàn bộ cạnh Markov (AB), Data.txt và UnaccentedMap.txt từ các dòng 'A,...' trong KnowledgeBase.txt."""
+    if not paths.kb_path.exists():
+        raise FileNotFoundError(f"Không tìm thấy file: {paths.kb_path}")
+
+    t_start = time.perf_counter()
+    active_phrases: dict[str, int] = {}
+    with open(paths.kb_path, "r", encoding="utf-8") as kb_file:
+        for line in kb_file:
+            parts = line.strip().split(",")
+            if len(parts) >= 3 and parts[0] == "A":
+                phrase = parts[1].strip()
+                if not phrase:
+                    continue
+                try:
+                    freq = int(float(parts[2]))
+                except ValueError:
+                    continue
+                if freq > 0:
+                    active_phrases[phrase] = active_phrases.get(phrase, 0) + freq
+
+    phrase_to_id: dict[str, int] = {}
+    id_to_phrase: list[str] = [""]
+    word_trie: dict = {}
+    dict_freq: dict[int, int] = defaultdict(int)
+    edge_freq: dict[int, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+    unaccented_links: dict[str, set[int]] = defaultdict(set)
+
+    def get_or_add_id(p: str) -> int:
+        pid = phrase_to_id.get(p)
+        if pid is not None:
+            return pid
+        new_id = len(id_to_phrase)
+        phrase_to_id[p] = new_id
+        id_to_phrase.append(p)
+        node = word_trie
+        for w in p.split():
+            node = node.setdefault(w, {})
+        node[""] = new_id
+        return new_id
+
+    sorted_items = sorted(active_phrases.items(), key=lambda kv: (kv[0].count(" ") + 1, kv[0]))
+    total = len(sorted_items)
+    t_ingest = time.perf_counter()
+    last_draw = 0.0
+    for idx_p, (phrase, count) in enumerate(sorted_items, start=1):
+        if show_progress:
+            now = time.perf_counter()
+            if now - last_draw >= 0.1 or idx_p == total:
+                print_progress(idx_p, total, t_ingest, label="RebuildKB", unit="cụm")
+                last_draw = now
+        p_id = get_or_add_id(phrase)
+        dict_freq[p_id] = count
+        for word in phrase.split():
+            w_id = get_or_add_id(word)
+            for key in generate_unaccented_keys(word):
+                unaccented_links[key].add(w_id)
+        for u, v in _decompose_phrase_edges(phrase.split(), word_trie, get_or_add_id):
+            edge_freq[u][v] += count
+
+    _write_graph_outputs(paths, id_to_phrase, dict_freq, edge_freq, unaccented_links)
+    if paths.cache_path.exists():
+        paths.cache_path.unlink(missing_ok=True)
+    logger.info("RebuildKB hoàn tất (%d cụm) trong %.3fs", total, time.perf_counter() - t_start)
+    return total
+
+
 def main() -> None:
     build_graph(paths=DEFAULT_PATHS, show_progress=True)
 
