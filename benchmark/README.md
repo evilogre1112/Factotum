@@ -2,6 +2,8 @@
 
 Thư mục này chứa mã nguồn đánh giá độ chính xác và tốc độ của Factotum cùng 2 baseline (`Base-1g`, `Base-2g`).
 
+> Để xem **báo cáo kết quả chi tiết, biểu đồ và bảng so sánh với LLM**, mở [REPORT.md](REPORT.md).
+
 ## 1. Cách chạy
 
 Từ thư mục gốc `Factotum`:

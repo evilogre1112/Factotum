@@ -2,95 +2,160 @@
   <img src="docs/images/factotum_logo.png" alt="Factotum Logo" width="160" />
 </p>
 
-<h1 align="center">Factotum (<code>factotum-vn-nlp</code>)</h1>
+<h1 align="center">Factotum</h1>
 
 <p align="center">
-  <a href="https://huggingface.co/spaces/evilogre1112/factotum"><img src="https://img.shields.io/badge/demo-Hugging%20Face%20Spaces-FFD21E?logo=huggingface&logoColor=black" alt="Live Demo on Hugging Face Spaces" /></a>
+  <strong>Biến dòng tiếng Việt gõ nhanh, gõ tắt, bỏ dấu thành câu chuẩn xác — chỉ trong vài mili-giây, ngay trên máy tính thường.</strong>
+</p>
+
+<p align="center">
+  <a href="https://huggingface.co/spaces/evilogre1112/factotum"><img src="https://img.shields.io/badge/Dùng%20thử%20ngay-Hugging%20Face%20Spaces-FFD21E?logo=huggingface&logoColor=black" alt="Live Demo on Hugging Face Spaces" /></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" />
-  <img src="https://img.shields.io/badge/dependencies-zero-2EA043" alt="Zero Dependencies" />
-  <img src="https://img.shields.io/badge/runtime-CPU--only-orange" alt="CPU only" />
+  <img src="https://img.shields.io/badge/thư%20viện%20ngoài-0-2EA043" alt="Zero Dependencies" />
+  <img src="https://img.shields.io/badge/chạy%20offline-CPU%20thường-orange" alt="CPU only" />
   <img src="https://img.shields.io/badge/release-v1.1.0-blue" alt="Release v1.1.0" />
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="MIT License" />
 </p>
 
-> **Tiếng Việt:** Thư viện Python khôi phục tiếng Việt gõ nhanh (không dấu, viết tắt theo ngữ cảnh, thiếu từ, lỗi chính tả, Telex) thành câu chuẩn; chạy offline trên CPU, không cần GPU hay thư viện ngoài, và tự học từ chính tài liệu của bạn.
->
-> **English:** Zero-dependency Python library for context-aware restoration of fast-typed Vietnamese (missing diacritics, abbreviations, dropped words, typos, raw Telex). Offline, CPU-only, learned directly from your own documents.
+> **Trải nghiệm ngay không cần cài đặt:** mở **[Demo trực tuyến trên trình duyệt](https://huggingface.co/spaces/evilogre1112/factotum)** (chạy hoàn toàn trên trình duyệt của bạn, không gửi dữ liệu ra máy chủ).
 
-### Tóm tắt trong 10 giây
+---
 
-| | |
-| :--- | :--- |
-| **Giải quyết vấn đề gì?** | Chuẩn hóa câu tiếng Việt gõ tắt, không dấu, thiếu từ hoặc sai chính tả, đặc biệt khi một từ viết tắt mang nhiều nghĩa tùy ngữ cảnh (ví dụ `nd` → `nghị định` hoặc `nhân dân`). |
-| **Khác biệt ở đâu?** | Không cần GPU hay LLM; tự học trực tiếp từ bộ tài liệu của bạn, gói gọn trong 1 file dữ liệu đã học (`.ftm`) nhỏ nhẹ, chạy offline trên CPU và giữ nguyên câu gốc nếu không đủ chắc chắn. |
-| **Đánh giá thực tế** | Đã đo kiểm độc lập trên văn bản chưa từng học, có đối chiếu với thuật toán thống kê chuẩn và các LLM phổ biến (chi tiết xem mục [Benchmark](#benchmark)). |
-| **Thử ngay** | **[Demo trực tuyến trên trình duyệt](https://huggingface.co/spaces/evilogre1112/factotum)** (không cần cài đặt), chạy giao diện web cục bộ (`python demo/app.py`), dòng lệnh (`python src/app.py`), hoặc 3 dòng Python bên dưới. |
+## Bạn gõ vội — Factotum hiểu đúng ngữ cảnh
 
-## Factotum làm được gì?
+Hằng ngày chúng ta thường gõ tắt (`tngt`, `ubnd`, `xpvphc`), bỏ dấu (`xu phat vi pham`), rớt chữ (`an toan thong`) hoặc dính lỗi bộ gõ Telex (`buowcs`, `phappp`). **Factotum** tự động khôi phục câu chuẩn mà không cần mạng Internet, không cần GPU và không tốn phí gọi API:
 
-Factotum là thư viện Python giúp chuẩn hóa nhanh câu nhập tiếng Việt gõ tắt, gõ thiếu hoặc gõ lỗi trên CPU. Điểm chính là khả năng tự suy ra từ viết tắt theo ngữ cảnh, sửa lỗi chính tả có dấu mà vẫn giữ nguyên các từ đúng, và lọc bỏ các dự đoán kết thúc cụt lủn:
-
-| Tác vụ | Đầu vào | Kết quả |
+| Tình huống thực tế | Bạn gõ | Factotum trả về |
 | :--- | :--- | :--- |
-| Khôi phục dấu tiếng Việt | `xu phat vi pham hanh chinh` | `xử phạt vi phạm hành chính` |
-| Khôi phục viết tắt theo chữ cái đầu | `xpvphc atgt` | `xử phạt vi phạm hành chính an toàn giao thông` |
-| Tự suy viết tắt theo ngữ cảnh | `quyền sử dd`, `tòa án nd tối cao`, `xkcbs có bị phạt không` | `quyền sử dụng đất`, `tòa án nhân dân tối cao`, `xe không có biển số có bị phạt không` |
-| Đoán từ bị thiếu ở giữa | `an toan thong` | `an toàn giao thông` |
-| Sửa lỗi gõ Telex & lặp phím | `buowcs`, `vi pham phappp luat` | `bước`, `vi phạm pháp luật` |
-| Sửa lỗi chính tả trên câu có dấu | `uống dượu bia phạt bao nhiêu`, `quy định sử lý vi phạm hành chính` | `uống rượu bia phạt bao nhiêu`, `quy định xử lý vi phạm hành chính` |
-| Giữ nguyên câu đúng & tránh câu cụt nghĩa | `chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền`, `bộ tư pháp cho` | Giữ nguyên câu đã gõ đúng; trả lại câu gốc nếu không có gợi ý trọn nghĩa |
+| **Gõ không dấu** | `xu phat vi pham hanh chinh` | `xử phạt vi phạm hành chính` |
+| **Viết tắt liên tiếp** | `xpvphc atgt` | `xử phạt vi phạm hành chính an toàn giao thông` |
+| **Tự hiểu viết tắt theo ngữ cảnh** | `nd 23/24 quy định điều gì` | `nghị định 23/24 quy định điều gì` |
+| **Cùng từ `nd`, khác ngữ cảnh** | `tòa án nd tối cao` | `tòa án nhân dân tối cao` |
+| **Phân biệt nghĩa không dấu** | `co the bị xử phạt` / `xâm phạm co the người khác` | `có thể bị xử phạt` / `xâm phạm cơ thể người khác` |
+| **Rơi mất từ ở giữa** | `an toan thong` | `an toàn giao thông` |
+| **Lỗi gõ Telex & lặp phím** | `buowcs`, `vi pham phappp luat` | `bước`, `vi phạm pháp luật` |
+| **Sai chính tả trên câu có dấu** | `uống dượu bia phạt bao nhiêu` | `uống rượu bia phạt bao nhiêu` |
+| **Giữ nguyên câu đã gõ đúng** | `chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền` | Giữ nguyên không sửa bừa |
 
-### Ví dụ xử lý theo ngữ cảnh
+---
 
-Cùng một chuỗi nhập nhưng đứng trong ngữ cảnh khác nhau sẽ cho ra kết quả khác nhau (chạy trực tiếp trên `output/factotum_law.ftm`):
+## Tại sao nên chọn Factotum?
 
-| Dạng lỗi | Câu nhập | Kết quả |
-| :--- | :--- | :--- |
-| Viết tắt (`nd`) | `nd 23/24 quy định điều gì` | `nghị định 23/24 quy định điều gì` (`92%`) |
-| Viết tắt (`nd`) | `tòa án nd tối cao` | `tòa án nhân dân tối cao` (`99%`) |
-| Không dấu (`co the`) | `co the bị xử phạt` | `có thể bị xử phạt` (`99%`) |
-| Không dấu (`co the`) | `xâm phạm co the người khác` | `xâm phạm cơ thể người khác` (`94%`) |
-| Thiếu từ | `an toan thong` | `an toàn giao thông` (`76%`) |
-| Sai chính tả & lặp phím | `sử lý` / `luta pháp` / `vi pham phappp luat` | `xử lý` (`88%`) / `luật pháp` (`72%`) / `vi phạm pháp luật` (`99%`) |
+- **Siêu nhẹ & 100% Offline:** Chỉ cần Python 3.10+ trên CPU thông thường, không cần GPU, không cài thêm thư viện ngoài. Toàn bộ kho tri thức đóng gói gọn trong một file `.ftm` nhẹ (~1,3 MB).
+- **Bảo mật tuyệt đối dữ liệu nội bộ:** Mọi quá trình học tài liệu và xử lý câu chữ đều diễn ra cục bộ trên máy hoặc máy chủ riêng của bạn — không gửi văn bản nhạy cảm ra cloud bên thứ ba.
+- **Tốc độ gần như tức thì:** Phản hồi chỉ vài mili-giây mỗi câu, đủ nhanh để gắn thẳng vào thanh tìm kiếm hoặc gợi ý ngay trong lúc người dùng đang gõ.
+- **Tự học từ chính tài liệu của bạn:** Đưa thẳng thư mục file Word (`.doc`, `.docx`) hoặc `.txt` của công ty/ngành nghề vào — Factotum tự rút ra bộ thuật ngữ chuyên ngành mà không cần gán nhãn thủ công.
+- **Minh bạch, không phải "hộp đen":** Không "ảo giác" bịa câu như mô hình AI lớn. Nếu câu quá mơ hồ, Factotum chủ động giữ nguyên câu gốc thay vì đoán bừa; bạn cũng có thể mở các file tri thức thuần văn bản ra xem và tự chỉnh sửa theo ý muốn.
 
-### Phạm vi sử dụng và vị trí trong hệ thống
+---
 
-Factotum không dùng Deep Learning hay GPU. Thay vào đó, thư viện tự học các cụm từ và cách ghép câu hay lặp lại từ chính bộ tài liệu của bạn, rồi đóng vai trò bước làm sạch câu hỏi trước khi đưa vào công cụ tìm kiếm hoặc hệ thống hỏi đáp:
+## Các trường hợp ứng dụng thực tế & Cách áp dụng
+
+Factotum phát huy sức mạnh lớn nhất khi đứng làm **lớp làm sạch và chuẩn hóa tiếng Việt** cho các lĩnh vực có bộ thuật ngữ lặp lại ổn định:
 
 ```text
-Người dùng gõ: "nd 23/24 quy định điều gì"
-       ↓
-  [ Factotum ]        Chuẩn hóa câu nhập (~2 – 6 ms trên CPU)
-       ↓
+Người dùng gõ nhanh: "nd 23/24 quy định điều gì"
+           ↓
+     [ Factotum ]        Chuẩn hóa trong vài ms (100% offline)
+           ↓
 "nghị định 23/24 quy định điều gì"
-       ↓
-  [ Tìm kiếm / Hỏi đáp ] → Văn bản phù hợp
+           ↓
+  [ Thanh tìm kiếm / Chatbot / Form nhập liệu ] → Kết quả chính xác hơn
 ```
 
-Factotum chạy tốt nhất trên một lĩnh vực cụ thể có thuật ngữ lặp lại ổn định (pháp luật, y tế, kế toán, quy trình hành chính, tài liệu nội bộ), không phù hợp cho văn bản mở đa chủ đề hay ngôn ngữ mạng xã hội.
+| Lĩnh vực áp dụng | Bài toán thực tế | Cách áp dụng Factotum |
+| :--- | :--- | :--- |
+| **Pháp lý – Hành chính công** | Chuyên viên, người dân tra cứu luật hay gõ tắt `tngt`, `atgt`, `xpvphc`, `tòa án nd tối cao`. | Dùng ngay file `output/factotum_law.ftm` có sẵn đặt trước ô tìm kiếm văn bản luật hoặc công cụ tốc ký. |
+| **Y tế – Bệnh án – Dược** | Bác sĩ, điều dưỡng ghi chú nhanh tên thuốc, chẩn đoán viết tắt; yêu cầu bảo mật hồ sơ bệnh nhân. | Chạy `fit_folder()` trên kho bệnh án mẫu / danh mục thuốc nội bộ (`.docx`/`.txt`) để tạo file `.ftm` chạy hoàn toàn offline trong mạng nội bộ bệnh viện. |
+| **CSKH – Live Chat – Tìm kiếm sản phẩm** | Khách hàng nhắn không dấu, rơi chữ, sai chính tả khiến công cụ tìm kiếm (Elasticsearch/FAQ) không ra kết quả. | Gắn `model.restore(query)` trước bước tìm kiếm hoặc trước chatbot để tăng tỷ lệ bắt đúng ý định mà không tốn chi phí gọi LLM cho từng tin nhắn. |
+| **Kế toán – Kho vận – Doanh nghiệp** | Nhân viên nhập liệu biên bản, mã vật tư, quy trình nội bộ với nhiều cụm từ lặp lại đặc thù của công ty. | Nạp tài liệu quy trình nội bộ để Factotum tự học thuật ngữ riêng; khi có tài liệu mới chỉ cần gọi `update_folder()` để học bổ sung. |
 
-Ưu điểm chính:
-- **Gọn nhẹ, chạy offline:** chạy trên CPU thông thường, không cần GPU và không phải cài thêm thư viện ngoài (chỉ cần Python 3.10+).
-- **File dữ liệu đã học rất nhỏ:** chỉ `1,29 MB` trên đĩa (chiếm khoảng `150 – 200 MB` RAM khi chạy cho hơn `113.000` cụm từ chuyên ngành).
-- **Phản hồi gần như tức thì:** xử lý trung bình khoảng `2 – 6 ms` mỗi câu trên 1 nhân CPU và tự học xong `2,6 triệu từ` trong khoảng `32 giây`.
-- **Sửa cẩn thận, tránh làm hỏng câu:** hiểu được cả viết tắt ngắn theo chữ cái đầu (`ng` → `người`, `kh` → `khác`...), giữ nguyên các câu đã gõ đúng dấu, và tự trả lại câu gốc nếu không tìm được gợi ý trọn nghĩa (bạn có thể tự thêm/bớt danh sách từ không được đứng cuối câu trong [output/dangling_end_words.txt](output/dangling_end_words.txt)).
+![Minh họa cách Factotum tổ chức tri thức](docs/images/knowledge_graph_flower.png)
 
-Hạn chế:
-- Phụ thuộc vào bộ tài liệu đã học: từ quá hiếm hoặc chưa từng xuất hiện trong tài liệu có thể bị đoán lệch sang cụm phổ biến hơn.
-- Chưa đọc hiểu ngữ nghĩa sâu ở cấp độ cả đoạn văn dài.
+---
 
-## Cài đặt và sử dụng
-
-Yêu cầu Python 3.10+. Không cần cài thêm thư viện ngoài: Factotum tự đọc trực tiếp các file `.txt`, `.docx` và `.doc` (Word cũ).
+## Bắt đầu nhanh trong 1 phút
 
 ### 1. Cài đặt
 
 ```bash
+git clone https://github.com/evilogre1112/Factotum.git
 cd Factotum
 pip install -e .
 ```
 
-Trên Windows, bản tăng tốc C++ đã được đóng gói sẵn (học `2,62 triệu từ` mất khoảng `32 giây`). Trên Linux/macOS, Factotum vẫn chạy bình thường bằng Python thuần (`~105 giây`); nếu muốn tăng tốc tương đương Windows, bạn chỉ cần chạy thêm 1 lệnh biên dịch:
+### 2. Khôi phục ngay với dữ liệu pháp luật có sẵn
+
+```python
+from factotum import Factotum
+
+model = Factotum.load("output/factotum_law.ftm")
+
+print(model.restore("xpvphc atgt"))                # xử phạt vi phạm hành chính an toàn giao thông
+print(model.restore("nd 23/24 quy định điều gì"))  # nghị định 23/24 quy định điều gì
+print(model.restore("tòa án nd tối cao"))          # tòa án nhân dân tối cao
+print(model.restore("an toan thong"))              # an toàn giao thông
+```
+
+### 3. Tự dạy Factotum học tài liệu của riêng bạn
+
+Factotum đọc trực tiếp file `.txt`, `.docx` và `.doc` (không cần cài thêm thư viện ngoài):
+
+```python
+from factotum import Factotum
+
+# Học từ cả thư mục tài liệu của bạn
+model = Factotum().fit_folder("duong_dan/thu_muc_tai_lieu")
+
+# Lưu thành 1 file .ftm nhỏ gọn để mang đi chạy bất cứ đâu
+model.save("my_company.ftm")
+
+# Sau này có tài liệu mới, chỉ cần học bổ sung:
+# model.update_folder("duong_dan/tai_lieu_moi")
+```
+
+### 4. Mở giao diện dùng thử
+
+```bash
+python src/app.py                         # Giao diện dòng lệnh (nạp dữ liệu, test truy vấn, cập nhật KB)
+pip install gradio && python demo/app.py  # Giao diện web trực quan tại http://127.0.0.1:7860
+```
+
+---
+
+## Cấu hình & Tùy chỉnh theo nhu cầu
+
+### 1. Dùng điểm tin cậy (`confidence`) để quyết định tự sửa hay gợi ý
+
+Khi tích hợp Factotum vào ứng dụng thực tế, bạn có thể lấy Top-K gợi ý kèm điểm tin cậy (`0% – 100%`) và cờ `is_fallback`:
+
+```python
+results = model.predict("quyền sử dd", top_k=3)
+best = results[0]
+
+if not best.is_fallback and best.confidence >= 0.70:
+    # Độ tin cậy cao → có thể tự động áp dụng
+    text = best.phrase
+elif not best.is_fallback and best.confidence >= 0.50:
+    # Độ tin cậy trung bình → hiển thị dạng gợi ý cho người dùng chọn
+    suggestions = [r.phrase for r in results]
+else:
+    # Chưa đủ chắc chắn → giữ nguyên câu người dùng nhập
+    text = "quyền sử dd"
+```
+
+### 2. Tùy chỉnh danh sách từ không được đứng cuối câu
+
+Mở trực tiếp file [output/dangling_end_words.txt](output/dangling_end_words.txt) để thêm hoặc bớt các hư từ, liên từ (`của`, `cho`, `về`, `thì`, `và`...). Nếu gợi ý kết thúc cụt nghĩa bởi các từ này, Factotum sẽ tự động loại bỏ. Thay đổi có hiệu lực ngay sau ~2 giây mà **không cần khởi động lại hay huấn luyện lại**.
+
+### 3. Quản lý & Chỉnh sửa kho tri thức
+
+Xem hướng dẫn chi tiết file nào được sửa tự do, file nào nên chạy đồng bộ lại và file nào hạn chế đụng vào tại **[output/README.md](output/README.md)**.
+
+<details>
+<summary><strong>Tùy chọn tăng tốc học dữ liệu trên Linux / macOS</strong> (Windows đã có sẵn)</summary>
+
+Trên Windows, bản tăng tốc C++ đã được đóng gói sẵn. Trên Linux/macOS, Factotum vẫn chạy bình thường bằng Python thuần; nếu bạn muốn tăng tốc bước học tài liệu lên gấp ~3 lần, chỉ cần biên dịch thêm 1 lệnh:
 
 ```bash
 # Linux
@@ -100,193 +165,30 @@ g++ -O3 -std=c++17 -shared -fPIC src/factotum/builder/native/sa_lcp.cpp -o src/f
 g++ -O3 -std=c++17 -shared -fPIC src/factotum/builder/native/sa_lcp.cpp -o src/factotum/builder/native/libsa_lcp.dylib
 ```
 
-### 2. Dùng file dữ liệu đã học có sẵn (`.ftm`)
+</details>
 
-File `output/factotum_law.ftm` (`1,29 MB`) nằm sẵn trong repo, được xây dựng từ 156 văn bản quy phạm pháp luật công khai (nguồn VBPL).
+---
 
-```python
-from factotum import Factotum
+## Điểm yếu & Giới hạn hiện tại
 
-model = Factotum.load("output/factotum_law.ftm")
+Để bạn cân nhắc đúng trước khi áp dụng vào dự án, dưới đây là các giới hạn trung thực của Factotum:
 
-print(model.restore("xpvphc atgt"))               # xử phạt vi phạm hành chính an toàn giao thông
-print(model.restore("nd 23/24 quy định điều gì")) # nghị định 23/24 quy định điều gì
-print(model.restore("tòa án nd tối cao"))         # tòa án nhân dân tối cao
-print(model.restore("vi pham phappp luat"))       # vi phạm pháp luật
+- **Phụ thuộc vào bộ tài liệu đã học:** Factotum chỉ thực sự mạnh trong đúng lĩnh vực có thuật ngữ lặp lại ổn định mà bạn đã nạp. Từ quá hiếm, từ hoàn toàn mới (chưa từng xuất hiện trong tài liệu) hoặc ngôn ngữ mạng xã hội / tiếng lóng đa chủ đề có thể bị đoán lệch sang cụm phổ biến hơn.
+- **Không hiểu ngữ nghĩa sâu ở cấp độ cả đoạn văn dài:** Factotum không dùng mạng nơ-ron hay LLM, nên không thể suy luận ý định phức tạp, tóm tắt hay viết lại câu theo văn phong khác.
+- **Hạn chế tự nhiên với viết tắt quá ngắn không có ngữ cảnh:** Một chuỗi 3–4 chữ cái đứng một mình có thể hợp lệ theo nhiều nghĩa khác nhau (ví dụ `cnt` có thể là `cho nhà thầu` hoặc `của nhà thầu`). Trong trường hợp này nên dùng Factotum kèm ngữ cảnh xung quanh hoặc hiển thị Top-3 gợi ý.
+- **Hạn chế khi thiếu nhiều từ liên tiếp hoặc sai chính tả quá nặng:** Cơ chế chèn từ hiện tối ưu cho trường hợp rơi 1 từ ở giữa cụm; nếu câu đầu vào vừa thiếu nhiều từ vừa sai chính tả nặng cùng lúc, Factotum sẽ ưu tiên giữ nguyên câu gốc để tránh sửa sai.
 
-for item in model.predict("quyền sử dd", top_k=3):
-    print(f"{item.phrase} (conf={item.confidence:.0%}, fallback={item.is_fallback})")
-```
+---
 
-Nếu câu gợi ý bị kết thúc cụt nghĩa bởi các từ trong [output/dangling_end_words.txt](output/dangling_end_words.txt) (`cho`, `về`, `thì`, `và`...) và không còn phương án trọn nghĩa nào khác, Factotum sẽ giữ nguyên câu người dùng nhập (kèm `item.is_fallback = True`). Bạn có thể tự mở file `.txt` này để thêm hoặc bớt từ bất kỳ lúc nào.
+## Báo cáo Benchmark & Tài liệu chuyên sâu
 
-### 3. Tự huấn luyện trên dữ liệu riêng
+Toàn bộ số liệu đánh giá độc lập, biểu đồ và đối chiếu với các mô hình ngôn ngữ lớn (LLM) được tách riêng để giữ trang giới thiệu gọn gàng:
 
-```python
-from factotum import Factotum
-
-# Cách 1: Từ danh sách chuỗi văn bản
-model = Factotum().fit([
-    "hợp đồng mua bán hàng hóa và hợp đồng mua bán dịch vụ.",
-    "quyền và nghĩa vụ của các bên trong hợp đồng mua bán hàng hóa.",
-])
-
-# Cách 2: Từ thư mục chứa file .txt, .doc, .docx
-# model = Factotum().fit_folder("path/to/your_docs")
-
-model.save("my_domain.ftm")
-```
-
-### 4. Dùng thử trực tiếp, giao diện web và Benchmark
-
-```bash
-python src/app.py                              # Mở giao diện dòng lệnh để gõ thử trực tiếp
-pip install gradio && python demo/app.py       # Mở giao diện web Gradio (http://127.0.0.1:7860)
-python -m unittest discover -s tests -v        # Chạy bộ kiểm thử tự động (23 bài kiểm tra)
-python benchmark/run_benchmark.py 10000        # Chạy lại toàn bộ bộ đo Benchmark (seed=42)
-```
-
-Bản demo trực tuyến chạy ngay trên trình duyệt (WebAssembly, không cần server) tại **[huggingface.co/spaces/evilogre1112/factotum](https://huggingface.co/spaces/evilogre1112/factotum)**; cách tự đóng gói và triển khai xem tại [demo/README.md](demo/README.md).
-
-## Cách hoạt động
-
-Factotum gồm 2 luồng tách biệt: **học từ tài liệu** (chạy 1 lần khi nạp tài liệu mới) và **chuẩn hóa câu nhập** (chạy trực tiếp trên RAM).
-
-![Kiến trúc Pipeline Factotum](docs/images/pipeline_architecture.png)
-
-- **Luồng học tài liệu:** Đọc các tài liệu cùng lĩnh vực, tự tách từng câu để không ghép nhầm qua dấu chấm/phẩy, rút ra các cụm từ chuyên ngành cùng mối liên kết giữa các từ hay đi liền nhau, rồi nén gọn thành 1 file `.ftm`.
-- **Luồng chuẩn hóa câu nhập:** Gồm 2 bước rõ ràng: bước đầu dọn lỗi gõ phím (Telex, lặp phím), dựa vào ngữ cảnh để khôi phục dấu, giải viết tắt, chèn từ thiếu hoặc sửa lỗi chính tả và chấm điểm độ tin cậy; bước sau rà soát lại cả câu để đảm bảo câu trả ra trọn nghĩa (nếu không chắc chắn sẽ giữ nguyên câu gốc).
-
-![Minh họa cách lưu cụm từ và tra cứu không dấu](docs/images/knowledge_graph_flower.png)
-
-## Benchmark
-
-### Giải thích nhanh các thuật ngữ đo đạc
-
-| Thuật ngữ | Giải thích ngắn |
-| :--- | :--- |
-| **Maximal Repeats (Cụm lặp tối đại)** | Cụm từ xuất hiện lặp lại trọn vẹn trong tài liệu (ví dụ `xử phạt vi phạm hành chính`), được rút tự động bằng thuật toán `Suffix Array & LCP` mà không cần gán nhãn thủ công. |
-| **Đồ thị Markov (2 chiều)** | Lưu xác suất hai từ đứng liền nhau (`A → B` và `B ← A`), giúp ghép câu mới chưa từng thấy nguyên vẹn và đoán từ bị thiếu ở giữa. |
-| **OOV (Out-of-Vocabulary)** | Từ hoàn toàn mới chưa từng xuất hiện trong tập tài liệu đã học. |
-| **ECE (Expected Calibration Error)** | Độ lệch trung bình (%) giữa điểm `confidence` thư viện báo ra và tỷ lệ đúng thực tế; ECE càng nhỏ thì điểm tin cậy càng sát thực tế. |
-
-### Đọc các chỉ số Top-1, Top-3 và Phrase validity
-
-Với câu không dấu đầy đủ (`xu phat vi pham hanh chinh`), đáp án gần như duy nhất nên chấm **Top-1** là đủ. Với viết tắt hoặc thiếu từ, một chuỗi ngắn có nhiều trường hợp hợp lệ khác nhau trong cùng lĩnh vực pháp luật; chấm cứng Top-1 sẽ tính các đáp án hợp lệ khác là sai:
-
-| Câu nhập | Đáp án gốc trong test | Gợi ý Top-1 của Factotum | Chấm Top-1 | Nhận xét |
-| :--- | :--- | :--- | :---: | :--- |
-| `cnt` | `cho nhà thầu` | `của nhà thầu` | Sai | Cụm hợp lệ trong ngữ liệu |
-| `tth` | `trừ trường hợp` | `trong trường hợp` | Sai | Cụm hợp lệ trong ngữ liệu |
-| `cgt` | `cho gói thầu` | `của gói thầu` | Sai | Cụm hợp lệ trong ngữ liệu |
-| `nvld` | `nghĩa vụ lao động` | `nghĩa vụ liên đới` | Sai | Cụm hợp lệ trong ngữ liệu |
-
-Do đó các bảng bên dưới báo cáo song song **Top-1**, **Top-3** và **Phrase validity** (tỷ lệ toàn bộ cụm gợi ý số 1 xuất hiện nguyên vẹn trong ngữ liệu, chặt hơn kiểm tra từng cặp 2 từ riêng lẻ).
-
-![Tổng quan Benchmark Factotum](docs/images/benchmark_overview.png)
-
-### 1. Document-level Held-out (124 văn bản học / 32 văn bản mới, 10.000 câu)
-
-Tách hoàn toàn theo đơn vị file (`seed = 42`, tập kiểm tra rút các cụm trọn nghĩa không cụt lủn từ 32 văn bản chưa từng học: `4.000` câu không dấu, `2.000` viết tắt hỗn hợp, `2.000` thiếu từ, `2.000` viết tắt toàn cụm). Đối chiếu với `Base-1g` (Unigram 3-best) và `Base-2g` (Bigram + Viterbi 3-best) dùng chung từ điển và xác suất chuyển:
-
-| Nhóm câu hỏi | Số câu | Base-1g (`T1 / T3 / Phrase`) | Base-2g (`T1 / T3 / Phrase`) | Factotum (`T1 / T3 / Phrase`) |
-| :--- | :---: | :---: | :---: | :---: |
-| Không dấu đã có trong tập học | 936 | 52,7 / 78,8 / 54,8% (`0,13 ms`) | 99,4 / 100,0 / 99,5% (`0,16 ms`) | **100,0 / 100,0 / 100,0%** (`2,03 ms`) |
-| Không dấu mới hoàn toàn | 3.064 | 42,3 / 69,3 / 43,0% (`0,14 ms`) | **90,9 / 98,1** / 91,8% (`0,18 ms`) | 89,0 / 95,7 / **92,3%** (`4,30 ms`) |
-| Viết tắt hỗn hợp | 2.000 | 11,2 / 23,2 / 16,2% (`0,14 ms`) | 59,6 / 75,7 / 69,0% (`0,58 ms`) | **70,8 / 82,6 / 82,0%** (`5,80 ms`) |
-| Thiếu 1 từ ở giữa | 2.000 | 0,0 / 0,0 / 25,3% (`0,11 ms`) | 0,0 / 0,0 / 32,2% (`0,12 ms`) | **33,6 / 52,1 / 61,0%** (`3,11 ms`) |
-| Viết tắt toàn cụm | 2.000 | 0,4 / 0,9 / 4,1% (`0,13 ms`) | 14,3 / 24,1 / 47,0% (`18,09 ms`) | **24,8 / 31,8 / 90,0%** (**`12,51 ms`**) |
-| **Tổng (bỏ nhóm thiếu từ)** | **8.000** | **25,3 / 41,8 / 28,0%** | **64,9 / 74,2 / 75,8%** | **69,7 / 77,0 / 90,1%** |
-| **Tổng cộng (tất cả)** | **10.000** | **20,2 / 33,4 / 27,4%** (`0,13 ms`) | **51,9 / 59,4 / 67,1%** (`3,83 ms`) | **62,4 / 72,0 / 84,2%** (**`5,79 ms`**, `P50 = 2,98 ms`) |
-
-Hai baseline đạt `0%` Top-1/Top-3 ở nhóm thiếu từ vì không có cơ chế chèn từ. Khi bỏ nhóm này (`8.000` câu), Factotum hơn `Base-2g` `+4,8%` Top-1 (`69,7%` vs `64,9%`) và `+14,3%` Phrase validity (`90,1%` vs `75,8%`). Riêng ở nhóm không dấu mới hoàn toàn (`3.064` câu), `Base-2g` cao hơn Factotum `1,9%` Top-1 (`90,9%` vs `89,0%`) và nhanh hơn, trong khi Factotum vượt ở Phrase validity (`92,3%` vs `91,8%`).
-
-Trên bộ **Stress Test 10.000 câu** (in-sample), Factotum đạt **`91,1%` Top-1 / `98,2%` Top-3 / `99,9%` LV** (`2,01 ms/câu`, `P50 = 1,34 ms`, `498 câu/s`, vượt `Base-2g` `+19,9%` Top-1). Bộ hồi quy thủ công đạt **`60/60` (`100%`)**, bộ bảo toàn câu hỏi có dấu chuẩn đạt **`23/23` (`100%`)**. Chi tiết xem tại [benchmark/README.md](benchmark/README.md) và danh sách `4.644` câu lệch Top-1 tại `benchmark/failures.csv`.
-
-### 2. Độ tin cậy (`confidence`) & Ablation Study (10.000 câu Document-level Held-out)
-
-![Phân tích Confidence Calibration và Ablation Study](docs/images/confidence_calibration.png)
-
-| Mức `confidence` | Số câu | `confidence` TB | Đúng Top-1 | Đúng Top-3 | Phrase validity |
-| :---: | :---: | :---: | :---: | :---: | :---: |
-| `90 – 100%` | 3.887 | 95,3% | 67,4% | 75,5% | **99,7%** |
-| `70 – 90%` | 2.104 | 80,7% | 70,9% | 79,5% | **93,6%** |
-| `50 – 70%` | 1.999 | 57,7% | 64,8% | 74,4% | **77,2%** |
-| `30 – 50%` | 1.309 | 44,4% | 52,0% | 64,4% | **64,5%** |
-| `< 30%` | 701 | 9,6% | 22,7% | 36,7% | **27,4%** |
-
-Với ngưỡng `confidence >= 70%` (`5.991/10.000` câu), Phrase validity đạt `93,6% – 99,7%` nên có thể tự áp dụng hoặc ưu tiên hiển thị; mức `50–70%` (`77,2%`) phù hợp hiển thị dạng gợi ý; mức `< 30%` (`27,4%`) hoặc `is_fallback = True` nên giữ nguyên câu gốc. Sai số hiệu chuẩn hiện tại: `ECE (Phrase validity) = 12,2%`, `ECE (Top-1) = 16,2%`.
-
-Ablation Study trên cùng 10.000 câu:
-
-| Cấu hình | Top-1 | Phrase validity | Ghi chú |
-| :--- | :---: | :---: | :--- |
-| Chỉ Maximal Repeats (bỏ đồ thị Markov) | `17,7%` | `30,6%` | Khớp cụm đã học (`100%`), `0%` cụm mới và thiếu từ. |
-| Chỉ Đồ thị Bigram (`Base-2g`, bỏ Maximal Repeats) | `51,9%` | `67,1%` | Tốt ở không dấu mới (`90,9%`), yếu ở viết tắt (`47,0%` PV) và `0%` thiếu từ. |
-| **Factotum đầy đủ (Maximal Repeats + Đồ thị + Chèn từ)** | **`62,4%`** | **`84,2%`** | Giữ cụm trọn nghĩa ở viết tắt và ghép cụm mới/chèn từ bằng đồ thị. |
-
-### 3. Đối đầu trực tiếp với LLM (Held-out, zero-shot)
-
-Rút `1.000` câu độc nhất từ 32 văn bản kiểm tra chưa từng học (`seed = 42`, chia đều 4 nhóm: không dấu mới, viết tắt hỗn hợp, thiếu 1 từ và viết tắt toàn cụm), lọc còn **`919` cụm trọn nghĩa** (bỏ `81` cửa sổ bị cắt cụt lủn theo `output/dangling_end_words.txt`). Hai LLM lớn chạy ở chế độ zero-shot trên cùng một prompt có quy tắc giữ đúng độ dài cụm (cả hai trả lời đủ `1.000/1.000` câu và tuân thủ đúng quy tắc):
-
-| Nhóm câu hỏi | Số câu | Factotum (`T1 / PV`) | Gemini Hydrogen, zero-shot (`T1 / PV`) | Claude Sonnet 5.5, zero-shot (`T1 / PV`) |
-| :--- | :---: | :---: | :---: | :---: |
-| Không dấu mới hoàn toàn | 231 | 84,4% / **90,0%** (`91,8%` T3) | **85,7%** / 87,9% | 79,7% / 81,8% |
-| Viết tắt hỗn hợp | 228 | 63,6% / **78,9%** (`75,4%` T3) | 64,0% / 78,1% | **65,8%** / **78,9%** |
-| Thiếu 1 từ ở giữa | 234 | 34,6% / **64,5%** (`51,7%` T3) | 33,3% / 59,0% | **36,8%** / 51,7% |
-| Viết tắt toàn cụm | 226 | **22,6% / 92,0%** (`30,5%` T3) | 6,6% / 43,8% | 2,2% / 29,6% |
-| **Tổng cộng (cụm trọn nghĩa)** | **919** | **51,4% / 81,3%** (`62,5%` T3) | **47,6% / 67,2%** | **46,2% / 60,6%** |
-| **Thời gian chạy 1.000 câu** | | **`3,04 giây`** (1 CPU offline, `1,29 MB`) | `~15 giây` (batch cloud) | `~20 phút` (cloud) |
-
-*Lưu ý công bằng:* trong tập `919` câu cố định giữ nguyên để so đối xứng với Gemini và Claude, có `26` câu kết thúc bằng từ `"của"` nay được tầng hậu kiểm của Factotum chủ động giữ nguyên câu gốc theo `output/dangling_end_words.txt`; nếu loại hết `107` cụm cụt lủn (còn `893` cụm trọn nghĩa), Factotum đạt **`52,9%` Top-1 / `82,8%` PV** (`64,3%` T3; riêng viết tắt hỗn hợp `66,2%` Top-1 và viết tắt toàn cụm `93,2%` PV). Tính trên cả `1.000` câu thô, Factotum vẫn dẫn đầu với `47,2%` Top-1 / `77,2%` PV so với Gemini (`46,4% / 66,3%`) và Claude (`45,4% / 60,2%`). Hai LLM chạy zero-shot (không RAG, không fine-tune trên 124 văn bản luật), trong khi Factotum đã học trực tiếp phân phối cụm từ của lĩnh vực pháp luật. Ở nhóm viết tắt toàn cụm chuyên ngành, Factotum vượt trội về cả Top-1 (`22,6%`) lẫn Phrase validity (`92,0%`) với chi phí tính toán nhỏ hơn nhiều lần.
-
-### 4. Giới hạn của bộ đo
-
-- Các nghị định pháp luật thường trích dẫn và dùng lại nhiều mẫu câu hành chính giống nhau, nên tách theo file vẫn có thể còn trùng lặp nội dung một phần. Chưa có phép thử tách theo năm ban hành, theo loại văn bản hoặc cross-domain (học luật, kiểm tra kế toán/y tế).
-- Toàn bộ câu kiểm tra được sinh tự động từ ngữ liệu và đã lọc OOV (chưa có tập log gõ thật của người dùng). `Phrase validity` chỉ kiểm tra nguyên cụm có tồn tại trong ngữ liệu, chưa thay thế đánh giá ngữ nghĩa thủ công.
-
-## Tỷ lệ tăng trưởng dữ liệu theo văn bản đầu vào
-
-![Đường cong tăng trưởng dữ liệu Factotum](docs/images/scaling_curve.png)
-
-| Số văn bản | Số từ đầu vào (`N`) | Dung lượng văn bản thô | File kiến thức `.txt` (chưa nén) | Số từ lưu trong cụm kiến thức | File dữ liệu đóng gói `.ftm` |
-| :---: | :---: | :---: | :---: | :---: | :---: |
-| 10 | 365.615 từ | 2,13 MB | 8,57 MB (**402%**) | 232.179 từ (**63,5%**) | 434,9 KB (**20,0%**) |
-| 30 | 860.123 từ | 5,01 MB | 13,58 MB (**271%**) | 400.387 từ (**46,5%**) | 707,4 KB (**13,8%**) |
-| 80 | 1.218.295 từ | 7,10 MB | 15,04 MB (**212%**) | 455.391 từ (**37,4%**) | 796,4 KB (**11,0%**) |
-| 156 | 2.618.007 từ | 15,21 MB | 24,51 MB (**161%**) | 775.032 từ (**29,6%**) | 1,29 MB (**8,5%**, nén `11,8 : 1`) |
-
-Hồi quy log-log ($\log S = a + \alpha \log N$) trên 4 mốc với $N$ là tổng số từ đầu vào:
-- File `.txt` chưa nén: $S_{\text{txt}} \propto N^{0.53}$
-- File đóng gói `.ftm`: $S_{\text{ftm}} \propto N^{0.56}$
-- Số từ lưu trong cụm kiến thức: $S_{\text{words}} \propto N^{0.60}$
-
-## Quá trình cải tiến qua các phiên bản
-
-![Biểu đồ tăng trưởng qua các phiên bản Factotum](docs/images/version_progress.png)
-
-## So sánh với các hướng tiếp cận khác
-
-Số liệu `Base-1g`, `Base-2g` và `Factotum` lấy từ Document-level Held-out 10.000 câu; cột `LLM (zero-shot)` tham chiếu kết quả đo trực tiếp trên `919` cụm trọn nghĩa ở mục 3; cột `SymSpell` là mức tham khảo định tính:
-
-| Tiêu chí | `Base-1g` (Unigram) | `Base-2g` (Bigram + Viterbi) | Factotum | SymSpell / Edit Distance* | LLM (zero-shot) |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| Khôi phục dấu (cụm mới) | `42,3%` Top-1 | **`90,9%`** Top-1 (`98,1%` Top-3) | `89,0%` Top-1 (`92,3%` PV) | Không hỗ trợ | `79,7% – 85,7%` Top-1 (mục 3) |
-| Khôi phục viết tắt toàn cụm | `0,4%` Top-1 (`4,1%` PV) | `14,3%` Top-1 (`47,0%` PV) | **`24,8%`** Top-1 (**`90,0%`** PV) | Không | `2,2% – 6,6%` Top-1 (`29,6% – 43,8%` PV) |
-| Đoán từ bị thiếu ở giữa | `0%` | `0%` | `33,6%` Top-1 (`61,0%` PV) | Không | `33,3% – 36,8%` Top-1 (`51,7% – 59,0%` PV) |
-| Sửa lỗi chính tả & gõ Telex | Không | Không | Sửa lỗi chính tả, giữ nguyên câu đúng | Tốt (từng từ đơn) | Tốt |
-| Tự huấn luyện trên dữ liệu riêng | Nhanh | Nhanh | `~32 giây` (CPU + C++) / `~105 giây` (Python thuần) | Nhanh | Chậm, thường cần GPU |
-| Dung lượng (Đĩa / RAM) | Vài MB | Vài MB | `1,29 MB` đĩa / `~147–197 MB` RAM | Rất nhỏ | `400 MB` – hàng chục GB* |
-| Tốc độ suy luận | `0,13 ms/câu` (CPU) | `3,83 ms/câu` (CPU) | `2,01 – 5,79 ms/câu` (CPU offline) | `< 1 ms/câu`* | `~15 ms` (batch) – `1,2 s/câu` (cloud) |
-| Hiểu ngữ nghĩa mở đa lĩnh vực | Không | Không | Không | Không | Cao |
-
-*\*Khoảng tham khảo tùy kiến trúc mô hình, mức lượng tử hóa và phần cứng.*
-
-## Đóng góp, Lịch sử phiên bản & Trích dẫn
-
-- **Báo lỗi hoặc góp câu test thực tế:** xem [CONTRIBUTING.md](CONTRIBUTING.md) (mọi câu nhập thật bị đoán sai đều rất có ích).
-- **Lịch sử phiên bản:** xem [CHANGELOG.md](CHANGELOG.md).
-- **Trích dẫn nghiên cứu:** repo có sẵn file [CITATION.cff](CITATION.cff) (nút *Cite this repository* trên GitHub).
+- **[Báo cáo Benchmark & So sánh LLM chi tiết](benchmark/REPORT.md)** — Kết quả Held-out 10.000 câu, đối đầu zero-shot với Gemini & Claude, phân tích Confidence Calibration, Ablation Study và đường cong tăng trưởng dữ liệu.
+- **[Phương pháp & Hướng dẫn tự chạy Benchmark](benchmark/README.md)** — Cách tạo tập test và lệnh tái lập kết quả (`python benchmark/run_benchmark.py 10000`).
+- **[Giải thích các file tri thức & Cách tùy chỉnh](output/README.md)** — Chi tiết từng file trong thư mục `output/`.
+- **[Hướng dẫn đóng gói Demo Web](demo/README.md)** — Tự triển khai demo trình duyệt trên Hugging Face Spaces hoặc Gradio.
+- **[Đóng góp](CONTRIBUTING.md)** • **[Lịch sử phiên bản](CHANGELOG.md)** • **[Trích dẫn (`CITATION.cff`)](CITATION.cff)**
 
 ## Giấy phép
 
