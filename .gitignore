@@ -14,11 +14,13 @@ venv/
 data/
 visual/
 benchmark/llm_eval_*
+*.mp4
 
-# Generated caches & intermediate outputs (keep only pre-built .ftm model and custom dangling words)
+# Generated caches & intermediate outputs (keep only pre-built .ftm model, custom dangling words, and README)
 output/*
 !output/factotum_law.ftm
 !output/dangling_end_words.txt
+!output/README.md
 
 # OS / IDE
 .DS_Store
