@@ -9,7 +9,9 @@ from factotum.engine.models import (
     MAX_CONTEXT_WINDOW,
     MAX_CTX_CANDIDATES,
     MAX_SUPERSTRING_DIFF_K,
+    EditSpan,
     QueryMatch,
+    build_edit_spans,
     rank_key,
 )
 from factotum.engine.search import direct_kb_search, expand_query_variants, search_variant
@@ -338,15 +340,15 @@ def query_with_context(
         else:
             segments.append((is_anc, [tok]))
 
-    sentence_beam: list[tuple[list[str], int, int, int, int, list[str], int, str, float]] = [
-        ([], 0, 0, 0, 0, [], 0, "", 1.0)
+    sentence_beam: list[tuple[list[str], int, int, int, int, list[str], int, str, float, list[EditSpan]]] = [
+        ([], 0, 0, 0, 0, [], 0, "", 1.0, [])
     ]
 
     for seg_idx, (is_anc, seg_tokens) in enumerate(segments):
         if is_anc:
             sentence_beam = [
-                (bw + seg_tokens, wt, tcs, tcf, tm, mw, ld, ls, mp)
-                for bw, wt, tcs, tcf, tm, mw, ld, ls, mp in sentence_beam
+                (bw + seg_tokens, wt, tcs, tcf, tm, mw, ld, ls, mp, ed_list)
+                for bw, wt, tcs, tcf, tm, mw, ld, ls, mp, ed_list in sentence_beam
             ]
             continue
 
@@ -388,8 +390,8 @@ def query_with_context(
             f_candidates = _filter_connected_oov_candidates(index, f_candidates)
         if not f_candidates:
             sentence_beam = [
-                (bw + seg_tokens, max(wt, 5), tcs, tcf, tm, mw, -1, "", mp * 1e-6)
-                for bw, wt, tcs, tcf, tm, mw, _ld, _ls, mp in sentence_beam
+                (bw + seg_tokens, max(wt, 5), tcs, tcf, tm, mw, -1, "", mp * 1e-6, ed_list)
+                for bw, wt, tcs, tcf, tm, mw, _ld, _ls, mp, ed_list in sentence_beam
             ]
             continue
 
@@ -401,8 +403,8 @@ def query_with_context(
             and (not right_ctx or right_is_code or (len(right_ctx) >= 2 and index.dict_freq.get(" ".join(right_ctx), 0) > 0))
         )
 
-        next_beam: list[tuple[list[str], int, int, int, int, list[str], int, str, float]] = []
-        for bw, wt, tcs, tcf, tm, mw, _ld, _ls, mp in sentence_beam:
+        next_beam: list[tuple[list[str], int, int, int, int, list[str], int, str, float, list[EditSpan]]] = []
+        for bw, wt, tcs, tcf, tm, mw, _ld, _ls, mp, ed_list in sentence_beam:
             left_ctx = bw
             scored: list[tuple[tuple, QueryMatch, tuple[int, int, int, int, str]]] = []
             for f_m in f_candidates:
@@ -438,9 +440,10 @@ def query_with_context(
                 and not is_valid_vietnamese_syllable(seg_tokens[0])
             )
             if keep_oov:
-                next_beam.append((bw + seg_tokens, max(wt, 5), tcs, tcf, tm, mw, -1, "", mp * 1e-6))
+                next_beam.append((bw + seg_tokens, max(wt, 5), tcs, tcf, tm, mw, -1, "", mp * 1e-6, ed_list))
                 continue
 
+            seg_offset = len(bw)
             for _, f_m, (tier, span_len, ctx_freq, ctx_diff, ctx_src) in scored[: max(top_k, 5)]:
                 f_words = f_m.phrase.split()
                 f_stands = ctx_can_stand_alone and tier >= 4 and f_m.superstring_diff == 0 and len(f_words) >= 2
@@ -453,6 +456,13 @@ def query_with_context(
                     if right_ctx:
                         p_r = index.fwd_prob.get(f_words[-1], {}).get(right_ctx[0], 0.0)
                         b_prob *= (1.0 if p_r > 0.0 else 1e-8) if long_f else (p_r or 1e-8)
+                seg_edits = build_edit_spans(
+                    seg_tokens,
+                    f_words,
+                    offset=seg_offset,
+                    missing_words=f_m.missing_words,
+                    include_unaccented_unchanged=True,
+                )
                 next_beam.append(
                     (
                         bw + f_words,
@@ -464,6 +474,7 @@ def query_with_context(
                         ctx_diff if tier <= 3 else (0 if f_stands else -1),
                         ctx_src if tier <= 3 else (f_m.source_phrase if f_stands else ""),
                         mp * b_prob,
+                        ed_list + seg_edits,
                     )
                 )
 
@@ -481,7 +492,7 @@ def query_with_context(
 
     results: list[QueryMatch] = []
     seen: set[str] = set()
-    for bw, wt, tcs, tcf, tm, mw, ld, ls, mp in sentence_beam:
+    for bw, wt, tcs, tcf, tm, mw, ld, ls, mp, ed_list in sentence_beam:
         full_phrase = " ".join(bw)
         if full_phrase in seen:
             continue
@@ -497,6 +508,7 @@ def query_with_context(
                 context_tier=wt,
                 context_span_len=tcs,
                 markov_prob=mp,
+                edits=ed_list,
             )
         )
 

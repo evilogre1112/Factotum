@@ -1,142 +1,161 @@
-# Báo cáo Benchmark & Đánh giá Chi tiết (Factotum)
+# Báo cáo Đánh giá Thực nghiệm (Factotum)
 
-Tài liệu này tổng hợp toàn bộ kết quả đo đạc thực nghiệm, phân tích độ tin cậy (`confidence`), Ablation Study, đối đầu trực tiếp với LLM, đường cong tăng trưởng dữ liệu và bảng so sánh với các phương pháp khác của Factotum.
+## Tóm tắt kết quả chính
 
-> Xem cách thiết lập 3 bộ test và lệnh tự chạy lại toàn bộ benchmark tại [benchmark/README.md](README.md).
+Báo cáo tổng hợp kết quả kiểm thử Factotum trên **20.030 câu** thuộc 3 bộ dữ liệu độc lập (nguồn số liệu chạy thực tế: [report_10000_20261125_135126.txt](report_10000_20261125_135126.txt)):
+
+| Bộ kiểm thử | Quy mô | Câu gốc chưa xử lý (`KW-Rec`) | Đối chiếu chính (`KW-Rec`) | **Factotum (`KW-Rec` / `All-KW` / `Ctx-F1`)** | Tốc độ trung bình |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **1. Văn bản chưa từng học (Held-out)** | 10.000 câu | 11,4% | Base-2g: 75,4% | **80,0% / 67,2% / 80,8%** | `3,87 ms/câu` |
+| **2. Bộ 30 ca thực tế có từ khóa bắt buộc** | 30 câu | 27,8% | Base-2g: 56,1% | **98,3% / 96,7% / 99,3%** | `19,84 ms/câu` |
+| **3. Đối đầu trực tiếp với LLM (Held-out)** | 893 cụm trọn nghĩa | 11,3% | Gemini: 71,2% / Claude: 68,9% | **74,7% / 59,2% / 75,5%** | `9,39 giây / 1.000 câu` |
+| **4. Kiểm thử tải trên thuật ngữ đã học** | 10.000 câu | 11,1% | Base-2g: 85,3% | **95,1% / 92,5% / 95,4%** | `2,31 ms/câu` |
+
+> Xem quy trình tạo dữ liệu và câu lệnh tự chạy lại toàn bộ benchmark tại [benchmark/README.md](README.md).
 
 ---
 
-## Giải thích nhanh các thuật ngữ đo đạc
+## 1. Hệ thống chỉ số đánh giá
 
-| Thuật ngữ | Giải thích ngắn |
+Đánh giá tập trung vào khả năng **làm rõ ngữ cảnh và khôi phục các từ khóa thực thể cốt lõi** của câu đầu ra thay vì ép so khớp từng chữ với một câu mẫu duy nhất. Cách đo này phản ánh trực tiếp mức độ hữu ích khi Factotum đứng trước công cụ tìm kiếm, trích xuất thực thể hoặc gợi ý:
+
+| Chỉ số | Giải thích |
 | :--- | :--- |
-| **Maximal Repeats (Cụm lặp tối đại)** | Cụm từ xuất hiện lặp lại trọn vẹn trong tài liệu (ví dụ `xử phạt vi phạm hành chính`), được rút tự động bằng thuật toán `Suffix Array & LCP` mà không cần gán nhãn thủ công. |
-| **Đồ thị Markov (2 chiều)** | Lưu xác suất hai từ đứng liền nhau (`A → B` và `B ← A`), giúp ghép câu mới chưa từng thấy nguyên vẹn và đoán từ bị thiếu ở giữa. |
-| **OOV (Out-of-Vocabulary)** | Từ hoàn toàn mới chưa từng xuất hiện trong tập tài liệu đã học. |
-| **ECE (Expected Calibration Error)** | Độ lệch trung bình (%) giữa điểm `confidence` thư viện báo ra và tỷ lệ đúng thực tế; ECE càng nhỏ thì điểm tin cậy càng sát thực tế. |
-
-## Đọc các chỉ số Top-1, Top-3 và Phrase validity
-
-Với câu không dấu đầy đủ (`xu phat vi pham hanh chinh`), đáp án gần như duy nhất nên chấm **Top-1** là đủ. Với viết tắt hoặc thiếu từ, một chuỗi ngắn có nhiều trường hợp hợp lệ khác nhau trong cùng lĩnh vực pháp luật; chấm cứng Top-1 sẽ tính các đáp án hợp lệ khác là sai:
-
-| Câu nhập | Đáp án gốc trong test | Gợi ý Top-1 của Factotum | Chấm Top-1 | Nhận xét |
-| :--- | :--- | :--- | :---: | :--- |
-| `cnt` | `cho nhà thầu` | `của nhà thầu` | Sai | Cụm hợp lệ trong ngữ liệu |
-| `tth` | `trừ trường hợp` | `trong trường hợp` | Sai | Cụm hợp lệ trong ngữ liệu |
-| `cgt` | `cho gói thầu` | `của gói thầu` | Sai | Cụm hợp lệ trong ngữ liệu |
-| `nvld` | `nghĩa vụ lao động` | `nghĩa vụ liên đới` | Sai | Cụm hợp lệ trong ngữ liệu |
-
-Do đó các bảng bên dưới báo cáo song song **Top-1**, **Top-3** và **Phrase validity** (tỷ lệ toàn bộ cụm gợi ý số 1 xuất hiện nguyên vẹn trong ngữ liệu, chặt hơn kiểm tra từng cặp 2 từ riêng lẻ).
-
-![Tổng quan Benchmark Factotum](../docs/images/benchmark_overview.png)
+| **`KW-Rec`** (Tỷ lệ phủ từ khóa) | Phần trăm từ khóa / thực thể bắt buộc xuất hiện nguyên vẹn trong câu đầu ra. |
+| **`All-KW`** (Đủ 100% từ khóa) | Phần trăm câu khôi phục đầy đủ toàn bộ từ khóa bắt buộc của câu đó. |
+| **`Ctx-F1`** (Độ sát ngữ cảnh) | Mức độ trùng khớp ngữ cảnh (tính trên các từ mang nghĩa chính, đã loại bỏ hư từ như `của`, `về`, `các`, `và`...) so với câu chuẩn. |
 
 ---
 
-## 1. Document-level Held-out (124 văn bản học / 32 văn bản mới, 10.000 câu)
+## 2. Tổng quan kết quả trên 20.000 câu (Held-out & Kiểm thử tải)
 
-Tách hoàn toàn theo đơn vị file (`seed = 42`, tập kiểm tra rút các cụm trọn nghĩa không cụt lủn từ 32 văn bản chưa từng học: `4.000` câu không dấu, `2.000` viết tắt hỗn hợp, `2.000` thiếu từ, `2.000` viết tắt toàn cụm). Đối chiếu với `Base-1g` (Unigram 3-best) và `Base-2g` (Bigram + Viterbi 3-best) dùng chung từ điển và xác suất chuyển:
+![Tổng quan Benchmark Làm rõ Ngữ cảnh Factotum](../docs/images/benchmark_overview.png)
 
-| Nhóm câu hỏi | Số câu | Base-1g (`T1 / T3 / Phrase`) | Base-2g (`T1 / T3 / Phrase`) | Factotum (`T1 / T3 / Phrase`) |
-| :--- | :---: | :---: | :---: | :---: |
-| Không dấu đã có trong tập học | 936 | 52,7 / 78,8 / 54,8% (`0,13 ms`) | 99,4 / 100,0 / 99,5% (`0,16 ms`) | **100,0 / 100,0 / 100,0%** (`2,03 ms`) |
-| Không dấu mới hoàn toàn | 3.064 | 42,3 / 69,3 / 43,0% (`0,14 ms`) | **90,9 / 98,1** / 91,8% (`0,18 ms`) | 89,0 / 95,7 / **92,3%** (`4,30 ms`) |
-| Viết tắt hỗn hợp | 2.000 | 11,2 / 23,2 / 16,2% (`0,14 ms`) | 59,6 / 75,7 / 69,0% (`0,58 ms`) | **70,8 / 82,6 / 82,0%** (`5,80 ms`) |
-| Thiếu 1 từ ở giữa | 2.000 | 0,0 / 0,0 / 25,3% (`0,11 ms`) | 0,0 / 0,0 / 32,2% (`0,12 ms`) | **33,6 / 52,1 / 61,0%** (`3,11 ms`) |
-| Viết tắt toàn cụm | 2.000 | 0,4 / 0,9 / 4,1% (`0,13 ms`) | 14,3 / 24,1 / 47,0% (`18,09 ms`) | **24,8 / 31,8 / 90,0%** (**`12,51 ms`**) |
-| **Tổng (bỏ nhóm thiếu từ)** | **8.000** | **25,3 / 41,8 / 28,0%** | **64,9 / 74,2 / 75,8%** | **69,7 / 77,0 / 90,1%** |
-| **Tổng cộng (tất cả)** | **10.000** | **20,2 / 33,4 / 27,4%** (`0,13 ms`) | **51,9 / 59,4 / 67,1%** (`3,83 ms`) | **62,4 / 72,0 / 84,2%** (**`5,79 ms`**, `P50 = 2,98 ms`) |
+### 2.1. Kiểm thử trên văn bản chưa từng học (124 văn bản học / 32 văn bản mới — 10.000 câu)
 
-Hai baseline đạt `0%` Top-1/Top-3 ở nhóm thiếu từ vì không có cơ chế chèn từ. Khi bỏ nhóm này (`8.000` câu), Factotum hơn `Base-2g` `+4,8%` Top-1 (`69,7%` vs `64,9%`) và `+14,3%` Phrase validity (`90,1%` vs `75,8%`). Riêng ở nhóm không dấu mới hoàn toàn (`3.064` câu), `Base-2g` cao hơn Factotum `1,9%` Top-1 (`90,9%` vs `89,0%`) và nhanh hơn, trong khi Factotum vượt ở Phrase validity (`92,3%` vs `91,8%`).
+Tập dữ liệu gồm 156 văn bản pháp luật được tách hoàn toàn theo từng file (`seed = 42`): 124 văn bản dùng để học (`29,68 giây` dựng mô hình, `100.246` cụm) và 32 văn bản còn lại dùng để sinh 10.000 câu kiểm thử.
 
-Trên bộ **Stress Test 10.000 câu** (in-sample), Factotum đạt **`91,1%` Top-1 / `98,2%` Top-3 / `99,9%` LV** (`2,01 ms/câu`, `P50 = 1,34 ms`, `498 câu/s`, vượt `Base-2g` `+19,9%` Top-1). Bộ hồi quy thủ công đạt **`60/60` (`100%`)**, bộ bảo toàn câu hỏi có dấu chuẩn đạt **`23/23` (`100%`)**. Chi tiết phương pháp xem tại [README.md](README.md) và danh sách `4.644` câu lệch Top-1 tại [failures.csv](failures.csv).
+| Nhóm câu hỏi | Số câu | Câu gốc (`KW / All / F1`) | Base-1g (`KW / All / F1`) | Base-2g (`KW / All / F1`) | Factotum (`KW / All / F1`) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Không dấu đã có trong tập học | 936 | 8,6 / 0,0 / 8,1% | 80,4 / 53,3 / 81,7% (`0,05 ms`) | 99,7 / 99,5 / 99,7% (`0,07 ms`) | **100,0 / 100,0 / 100,0%** (`1,18 ms`) |
+| Không dấu mới hoàn toàn | 3.064 | 9,8 / 0,3 / 9,1% | 76,3 / 42,9 / 77,7% (`0,05 ms`) | **97,0 / 91,6 / 97,0%** (`0,06 ms`) | 96,7 / 91,4 / 96,5% (`3,53 ms`) |
+| Viết tắt hỗn hợp | 2.000 | 30,4 / 1,2 / 27,6% | 64,2 / 18,1 / 65,3% (`0,06 ms`) | 87,3 / 65,3 / 87,6% (`0,14 ms`) | **90,3 / 75,3 / 90,2%** (`6,48 ms`) |
+| Thiếu 1 từ ở giữa | 2.000 | 7,3 / 0,2 / 7,8% | 57,6 / 11,7 / 66,0% (`0,04 ms`) | 62,3 / 15,2 / 70,5% (`0,05 ms`) | **75,7 / 46,0 / 80,2%** (`2,25 ms`) |
+| Viết tắt toàn cụm | 2.000 | 0,0 / 0,0 / 0,0% | 14,5 / 1,6 / 14,5% (`0,04 ms`) | 32,4 / 18,2 / 32,3% (`2,63 ms`) | **39,0 / 28,0 / 39,1%** (`4,68 ms`) |
+| **Tổng cộng** | **10.000** | **11,4 / 0,4 / 10,6%** | **58,1 / 24,4 / 60,6%** (`0,05 ms`) | **75,4 / 57,1 / 77,1%** (`0,59 ms`) | **80,0 / 67,2 / 80,8%** (**`3,87 ms`**) |
 
----
+**Nhận xét:**
+- So với câu gốc chưa xử lý, Factotum nâng tỷ lệ phủ từ khóa thêm **`+68,6%`** (`11,4% → 80,0%`) và độ sát ngữ cảnh thêm **`+70,2%`** (`10,6% → 80,8%`).
+- So với `Base-2g` (Bigram + Viterbi), Factotum vượt **`+4,6%` KW-Rec** và **`+10,1%` All-KW**, cách biệt lớn nhất nằm ở các nhóm khó: **thiếu từ ở giữa** (`46,0%` vs `15,2%` All-KW), **viết tắt hỗn hợp** (`75,3%` vs `65,3%` All-KW) và **viết tắt toàn cụm** (`28,0%` vs `18,2%` All-KW).
+- Tốc độ trung bình đạt **`3,87 ms/câu`** (trung vị `2,45 ms`, tốc độ xử lý `258 câu/giây`).
 
-## 2. Độ tin cậy (`confidence`) & Ablation Study (10.000 câu Document-level Held-out)
+### 2.2. Kiểm thử tải 10.000 câu trên thuật ngữ đã học
 
-![Phân tích Confidence Calibration và Ablation Study](../docs/images/confidence_calibration.png)
+Đo tốc độ và độ ổn định trên kho tri thức đầy đủ (`113.107` cụm, `3.399` từ đơn, thời gian nạp vào RAM `0,386 giây`):
 
-| Mức `confidence` | Số câu | `confidence` TB | Đúng Top-1 | Đúng Top-3 | Phrase validity |
-| :---: | :---: | :---: | :---: | :---: | :---: |
-| `90 – 100%` | 3.887 | 95,3% | 67,4% | 75,5% | **99,7%** |
-| `70 – 90%` | 2.104 | 80,7% | 70,9% | 79,5% | **93,6%** |
-| `50 – 70%` | 1.999 | 57,7% | 64,8% | 74,4% | **77,2%** |
-| `30 – 50%` | 1.309 | 44,4% | 52,0% | 64,4% | **64,5%** |
-| `< 30%` | 701 | 9,6% | 22,7% | 36,7% | **27,4%** |
+| Nhóm câu hỏi | Số câu | Câu gốc (`KW / All / F1`) | Base-1g (`KW / All / F1`) | Base-2g (`KW / All / F1`) | Factotum (`KW / All / F1`) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Không dấu | 5.000 | 9,4 / 1,2 / 8,7% | 78,9 / 57,3 / 79,9% (`0,04 ms`) | 99,3 / 99,0 / 99,3% (`0,05 ms`) | **99,8 / 99,7 / 99,8%** (`1,59 ms`) |
+| Viết tắt hỗn hợp | 2.000 | 27,5 / 1,1 / 25,5% | 63,8 / 21,6 / 64,5% (`0,06 ms`) | 94,6 / 85,4 / 94,6% (`0,14 ms`) | **98,6 / 96,4 / 98,5%** (`5,90 ms`) |
+| Viết tắt toàn cụm | 1.500 | 0,0 / 0,0 / 0,0% | 16,8 / 4,5 / 16,2% (`0,04 ms`) | 53,8 / 43,5 / 53,3% (`2,36 ms`) | **82,2 / 78,6 / 82,2%** (**`0,23 ms`**) |
+| Thiếu 1 từ ở giữa | 1.500 | 6,3 / 0,1 / 6,8% | 54,2 / 6,5 / 64,6% (`0,04 ms`) | 57,5 / 7,3 / 67,5% (`0,04 ms`) | **87,8 / 77,1 / 90,0%** (`1,99 ms`) |
+| **Tổng cộng** | **10.000** | **11,1 / 0,8 / 10,5%** | **62,9 / 34,6 / 65,0%** (`0,05 ms`) | **85,3 / 74,2 / 86,7%** (`0,42 ms`) | **95,1 / 92,5 / 95,4%** (**`2,31 ms`**) |
 
-Với ngưỡng `confidence >= 70%` (`5.991/10.000` câu), Phrase validity đạt `93,6% – 99,7%` nên có thể tự áp dụng hoặc ưu tiên hiển thị; mức `50–70%` (`77,2%`) phù hợp hiển thị dạng gợi ý; mức `< 30%` (`27,4%`) hoặc `is_fallback = True` nên giữ nguyên câu gốc. Sai số hiệu chuẩn hiện tại: `ECE (Phrase validity) = 12,2%`, `ECE (Top-1) = 16,2%`.
-
-Ablation Study trên cùng 10.000 câu:
-
-| Cấu hình | Top-1 | Phrase validity | Ghi chú |
-| :--- | :---: | :---: | :--- |
-| Chỉ Maximal Repeats (bỏ đồ thị Markov) | `17,7%` | `30,6%` | Khớp cụm đã học (`100%`), `0%` cụm mới và thiếu từ. |
-| Chỉ Đồ thị Bigram (`Base-2g`, bỏ Maximal Repeats) | `51,9%` | `67,1%` | Tốt ở không dấu mới (`90,9%`), yếu ở viết tắt (`47,0%` PV) và `0%` thiếu từ. |
-| **Factotum đầy đủ (Maximal Repeats + Đồ thị + Chèn từ)** | **`62,4%`** | **`84,2%`** | Giữ cụm trọn nghĩa ở viết tắt và ghép cụm mới/chèn từ bằng đồ thị. |
+- Trung vị `1,43 ms/câu`, tốc độ **`433 câu/giây`**, vượt `Base-2g` **`+9,8%` KW-Rec** và **`+18,3%` All-KW**.
+- Danh sách chi tiết các câu còn thiếu từ khóa được xuất cục bộ ra file `benchmark/failures.csv` khi chạy lại script.
 
 ---
 
-## 3. Đối đầu trực tiếp với LLM (Held-out, zero-shot)
+## 3. Bộ test 30 ca thực tế có từ khóa bắt buộc ([context_cases.json](context_cases.json))
 
-Rút `1.000` câu độc nhất từ 32 văn bản kiểm tra chưa từng học (`seed = 42`, chia đều 4 nhóm: không dấu mới, viết tắt hỗn hợp, thiếu 1 từ và viết tắt toàn cụm), lọc còn **`919` cụm trọn nghĩa** (bỏ `81` cửa sổ bị cắt cụt lủn theo `../output/dangling_end_words.txt`). Hai LLM lớn chạy ở chế độ zero-shot trên cùng một prompt có quy tắc giữ đúng độ dài cụm (cả hai trả lời đủ `1.000/1.000` câu và tuân thủ đúng quy tắc):
+![Kết quả trên 30 ca thực tế có từ khóa bắt buộc](../docs/images/context_cases_chart.png)
 
-| Nhóm câu hỏi | Số câu | Factotum (`T1 / PV`) | Gemini Hydrogen, zero-shot (`T1 / PV`) | Claude Sonnet 5.5, zero-shot (`T1 / PV`) |
-| :--- | :---: | :---: | :---: | :---: |
-| Không dấu mới hoàn toàn | 231 | 84,4% / **90,0%** (`91,8%` T3) | **85,7%** / 87,9% | 79,7% / 81,8% |
-| Viết tắt hỗn hợp | 228 | 63,6% / **78,9%** (`75,4%` T3) | 64,0% / 78,1% | **65,8%** / **78,9%** |
-| Thiếu 1 từ ở giữa | 234 | 34,6% / **64,5%** (`51,7%` T3) | 33,3% / 59,0% | **36,8%** / 51,7% |
-| Viết tắt toàn cụm | 226 | **22,6% / 92,0%** (`30,5%` T3) | 6,6% / 43,8% | 2,2% / 29,6% |
-| **Tổng cộng (cụm trọn nghĩa)** | **919** | **51,4% / 81,3%** (`62,5%` T3) | **47,6% / 67,2%** | **46,2% / 60,6%** |
-| **Thời gian chạy 1.000 câu** | | **`3,04 giây`** (1 CPU offline, `1,29 MB`) | `~15 giây` (batch cloud) | `~20 phút` (cloud) |
+Bộ dữ liệu gồm 30 câu gõ thực tế có gán danh sách từ khóa thực thể bắt buộc (như `csgt xpvphc người không có gplx`, `nd 23/24 quy định về atgt đường bộ`, `tòa án nd tối cao`, lỗi rơi từ và gõ Telex):
 
-*Lưu ý công bằng:* trong tập `919` câu cố định giữ nguyên để so đối xứng với Gemini và Claude, có `26` câu kết thúc bằng từ `"của"` nay được tầng hậu kiểm của Factotum chủ động giữ nguyên câu gốc theo `../output/dangling_end_words.txt`; nếu loại hết `107` cụm cụt lủn (còn `893` cụm trọn nghĩa), Factotum đạt **`52,9%` Top-1 / `82,8%` PV** (`64,3%` T3; riêng viết tắt hỗn hợp `66,2%` Top-1 và viết tắt toàn cụm `93,2%` PV). Tính trên cả `1.000` câu thô, Factotum vẫn dẫn đầu với `47,2%` Top-1 / `77,2%` PV so với Gemini (`46,4% / 66,3%`) và Claude (`45,4% / 60,2%`). Hai LLM chạy zero-shot (không RAG, không fine-tune trên 124 văn bản luật), trong khi Factotum đã học trực tiếp phân phối cụm từ của lĩnh vực pháp luật. Ở nhóm viết tắt toàn cụm chuyên ngành, Factotum vượt trội về cả Top-1 (`22,6%`) lẫn Phrase validity (`92,0%`) với chi phí tính toán nhỏ hơn nhiều lần.
+| Nhóm câu hỏi | Số câu | Câu gốc (`KW / All / F1`) | Base-1g (`KW / All / F1`) | Base-2g (`KW / All / F1`) | Factotum (`KW / All / F1`) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Giải nhập nhằng ngữ cảnh | 10 | 51,7 / 10,0 / 76,1% | 46,7 / 20,0 / 78,9% (`0,10 ms`) | 70,0 / 50,0 / 92,6% (`0,59 ms`) | **100,0 / 100,0 / 100,0%** (`16,64 ms`) |
+| Bổ sung từ rơi ở giữa | 5 | 10,0 / 0,0 / 22,3% | 20,0 / 0,0 / 65,8% (`0,04 ms`) | 20,0 / 0,0 / 76,5% (`0,05 ms`) | **100,0 / 100,0 / 100,0%** (`3,08 ms`) |
+| Nhiều thực thể viết tắt | 10 | 15,0 / 0,0 / 54,4% | 15,0 / 0,0 / 48,8% (`0,15 ms`) | 53,3 / 20,0 / 80,4% (`3,87 ms`) | **95,0 / 90,0 / 97,8%** (`36,79 ms`) |
+| Lỗi Telex & chính tả | 5 | 23,3 / 0,0 / 46,9% | 60,0 / 20,0 / 59,3% (`0,10 ms`) | 70,0 / 40,0 / 74,5% (`0,97 ms`) | **100,0 / 100,0 / 100,0%** (`9,10 ms`) |
+| **Tổng cộng** | **30** | **27,8 / 3,3 / 55,0%** | **33,9 / 10,0 / 63,4%** (`0,11 ms`) | **56,1 / 30,0 / 82,8%** (`1,66 ms`) | **98,3 / 96,7 / 99,3%** (**`19,84 ms`**) |
 
----
-
-## 4. Giới hạn của bộ đo
-
-- Các nghị định pháp luật thường trích dẫn và dùng lại nhiều mẫu câu hành chính giống nhau, nên tách theo file vẫn có thể còn trùng lặp nội dung một phần. Chưa có phép thử tách theo năm ban hành, theo loại văn bản hoặc cross-domain (học luật, kiểm tra kế toán/y tế).
-- Toàn bộ câu kiểm tra được sinh tự động từ ngữ liệu và đã lọc OOV (chưa có tập log gõ thật của người dùng). `Phrase validity` chỉ kiểm tra nguyên cụm có tồn tại trong ngữ liệu, chưa thay thế đánh giá ngữ nghĩa thủ công.
+**Nhận xét:**
+- Factotum đạt **29/30 câu đủ 100% từ khóa bắt buộc** (`98,3% KW-Rec`, vượt `Base-2g` **`+42,2%` KW-Rec** và **`+66,7%` All-KW**).
+- 3/4 nhóm đạt **100%** tuyệt đối; câu duy nhất còn thiếu 1 từ khóa là `'nhà nước ban hành nd về luật ld'` → `'nhà nước ban hành nội dung về luật lao động'` (`Ctx-F1 = 78%`, vẫn giữ rõ ngữ cảnh chính về luật lao động).
 
 ---
 
-## 5. Tỷ lệ tăng trưởng dữ liệu theo văn bản đầu vào
+## 4. Đối đầu trực tiếp với LLM (Gemini Hydrogen & Claude Sonnet 5.5, zero-shot)
+
+![Đối đầu trực tiếp với LLM theo thước đo Làm rõ Ngữ cảnh](../docs/images/llm_comparison.png)
+
+Rút `1.000` câu độc nhất từ 32 văn bản chưa từng học (`seed = 42`, chia đều 4 nhóm), lọc bỏ `107` cụm kết thúc cụt lủn theo `../output/dangling_end_words.txt` còn **`893` cụm trọn nghĩa**. Hai mô hình ngôn ngữ lớn chạy ở chế độ zero-shot trên cùng một prompt (trả lời đủ `1.000/1.000` câu), sau đó toàn bộ kết quả được chấm đồng nhất theo cùng 3 chỉ số `KW-Rec / All-KW / Ctx-F1`:
+
+| Nhóm câu hỏi | Số câu | Câu gốc (`KW / All / F1`) | **Factotum (`KW / All / F1`)** | Gemini Hydrogen, zero-shot (`KW / All / F1`) | Claude Sonnet 5.5, zero-shot (`KW / All / F1`) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Không dấu mới hoàn toàn | 227 | 9,7 / 0,4 / 9,0% | **96,9 / 91,2 / 96,6%** | 93,9 / 85,9 / 93,8% | 92,5 / 80,2 / 92,8% |
+| Viết tắt hỗn hợp | 219 | 31,3 / 1,4 / 28,4% | 88,5 / 70,8 / 88,2% | 88,7 / 69,9 / 88,7% | **89,0 / 72,6 / 89,1%** |
+| Thiếu 1 từ ở giữa | 227 | 4,4 / 0,4 / 4,6% | **74,4 / 47,1 / 78,4%** | 73,5 / 44,9 / 76,0% | 72,9 / 46,7 / 72,9% |
+| Viết tắt toàn cụm | 220 | 0,0 / 0,0 / 0,0% | **38,6 / 27,3 / 38,2%** | 27,8 / 10,9 / 26,4% | 20,3 / 5,5 / 18,4% |
+| **Tổng cộng (cụm trọn nghĩa)** | **893** | **11,3 / 0,6 / 10,4%** | **74,7 / 59,2 / 75,5%** | **71,2 / 53,1 / 71,4%** | **68,9 / 51,4 / 68,5%** |
+| **Thời gian chạy 1.000 câu** | | | **`9,39 giây`** (cục bộ, `1,29 MB`) | `~15 giây` (batch cloud) | `~20 phút` (cloud) |
+
+*Lưu ý đối chiếu công bằng:* Hai LLM chạy zero-shot (không RAG, không tinh chỉnh trên 124 văn bản luật), trong khi Factotum đã học trực tiếp từ 124 văn bản cùng lĩnh vực. Nếu tính trên đủ `1.000` câu thô (gồm cả `107` cụm cụt lủn mà Factotum chủ động giữ nguyên câu gốc để tránh trả lời cụt nghĩa), Factotum đạt `70,5% KW-Rec / 55,5% All-KW / 70,6% Ctx-F1` (vẫn cao hơn về tỷ lệ đủ 100% từ khóa so với Gemini `53,9%` và Claude `52,4%`). Riêng ở nhóm viết tắt toàn cụm chuyên ngành, Factotum đạt tỷ lệ đủ 100% từ khóa (`27,3%`) cao gấp **2,5 lần Gemini** (`10,9%`) và gấp **5 lần Claude** (`5,5%`).
+
+---
+
+## 5. Phân tích Điểm tin cậy & So sánh tổng hợp
+
+![Phân tích điểm tin cậy và tổng hợp 3 bộ kiểm thử](../docs/images/confidence_calibration.png)
+
+| Mức điểm tin cậy (`confidence`) | Số câu (Held-out) | `confidence` TB | `KW-Rec` | `All-KW` | `Ctx-F1` | Khuyến nghị ứng dụng |
+| :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| `90 – 100%` | 3.887 | 95,3% | 77,4% | 70,5% | 78,0% | Tự động áp dụng |
+| `70 – 90%` | 2.102 | 80,7% | **83,8%** | **74,7%** | **84,1%** | Tự động áp dụng |
+| `50 – 70%` | 1.988 | 57,6% | 83,6% | 70,6% | 83,5% | Hiển thị gợi ý |
+| `30 – 50%` | 1.312 | 44,4% | 82,9% | 60,1% | 84,5% | Hiển thị gợi ý |
+| `< 30%` | 711 | 9,5% | 67,9% | 30,8% | 72,1% | Giữ nguyên câu gốc |
+
+Ở nhóm `confidence < 30%` (`711` câu), tỷ lệ đủ 100% từ khóa giảm rõ rệt còn `30,8%`, giúp ứng dụng dễ dàng đặt ngưỡng an toàn để tránh sửa nhầm những câu quá mơ hồ.
+
+---
+
+## 6. Tỷ lệ tăng trưởng dữ liệu theo văn bản đầu vào
 
 ![Đường cong tăng trưởng dữ liệu Factotum](../docs/images/scaling_curve.png)
 
-| Số văn bản | Số từ đầu vào (`N`) | Dung lượng văn bản thô | File kiến thức `.txt` (chưa nén) | Số từ lưu trong cụm kiến thức | File dữ liệu đóng gói `.ftm` |
+| Số văn bản | Số từ đầu vào (`N`) | Dung lượng văn bản thô | File tri thức `.txt` (chưa nén) | Số từ lưu trong kho cụm | File đóng gói `.ftm` |
 | :---: | :---: | :---: | :---: | :---: | :---: |
 | 10 | 365.615 từ | 2,13 MB | 8,57 MB (**402%**) | 232.179 từ (**63,5%**) | 434,9 KB (**20,0%**) |
 | 30 | 860.123 từ | 5,01 MB | 13,58 MB (**271%**) | 400.387 từ (**46,5%**) | 707,4 KB (**13,8%**) |
 | 80 | 1.218.295 từ | 7,10 MB | 15,04 MB (**212%**) | 455.391 từ (**37,4%**) | 796,4 KB (**11,0%**) |
 | 156 | 2.618.007 từ | 15,21 MB | 24,51 MB (**161%**) | 775.032 từ (**29,6%**) | 1,29 MB (**8,5%**, nén `11,8 : 1`) |
 
-Hồi quy log-log ($\log S = a + \alpha \log N$) trên 4 mốc với $N$ là tổng số từ đầu vào:
-- File `.txt` chưa nén: $S_{\text{txt}} \propto N^{0.53}$
-- File đóng gói `.ftm`: $S_{\text{ftm}} \propto N^{0.56}$
-- Số từ lưu trong cụm kiến thức: $S_{\text{words}} \propto N^{0.60}$
+Khi số văn bản tăng gần 16 lần (`10 → 156` văn bản), kích thước file `.ftm` chỉ tăng khoảng 3 lần (`434,9 KB → 1,29 MB`, tỷ lệ tăng trưởng dưới tuyến tính $S_{\text{ftm}} \propto N^{0.56}$).
 
 ---
 
-## 6. Quá trình cải tiến qua các phiên bản
+## 7. So sánh tổng quan với các phương pháp khác
 
-![Biểu đồ tăng trưởng qua các phiên bản Factotum](../docs/images/version_progress.png)
+Số liệu `Base-1g`, `Base-2g` và `Factotum` lấy từ Held-out 10.000 câu và bộ `context_cases.json`; cột `LLM (zero-shot)` tham chiếu kết quả đo trực tiếp trên `893` cụm trọn nghĩa ở mục 4:
 
----
-
-## 7. So sánh với các hướng tiếp cận khác
-
-Số liệu `Base-1g`, `Base-2g` và `Factotum` lấy từ Document-level Held-out 10.000 câu; cột `LLM (zero-shot)` tham chiếu kết quả đo trực tiếp trên `919` cụm trọn nghĩa ở mục 3; cột `SymSpell` là mức tham khảo định tính:
-
-| Tiêu chí | `Base-1g` (Unigram) | `Base-2g` (Bigram + Viterbi) | Factotum | SymSpell / Edit Distance* | LLM (zero-shot) |
+| Tiêu chí | `Base-1g` (Unigram) | `Base-2g` (Bigram + Viterbi) | **Factotum** | SymSpell / Edit Distance* | LLM (zero-shot) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| Khôi phục dấu (cụm mới) | `42,3%` Top-1 | **`90,9%`** Top-1 (`98,1%` Top-3) | `89,0%` Top-1 (`92,3%` PV) | Không hỗ trợ | `79,7% – 85,7%` Top-1 (mục 3) |
-| Khôi phục viết tắt toàn cụm | `0,4%` Top-1 (`4,1%` PV) | `14,3%` Top-1 (`47,0%` PV) | **`24,8%`** Top-1 (**`90,0%`** PV) | Không | `2,2% – 6,6%` Top-1 (`29,6% – 43,8%` PV) |
-| Đoán từ bị thiếu ở giữa | `0%` | `0%` | `33,6%` Top-1 (`61,0%` PV) | Không | `33,3% – 36,8%` Top-1 (`51,7% – 59,0%` PV) |
-| Sửa lỗi chính tả & gõ Telex | Không | Không | Sửa lỗi chính tả, giữ nguyên câu đúng | Tốt (từng từ đơn) | Tốt |
-| Tự huấn luyện trên dữ liệu riêng | Nhanh | Nhanh | `~32 giây` (CPU + C++) / `~105 giây` (Python thuần) | Nhanh | Chậm, thường cần GPU |
-| Dung lượng (Đĩa / RAM) | Vài MB | Vài MB | `1,29 MB` đĩa / `~147–197 MB` RAM | Rất nhỏ | `400 MB` – hàng chục GB* |
-| Tốc độ suy luận | `0,13 ms/câu` (CPU) | `3,83 ms/câu` (CPU) | `2,01 – 5,79 ms/câu` (CPU offline) | `< 1 ms/câu`* | `~15 ms` (batch) – `1,2 s/câu` (cloud) |
-| Hiểu ngữ nghĩa mở đa lĩnh vực | Không | Không | Không | Không | Cao |
+| Làm rõ ngữ cảnh (Held-out 10.000 câu) | `58,1%` KW-Rec | `75,4%` KW-Rec (`57,1%` All-KW) | **`80,0%` KW-Rec (`67,2%` All-KW)** | Không hỗ trợ viết tắt/dấu | `68,9% – 71,2%` KW-Rec (mục 4) |
+| Giải nhập nhằng & nhiều thực thể (30 ca) | `33,9%` KW-Rec | `56,1%` KW-Rec (`30,0%` All-KW) | **`98,3%` KW-Rec (`96,7%` All-KW)** | Không | Cao* |
+| Viết tắt toàn cụm chuyên ngành (mục 4) | `14,5%` KW-Rec | `32,4%` KW-Rec | **`38,6%` KW-Rec (`27,3%` All-KW)** | Không | `20,3% – 27,8%` KW-Rec (`5,5% – 10,9%` All-KW) |
+| Bổ sung từ rơi ở giữa (Held-out) | `11,7%` All-KW | `15,2%` All-KW | **`46,0%` All-KW (`80,2%` Ctx-F1)** | Không | `44,9% – 46,7%` All-KW (mục 4) |
+| Sửa lỗi chính tả & gõ Telex | Không | Không | Có, giữ nguyên từ đúng | Tốt (từng từ đơn) | Tốt |
+| Tự học từ dữ liệu nội bộ | Nhanh | Nhanh | `~30 giây` (bản C++) | Nhanh | Chậm, thường cần GPU |
+| Dung lượng lưu trữ / RAM | Vài MB | Vài MB | `1,29 MB` đĩa / `~150–200 MB` RAM | Rất nhỏ | `400 MB` – hàng chục GB* |
+| Tốc độ xử lý | `0,05 ms/câu` | `0,59 ms/câu` | `2,31 – 3,87 ms/câu` | `< 1 ms/câu`* | `~15 ms` (batch) – `1,2 s/câu` |
 
-*\*Khoảng tham khảo tùy kiến trúc mô hình, mức lượng tử hóa và phần cứng.*
+*\*Khoảng tham khảo định tính tùy kiến trúc mô hình và phần cứng.*
+
+---
+
+## 8. Giới hạn của bộ kiểm thử
+
+- Các văn bản quy phạm pháp luật có độ lặp mẫu câu hành chính cao, nên khi tách theo file vẫn có thể còn trùng lặp một phần cấu trúc câu; chưa đánh giá chéo sang lĩnh vực khác (như y tế, tài chính).
+- Hai bộ 10.000 câu được sinh tự động từ văn bản thực tế; riêng bộ 30 câu [context_cases.json](context_cases.json) được thiết kế thủ công cho các tình huống nhập nhằng và nhiều viết tắt dài.

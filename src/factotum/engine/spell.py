@@ -19,7 +19,11 @@ def preprocess_tokens(index: GraphIndex, raw_tokens: list[str]) -> tuple[list[st
     ua_map = index.unaccented_map
 
     for tok in raw_tokens:
-        if tok in real_vocab or is_valid_vietnamese_syllable(tok) or get_compatible_token_classes(tok):
+        if (
+            tok in real_vocab
+            or (is_valid_vietnamese_syllable(tok) and tok in ua_map)
+            or get_compatible_token_classes(tok)
+        ):
             out.append(tok)
             continue
         collapsed = collapse_repeated_chars(tok)

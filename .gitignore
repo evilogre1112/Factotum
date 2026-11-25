@@ -14,7 +14,9 @@ venv/
 data/
 visual/
 benchmark/llm_eval_*
+benchmark/*.csv
 *.mp4
+*.mp4.events.json
 
 # Generated caches & intermediate outputs (keep only pre-built .ftm model, custom dangling words, and README)
 output/*

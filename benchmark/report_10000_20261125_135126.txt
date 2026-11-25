@@ -1,0 +1,76 @@
+Thời gian nạp RAM: 0.386 s | Cụm: 113,107 | Từ đơn: 3,399 | Khóa: 1,944
+
+
+==================== 1. DOCUMENT-LEVEL HELD-OUT (124 TRAIN DOCS / 32 UNSEEN DOCS - 10,000 CÂU)
+[Build Train: SA/LCP=16.79s | Tổng Build=29.68s | KB Train=100,246 cụm] ====================
+Thước đo: KW-Rec (phủ từ khóa bắt buộc) / All-KW (đủ 100% từ khóa) / Ctx-F1 (độ sát ngữ cảnh)
+Nhóm test                | Số câu |   Raw (KW/All/F1)   |   Base-1g (KW/All/F1, ms)    |   Base-2g (KW/All/F1, ms)    |   Factotum (KW/All/F1, ms)  
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+heldout_acronym          |  2,000 |   0.0/  0.0/  0.0%  |  14.5/  1.6/ 14.5% (0.04ms)  |  32.4/ 18.2/ 32.3% (2.63ms)  |  39.0/ 28.0/ 39.1% (4.68ms) 
+heldout_missing          |  2,000 |   7.3/  0.2/  7.8%  |  57.6/ 11.7/ 66.0% (0.04ms)  |  62.3/ 15.2/ 70.5% (0.05ms)  |  75.7/ 46.0/ 80.2% (2.25ms) 
+heldout_mixed_abbr       |  2,000 |  30.4/  1.2/ 27.6%  |  64.2/ 18.1/ 65.3% (0.06ms)  |  87.3/ 65.3/ 87.6% (0.14ms)  |  90.3/ 75.3/ 90.2% (6.48ms) 
+heldout_unacc_in_kb      |    936 |   8.6/  0.0/  8.1%  |  80.4/ 53.3/ 81.7% (0.05ms)  |  99.7/ 99.5/ 99.7% (0.07ms)  | 100.0/100.0/100.0% (1.18ms) 
+heldout_unacc_novel      |  3,064 |   9.8/  0.3/  9.1%  |  76.3/ 42.9/ 77.7% (0.05ms)  |  97.0/ 91.6/ 97.0% (0.06ms)  |  96.7/ 91.4/ 96.5% (3.53ms) 
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+TỔNG CỘNG                | 10,000 |  11.4/  0.4/ 10.6%  |  58.1/ 24.4/ 60.6% (0.05ms)  |  75.4/ 57.1/ 77.1% (0.59ms)  |  80.0/ 67.2/ 80.8% (3.87ms) 
+Tăng KW-Rec so với Raw: +68.6% | Vượt Base-2g: +4.6% KW-Rec | Ctx-F1=80.8% | P50=2.45ms | P95=13.24ms | P99=20.70ms | 258 câu/s
+
+Confidence Calibration (theo độ làm rõ ngữ cảnh):
+  90-100%  | n=3,887 | conf= 95.3% | KW-Rec= 77.4% | All-KW= 70.5% | Ctx-F1= 78.0%
+  70-90%   | n=2,102 | conf= 80.7% | KW-Rec= 83.8% | All-KW= 74.7% | Ctx-F1= 84.1%
+  50-70%   | n=1,988 | conf= 57.6% | KW-Rec= 83.6% | All-KW= 70.6% | Ctx-F1= 83.5%
+  30-50%   | n=1,312 | conf= 44.4% | KW-Rec= 82.9% | All-KW= 60.1% | Ctx-F1= 84.5%
+  <30%     | n=  711 | conf=  9.5% | KW-Rec= 67.9% | All-KW= 30.8% | Ctx-F1= 72.1%
+
+Mẫu câu còn thiếu từ khóa bắt buộc (hiển thị 10/3,279, chi tiết tại failures.csv):
+  - [heldout_missing] 'theo dinh' -> 'theo định' | Thiếu: [quy] (KW=50%, F1=67%)
+  - [heldout_missing] 'doi voi chuc' -> 'đối với chức' | Thiếu: [công] (KW=67%, F1=80%)
+  - [heldout_missing] 'tin khac theo' -> 'tin khác theo' | Thiếu: [tùy] (KW=67%, F1=80%)
+  - [heldout_acronym] 'scch' -> 'sản chung của hộ' | Thiếu: [sở | chính | hãng] (KW=0%, F1=0%)
+  - [heldout_missing] 'co do' -> 'có độ' | Thiếu: [trình] (KW=50%, F1=67%)
+  - [heldout_mixed_abbr] 'việc khoi luong theo t' -> 'việc khối lượng theo thông' | Thiếu: [thiết] (KW=75%, F1=75%)
+  - [heldout_mixed_abbr] 'giấy chung nhan d' -> 'giấy chứng nhận đăng' | Thiếu: [dung] (KW=75%, F1=75%)
+  - [heldout_mixed_abbr] 'tổ chuc p' -> 'tổ chức phát' | Thiếu: [phải] (KW=67%, F1=67%)
+  - [heldout_missing] 'cac viec' -> 'các việc' | Thiếu: [công] (KW=50%, F1=67%)
+  - [heldout_acronym] 'ycbgt' -> 'yêu cầu bên gửi trả' | Thiếu: [bắt | giữ | tàu] (KW=40%, F1=40%)
+
+
+==================== 2. BỘ TEST LÀM RÕ NGỮ CẢNH & TỪ KHÓA BẮT BUỘC (context_cases.json) ====================
+Thước đo: KW-Rec (phủ từ khóa bắt buộc) / All-KW (đủ 100% từ khóa) / Ctx-F1 (độ sát ngữ cảnh)
+Nhóm test                | Số câu |   Raw (KW/All/F1)   |   Base-1g (KW/All/F1, ms)    |   Base-2g (KW/All/F1, ms)    |   Factotum (KW/All/F1, ms)  
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+context_disambiguation   |     10 |  51.7/ 10.0/ 76.1%  |  46.7/ 20.0/ 78.9% (0.10ms)  |  70.0/ 50.0/ 92.6% (0.59ms)  | 100.0/100.0/100.0% (16.64ms)
+missing_word_enrichment  |      5 |  10.0/  0.0/ 22.3%  |  20.0/  0.0/ 65.8% (0.04ms)  |  20.0/  0.0/ 76.5% (0.05ms)  | 100.0/100.0/100.0% (3.08ms) 
+multi_entity_context     |     10 |  15.0/  0.0/ 54.4%  |  15.0/  0.0/ 48.8% (0.15ms)  |  53.3/ 20.0/ 80.4% (3.87ms)  |  95.0/ 90.0/ 97.8% (36.79ms)
+typo_and_unaccented      |      5 |  23.3/  0.0/ 46.9%  |  60.0/ 20.0/ 59.3% (0.10ms)  |  70.0/ 40.0/ 74.5% (0.97ms)  | 100.0/100.0/100.0% (9.10ms) 
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+TỔNG CỘNG                |     30 |  27.8/  3.3/ 55.0%  |  33.9/ 10.0/ 63.4% (0.11ms)  |  56.1/ 30.0/ 82.8% (1.66ms)  |  98.3/ 96.7/ 99.3% (19.84ms)
+Tăng KW-Rec so với Raw: +70.6% | Vượt Base-2g: +42.2% KW-Rec | Ctx-F1=99.3% | P50=17.17ms | P95=53.56ms | P99=83.28ms | 50 câu/s
+
+Mẫu câu còn thiếu từ khóa bắt buộc (hiển thị 1/1, chi tiết tại failures.csv):
+  - [multi_entity_context] 'nhà nước ban hành nd về luật ld' -> 'nhà nước ban hành nội dung về luật lao động' | Thiếu: [nghị định] (KW=50%, F1=78%)
+
+
+==================== 3. STRESS TEST LÀM RÕ NGỮ CẢNH (10,000 CÂU) ====================
+Thước đo: KW-Rec (phủ từ khóa bắt buộc) / All-KW (đủ 100% từ khóa) / Ctx-F1 (độ sát ngữ cảnh)
+Nhóm test                | Số câu |   Raw (KW/All/F1)   |   Base-1g (KW/All/F1, ms)    |   Base-2g (KW/All/F1, ms)    |   Factotum (KW/All/F1, ms)  
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+auto_acronym             |  1,500 |   0.0/  0.0/  0.0%  |  16.8/  4.5/ 16.2% (0.04ms)  |  53.8/ 43.5/ 53.3% (2.36ms)  |  82.2/ 78.6/ 82.2% (0.23ms) 
+auto_missing             |  1,500 |   6.3/  0.1/  6.8%  |  54.2/  6.5/ 64.6% (0.04ms)  |  57.5/  7.3/ 67.5% (0.04ms)  |  87.8/ 77.1/ 90.0% (1.99ms) 
+auto_mixed_abbr          |  2,000 |  27.5/  1.1/ 25.5%  |  63.8/ 21.6/ 64.5% (0.06ms)  |  94.6/ 85.4/ 94.6% (0.14ms)  |  98.6/ 96.4/ 98.5% (5.90ms) 
+auto_unaccented          |  5,000 |   9.4/  1.2/  8.7%  |  78.9/ 57.3/ 79.9% (0.04ms)  |  99.3/ 99.0/ 99.3% (0.05ms)  |  99.8/ 99.7/ 99.8% (1.59ms) 
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+TỔNG CỘNG                | 10,000 |  11.1/  0.8/ 10.5%  |  62.9/ 34.6/ 65.0% (0.05ms)  |  85.3/ 74.2/ 86.7% (0.42ms)  |  95.1/ 92.5/ 95.4% (2.31ms) 
+Tăng KW-Rec so với Raw: +84.0% | Vượt Base-2g: +9.8% KW-Rec | Ctx-F1=95.4% | P50=1.43ms | P95=7.80ms | P99=13.51ms | 433 câu/s
+
+Mẫu câu còn thiếu từ khóa bắt buộc (hiển thị 10/752, chi tiết tại failures.csv):
+  - [auto_missing] 'cac dong' -> 'các đồng' | Thiếu: [hợp] (KW=50%, F1=67%)
+  - [auto_mixed_abbr] 'bị phat t' -> 'bị phạt tù' | Thiếu: [tiền] (KW=50%, F1=50%)
+  - [auto_acronym] 'tth' -> 'trong trường hợp' | Thiếu: [trừ] (KW=67%, F1=80%)
+  - [auto_missing] 'de xet' -> 'để xét' | Thiếu: [đề | nghị] (KW=33%, F1=50%)
+  - [auto_missing] 'hoi dong dan' -> 'hội đồng dân' | Thiếu: [nhân] (KW=75%, F1=86%)
+  - [auto_acronym] 'lcb' -> 'lại cho bên' | Thiếu: [lập | công | bố] (KW=0%, F1=0%)
+  - [auto_missing] 'dung diem' -> 'đúng địa điểm' | Thiếu: [thời] (KW=67%, F1=67%)
+  - [auto_acronym] 'nvld' -> 'nghĩa vụ liên đới' | Thiếu: [lao | động] (KW=50%, F1=50%)
+  - [auto_missing] 'diem ket hop dong' -> 'điểm giao kết hợp đồng' | Thiếu: [ký] (KW=80%, F1=80%)
+  - [auto_acronym] 'ldt' -> 'luật đấu thầu' | Thiếu: [lao | động] (KW=0%, F1=0%)

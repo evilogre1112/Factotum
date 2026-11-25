@@ -1,0 +1,182 @@
+[
+  {
+    "category": "multi_entity_context",
+    "query": "nhà nước ban hành nd về luật ld",
+    "required_keywords": ["nghị định", "lao động"],
+    "expected": "nhà nước ban hành nghị định về luật lao động"
+  },
+  {
+    "category": "multi_entity_context",
+    "query": "tòa án nd tối cao xét xử vụ tngt",
+    "required_keywords": ["nhân dân", "tai nạn giao thông"],
+    "expected": "tòa án nhân dân tối cao xét xử vụ tai nạn giao thông"
+  },
+  {
+    "category": "multi_entity_context",
+    "query": "nd 23/24 quy định về atgt đường bộ",
+    "required_keywords": ["nghị định", "an toàn giao thông"],
+    "expected": "nghị định 23/24 quy định về an toàn giao thông đường bộ"
+  },
+  {
+    "category": "multi_entity_context",
+    "query": "bộ tư pháp ban hành thông tư về dkkh",
+    "required_keywords": ["bộ tư pháp", "đăng ký kết hôn"],
+    "expected": "bộ tư pháp ban hành thông tư về đăng ký kết hôn"
+  },
+  {
+    "category": "multi_entity_context",
+    "query": "người lao động đóng bhxh và bhyt",
+    "required_keywords": ["bảo hiểm xã hội", "bảo hiểm y tế"],
+    "expected": "người lao động đóng bảo hiểm xã hội và bảo hiểm y tế"
+  },
+  {
+    "category": "multi_entity_context",
+    "query": "trách nhiệm của ubnd cấp tỉnh về bgtvt",
+    "required_keywords": ["ủy ban nhân dân", "bộ giao thông vận tải"],
+    "expected": "trách nhiệm của ủy ban nhân dân cấp tỉnh về bộ giao thông vận tải"
+  },
+  {
+    "category": "multi_entity_context",
+    "query": "quy định xpvphc về trật tự atgt đường bộ",
+    "required_keywords": ["xử phạt vi phạm hành chính", "an toàn giao thông"],
+    "expected": "quy định xử phạt vi phạm hành chính về trật tự an toàn giao thông đường bộ"
+  },
+  {
+    "category": "multi_entity_context",
+    "query": "csgt xpvphc người không có gplx",
+    "required_keywords": ["cảnh sát giao thông", "xử phạt vi phạm hành chính", "giấy phép lái xe"],
+    "expected": "cảnh sát giao thông xử phạt vi phạm hành chính người không có giấy phép lái xe"
+  },
+  {
+    "category": "multi_entity_context",
+    "query": "đăng ký kết hôn tại ubnd cấp xã",
+    "required_keywords": ["đăng ký kết hôn", "ủy ban nhân dân"],
+    "expected": "đăng ký kết hôn tại ủy ban nhân dân cấp xã"
+  },
+  {
+    "category": "multi_entity_context",
+    "query": "tước quyền sử dụng gplx có thời hạn",
+    "required_keywords": ["giấy phép lái xe", "thời hạn"],
+    "expected": "tước quyền sử dụng giấy phép lái xe có thời hạn"
+  },
+  {
+    "category": "context_disambiguation",
+    "query": "nd 23/24 quy định điều gì",
+    "required_keywords": ["nghị định"],
+    "expected": "nghị định 23/24 quy định điều gì"
+  },
+  {
+    "category": "context_disambiguation",
+    "query": "tòa án nd tối cao",
+    "required_keywords": ["tòa án", "nhân dân", "tối cao"],
+    "expected": "tòa án nhân dân tối cao"
+  },
+  {
+    "category": "context_disambiguation",
+    "query": "hợp đồng ld và quyền lợi người lao động",
+    "required_keywords": ["hợp đồng", "lao động"],
+    "expected": "hợp đồng lao động và quyền lợi người lao động"
+  },
+  {
+    "category": "context_disambiguation",
+    "query": "quyền sử dd theo luật đất đai",
+    "required_keywords": ["sử dụng đất", "luật đất đai"],
+    "expected": "quyền sử dụng đất theo luật đất đai"
+  },
+  {
+    "category": "context_disambiguation",
+    "query": "co the bị xử phạt",
+    "required_keywords": ["có thể", "xử phạt"],
+    "expected": "có thể bị xử phạt"
+  },
+  {
+    "category": "context_disambiguation",
+    "query": "xâm phạm co the người khác bị xử phạt",
+    "required_keywords": ["cơ thể", "xử phạt"],
+    "expected": "xâm phạm cơ thể người khác bị xử phạt"
+  },
+  {
+    "category": "context_disambiguation",
+    "query": "người điều khiển pt tham gia giao thông",
+    "required_keywords": ["phương tiện", "giao thông"],
+    "expected": "người điều khiển phương tiện tham gia giao thông"
+  },
+  {
+    "category": "context_disambiguation",
+    "query": "xe ô tô kinh doanh vt hành khách",
+    "required_keywords": ["vận tải", "hành khách"],
+    "expected": "xe ô tô kinh doanh vận tải hành khách"
+  },
+  {
+    "category": "context_disambiguation",
+    "query": "giấy chứng nhận kđ an toàn kỹ thuật",
+    "required_keywords": ["kiểm định", "an toàn kỹ thuật"],
+    "expected": "giấy chứng nhận kiểm định an toàn kỹ thuật"
+  },
+  {
+    "category": "context_disambiguation",
+    "query": "quan hệ hn và gia đình",
+    "required_keywords": ["hôn nhân", "gia đình"],
+    "expected": "quan hệ hôn nhân và gia đình"
+  },
+  {
+    "category": "missing_word_enrichment",
+    "query": "an toan thong đường bộ",
+    "required_keywords": ["an toàn giao thông", "đường bộ"],
+    "expected": "an toàn giao thông đường bộ"
+  },
+  {
+    "category": "missing_word_enrichment",
+    "query": "giay lai xe",
+    "required_keywords": ["giấy phép lái xe"],
+    "expected": "giấy phép lái xe"
+  },
+  {
+    "category": "missing_word_enrichment",
+    "query": "uy ban dan",
+    "required_keywords": ["ủy ban nhân dân"],
+    "expected": "ủy ban nhân dân"
+  },
+  {
+    "category": "missing_word_enrichment",
+    "query": "bo phap",
+    "required_keywords": ["bộ tư pháp"],
+    "expected": "bộ tư pháp"
+  },
+  {
+    "category": "missing_word_enrichment",
+    "query": "khong tro ngai",
+    "required_keywords": ["gây", "trở ngại"],
+    "expected": "không gây trở ngại"
+  },
+  {
+    "category": "typo_and_unaccented",
+    "query": "xu phat vi pham hanh chinh",
+    "required_keywords": ["xử phạt", "vi phạm", "hành chính"],
+    "expected": "xử phạt vi phạm hành chính"
+  },
+  {
+    "category": "typo_and_unaccented",
+    "query": "vi pham phappp luat",
+    "required_keywords": ["vi phạm", "pháp luật"],
+    "expected": "vi phạm pháp luật"
+  },
+  {
+    "category": "typo_and_unaccented",
+    "query": "uống dượu bia phạt bao nhiêu",
+    "required_keywords": ["rượu bia", "phạt"],
+    "expected": "uống rượu bia phạt bao nhiêu"
+  },
+  {
+    "category": "typo_and_unaccented",
+    "query": "hôn nhân gd có yt nc ngoài",
+    "required_keywords": ["gia đình", "yếu tố", "nước ngoài"],
+    "expected": "hôn nhân gia đình có yếu tố nước ngoài"
+  },
+  {
+    "category": "typo_and_unaccented",
+    "query": "thẩm quyền của btp trong đăng ký",
+    "required_keywords": ["thẩm quyền", "bộ tư pháp", "đăng ký"],
+    "expected": "thẩm quyền của bộ tư pháp trong đăng ký"
+  }
+]

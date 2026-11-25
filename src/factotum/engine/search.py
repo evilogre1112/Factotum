@@ -297,9 +297,7 @@ def search_variant(
     trimmed_cols = [col[:MAX_CANDIDATES_PER_KEY] for col in columns]
     dict_freq = index.dict_freq
     fwd_prob = index.fwd_prob
-    rev_prob = index.rev_prob
     fwd_prob_top = index.fwd_prob_top
-    is_syllable_chain = all(len(c) <= 15 for c in trimmed_cols)
     max_per_state = 2
 
     beam: list[tuple[list[str], float, int, list[str]]] = [
@@ -334,14 +332,12 @@ def search_variant(
             prob_neighbors = fwd_prob.get(last_w, {})
 
             found_direct = False
-            use_rev = is_syllable_chain
             if len(full_col) < len(prob_neighbors):
                 for nxt in full_col:
                     p_edge = prob_neighbors.get(nxt)
                     if p_edge is not None:
                         found_direct = True
-                        step_p = (p_edge ** 0.85) * (rev_prob.get(nxt, {}).get(last_w, p_edge) ** 0.15) if use_rev else p_edge
-                        cand_item = (path_words + [nxt], curr_prob * step_p, miss_cnt, miss_words)
+                        cand_item = (path_words + [nxt], curr_prob * p_edge, miss_cnt, miss_words)
                         if miss_cnt == 0:
                             _push_zero(nxt, cand_item)
                         else:
@@ -350,8 +346,7 @@ def search_variant(
                 for nxt, p_edge in prob_neighbors.items():
                     if nxt in target_set:
                         found_direct = True
-                        step_p = (p_edge ** 0.85) * (rev_prob.get(nxt, {}).get(last_w, p_edge) ** 0.15) if use_rev else p_edge
-                        cand_item = (path_words + [nxt], curr_prob * step_p, miss_cnt, miss_words)
+                        cand_item = (path_words + [nxt], curr_prob * p_edge, miss_cnt, miss_words)
                         if miss_cnt == 0:
                             _push_zero(nxt, cand_item)
                         else:

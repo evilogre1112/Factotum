@@ -149,6 +149,12 @@ class TestLegalModelRegression(unittest.TestCase):
             "tôi di xe tren duong gay tngt": "tôi đi xe trên đường gây tai nạn giao thông",
             "nguoi lai xe gay tngt": "người lái xe gây tai nạn giao thông",
             "vi pham atgt bi xpvphc": "vi phạm an toàn giao thông bị xử phạt vi phạm hành chính",
+            "người sử dụng động": "người sử dụng lao động",
+            "cơ quan nhà có thẩm quyền": "cơ quan nhà nước có thẩm quyền",
+            "giấy phép xe": "giấy phép lái xe",
+            "hợp đồng lao có thời hạn": "hợp đồng lao động có thời hạn",
+            "bảo hiểm hội bắt buộc": "bảo hiểm xã hội bắt buộc",
+            "thuee thu nhap": "thuế thu nhập",
         }
         for query, expected in cases.items():
             self.assertEqual(self.model.restore(query), expected, query)

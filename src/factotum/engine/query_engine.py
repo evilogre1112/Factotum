@@ -13,19 +13,38 @@ from factotum.core.extension import (
 from factotum.engine.graph_index import GraphIndex
 from factotum.engine.models import (
     MAX_SUPERSTRING_DIFF_K,
+    EditSpan,
     QueryMatch,
+    build_edit_spans,
     compute_confidence,
     finalize_matches,
     rank_key,
 )
 from factotum.engine.reviewer import review_matches
 from factotum.engine.search import (
+    direct_kb_search,
     expand_query_variants,
     query_by_kb_composition,
     search_variant,
     split_sticky_token,
 )
 from factotum.engine.spell import preprocess_tokens, try_graph_spell_correction
+
+
+def _attach_worker_edits(orig_tokens: list[str], matches: list[QueryMatch]) -> list[QueryMatch]:
+    """Gắn danh sách `edits` cho các ứng viên chưa có thông tin chỉnh sửa."""
+    for m in matches:
+        if m.is_fallback or m.edits:
+            continue
+        words = m.phrase.split()
+        if words != orig_tokens or m.superstring_diff < 0:
+            m.edits = build_edit_spans(
+                orig_tokens,
+                words,
+                missing_words=m.missing_words,
+                include_unaccented_unchanged=(m.superstring_diff < 0),
+            )
+    return matches
 
 
 def _restore_class_tokens(
@@ -182,6 +201,93 @@ class GraphQueryEngine(GraphIndex):
                 if prev is None or rank_key(m) < rank_key(prev):
                     all_matches[m.phrase] = m
 
+        # Với câu đã có dấu chuẩn nhưng chưa khớp cụm KB mạnh (sd == 0 hoặc freq >= 10):
+        # thử chèn tối đa 1 từ thiếu ở giữa bằng direct_kb_search (chỉ nhận cụm KB thật
+        # khi cạnh gốc tại khe hở bị đứt hoặc yếu hơn rõ rệt so với cầu nối qua từ chèn).
+        if (
+            sentence_has_accent
+            and not has_unknown
+            and allow_missing
+            and 2 <= n_raw <= 8
+            and not any(m.superstring_diff == 0 or m.freq >= 10 for m in all_matches.values())
+        ):
+            miss_kb = direct_kb_search(
+                self, [[t] for t in norm_tokens], allow_missing=True, max_diff_k=max_diff_k
+            )
+            added_miss = False
+            for m in miss_kb:
+                if m.missing_count != 1 or not (m.superstring_diff == 0 or m.freq >= 10):
+                    continue
+                m_words = m.phrase.split()
+                if len(m_words) != n_raw + 1:
+                    continue
+                gap_idx = next(
+                    (i for i in range(1, n_raw) if m_words[:i] == norm_tokens[:i] and m_words[i + 1 :] == norm_tokens[i:]),
+                    -1,
+                )
+                if gap_idx < 0:
+                    continue
+                left_w, mid_w, right_w = norm_tokens[gap_idx - 1], m_words[gap_idx], norm_tokens[gap_idx]
+                direct_e = self.fwd_graph.get(left_w, {}).get(right_w, 0)
+                bridge_e = min(
+                    self.fwd_graph.get(left_w, {}).get(mid_w, 0),
+                    self.fwd_graph.get(mid_w, {}).get(right_w, 0),
+                )
+                if direct_e == 0 or (bridge_e > 0 and direct_e * 5 < bridge_e):
+                    prev = all_matches.get(m.phrase)
+                    if prev is None or rank_key(m) < rank_key(prev):
+                        all_matches[m.phrase] = m
+                        added_miss = True
+
+            # Nếu cả câu dài chưa nằm gọn trong 1 cụm KB nhưng có đúng 1 cạnh đứt (direct_e == 0),
+            # thử chèn 1 từ nối `mid` tại cạnh đứt sao cho nối thông `left -> mid -> right` và khớp cụm KB mạnh quanh khe hở.
+            if not added_miss and n_raw >= 4:
+                broken_positions = [
+                    i for i in range(1, n_raw)
+                    if self.fwd_graph.get(norm_tokens[i - 1], {}).get(norm_tokens[i], 0) == 0
+                ]
+                if len(broken_positions) == 1:
+                    gap_i = broken_positions[0]
+                    left_w, right_w = norm_tokens[gap_i - 1], norm_tokens[gap_i]
+                    best_mid = ""
+                    best_mid_score = (0, 0)
+                    for mid_w, _p1 in self.fwd_prob_top.get(left_w, ()):
+                        if is_class_token(mid_w) or right_w not in self.fwd_graph.get(mid_w, ()):
+                            continue
+                        trial = norm_tokens[:gap_i] + [mid_w] + norm_tokens[gap_i:]
+                        # Kiểm tra cụm 3–4 từ chứa `mid_w` có thật và mạnh trong KB (freq >= 10)
+                        kb_hit = 0
+                        for wlen in (4, 3):
+                            for s_idx in range(max(0, gap_i - wlen + 1), min(gap_i + 1, len(trial) - wlen + 1)):
+                                f_w, d_w, _ = self.lookup_real_phrase_score(trial[s_idx : s_idx + wlen], max_diff_k=0)
+                                if f_w >= 10 and d_w == 0:
+                                    kb_hit = max(kb_hit, f_w)
+                        if kb_hit >= 10:
+                            e_min = min(
+                                self.fwd_graph.get(left_w, {}).get(mid_w, 0),
+                                self.fwd_graph.get(mid_w, {}).get(right_w, 0),
+                            )
+                            sc = (kb_hit, e_min)
+                            if sc > best_mid_score:
+                                best_mid_score = sc
+                                best_mid = mid_w
+                    if best_mid:
+                        trial = norm_tokens[:gap_i] + [best_mid] + norm_tokens[gap_i:]
+                        m_prob = max(self.dict_freq.get(trial[0], 1), 1) / 100000.0
+                        for i in range(len(trial) - 1):
+                            m_prob *= self.fwd_prob.get(trial[i], {}).get(trial[i + 1], 1e-6)
+                        cand = QueryMatch(
+                            phrase=" ".join(trial),
+                            freq=best_mid_score[0],
+                            missing_count=1,
+                            superstring_diff=0,
+                            source_phrase="",
+                            missing_words=[best_mid],
+                            markov_prob=m_prob,
+                            edits=[EditSpan(orig="", start=gap_i, end=gap_i + 1, kind="missing_insert")],
+                        )
+                        all_matches[cand.phrase] = cand
+
         if not any(m.superstring_diff >= 0 for m in all_matches.values()):
             if 2 <= n_raw <= 8:
                 for m in query_by_kb_composition(
@@ -218,17 +324,23 @@ class GraphQueryEngine(GraphIndex):
 
         if len(class_variants) == 1:
             norm_tokens, class_slots = class_variants[0]
-            # Pha 1: Sinh ứng viên thuần đồ thị/KB
-            raw_matches = self._query_single_variant(
-                norm_tokens, class_slots, raw_query, preprocessed, eff_top_k, allow_missing, max_diff_k
+            # Pha 1 (Worker): Sinh ứng viên đồ thị/KB kèm `edits`
+            raw_matches = _attach_worker_edits(
+                orig_tokens,
+                self._query_single_variant(
+                    norm_tokens, class_slots, raw_query, preprocessed, eff_top_k, allow_missing, max_diff_k
+                ),
             )
-            # Pha 2: Hậu kiểm độc lập trên toàn bộ câu đáp án vừa tạo
+            # Pha 2 (Reviewer): Hậu kiểm cục bộ trên `edits` và xếp hạng toàn câu
             return review_matches(self, raw_matches, fallback_phrase, top_k)
 
         merged: dict[str, QueryMatch] = {}
         for norm_tokens, class_slots in class_variants:
-            for m in self._query_single_variant(
-                norm_tokens, class_slots, raw_query, preprocessed, eff_top_k, allow_missing, max_diff_k
+            for m in _attach_worker_edits(
+                orig_tokens,
+                self._query_single_variant(
+                    norm_tokens, class_slots, raw_query, preprocessed, eff_top_k, allow_missing, max_diff_k
+                ),
             ):
                 prev = merged.get(m.phrase)
                 if prev is None or (m.confidence, m.freq) > (prev.confidence, prev.freq):

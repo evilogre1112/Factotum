@@ -1,26 +1,19 @@
 from array import array
 from collections import defaultdict
-import gc
-import json
 from pathlib import Path
-import pickle
 import sys
-import time
-import zlib
 
-FTM_MAGIC = b"FTM1"
 _MAX_COL_PID_CACHE = 2048
 
 from factotum.builder.make_tree import generate_unaccented_keys
 from factotum.core.extension import (
     get_token_class,
     is_valid_vietnamese_syllable,
-    print_progress,
     remove_accents,
 )
+from factotum.engine import graph_io
+from factotum.engine.graph_io import FTM_MAGIC
 from factotum.engine.models import (
-    CACHE_PATH,
-    CACHE_VERSION,
     DATA_PATH,
     KB_PATH,
     MAX_SUPERSTRING_DIFF_K,
@@ -32,39 +25,28 @@ from factotum.engine.models import (
 
 class GraphIndex:
     def __init__(self) -> None:
+        self._reset_state()
+
+    def _reset_state(self) -> None:
         self.dict_freq: dict[str, int] = {}                                # Cụm KB -> tần suất xuất hiện
         self.word_freq: dict[str, int] = defaultdict(int)                  # Từ đơn -> tần suất lớn nhất trong các cụm chứa nó
         self.real_vocab: set[str] = set()                                  # Tập từ đơn có thật trong KB
         self.phrases: list[tuple[str, tuple[str, ...], int]] = []          # (chuỗi cụm, tuple từ interned, tần suất)
         self.word_to_phrases: dict[str, set[int]] = defaultdict(set)       # Từ đơn -> tập ID cụm chứa từ đó
-        self.col_id_to_pids: dict[int, set[int]] = {}                      # Cache lười (tối đa 256) id(list) -> tập ID cụm
+        self.col_id_to_pids: dict[int, set[int]] = {}                      # Cache lười id(list) -> tập ID cụm
         self.col_id_to_set: dict[int, set[str]] = {}                       # id(list ứng viên) -> set ứng viên
         self.col_id_to_initial: dict[int, str] = {}                        # id(list ứng viên) -> chữ cái đầu không dấu
-        self.initial_pair_to_pids: dict[str, array] = {}                   # Cặp 2 chữ cái đầu liền kề -> array('I') nén 4B/id
+        self.initial_pair_to_pids: dict[str, array] = {}                   # Cặp 2 chữ cái đầu liền kề -> array('I')
         self.len_to_phrases: dict[int, set[int]] = defaultdict(set)        # Độ dài cụm (số từ) -> tập ID cụm
         self.len_range_cache: dict[tuple[int, int], set[int]] = {}
         self.fwd_graph: dict[str, dict[str, int]] = {}                     # Đồ thị cạnh xuôi u -> {v: freq}
         self.rev_graph: dict[str, dict[str, int]] = {}                     # Đồ thị cạnh ngược v -> {u: freq}
         self.fwd_prob: dict[str, dict[str, float]] = {}                    # Xác suất Markov P(v | u)
-        self.rev_prob: dict[str, dict[str, float]] = {}                    # Xác suất ngược P(u | v)
         self.fwd_prob_top: dict[str, list[tuple[str, float]]] = {}         # Top 25 từ kế tiếp có xác suất cao nhất
         self.unaccented_map: dict[str, list[str]] = {}                     # Khóa không dấu/viết tắt -> danh sách từ có dấu
         self.ua_phrase_to_pids: dict[str, int | tuple[int, ...]] = {}      # Cụm không dấu -> pid (int) hoặc tuple[pid]
         self.acronym_to_pids: dict[str, int | tuple[int, ...]] = {}        # Mã viết tắt chữ cái đầu -> pid (int) hoặc tuple[pid]
         self.loaded_from_cache: bool = False
-
-    @staticmethod
-    def _build_source_signature(
-        kb_path: Path, data_path: Path, unaccented_path: Path
-    ) -> tuple[int, tuple[tuple[bool, int, int], ...]]:
-        file_sigs: list[tuple[bool, int, int]] = []
-        for p in (kb_path, data_path, unaccented_path):
-            if p.exists():
-                st = p.stat()
-                file_sigs.append((True, st.st_size, st.st_mtime_ns))
-            else:
-                file_sigs.append((False, 0, 0))
-        return (CACHE_VERSION, tuple(file_sigs))
 
     @staticmethod
     def _record_class_edge(fwd_graph: dict[str, dict[str, int]], u: str, v: str, freq: int) -> None:
@@ -116,11 +98,6 @@ class GraphIndex:
             self.col_id_to_set[cid] = set(candidates)
             ua_k = remove_accents(key)
             self.col_id_to_initial[cid] = ua_k[0] if ua_k else ""
-        self.rev_prob = {}
-        for v, us in self.rev_graph.items():
-            tot_in = sum(us.values())
-            if tot_in > 0:
-                self.rev_prob[v] = {u: w / tot_in for u, w in us.items()}
 
     def get_col_pids(self, col: list[str]) -> set[int]:
         """Tra cứu lười tập PID cho một cột ứng viên, có cache giới hạn dung lượng."""
@@ -152,248 +129,13 @@ class GraphIndex:
             return None
         return (val,) if isinstance(val, int) else val
 
-    def _export_payload(self, signature: object = None) -> dict:
-        return {
-            "version": CACHE_VERSION,
-            "signature": signature,
-            "dict_freq": self.dict_freq,
-            "word_freq": self.word_freq,
-            "real_vocab": self.real_vocab,
-            "phrases": self.phrases,
-            "word_to_phrases": self.word_to_phrases,
-            "initial_pair_to_pids": self.initial_pair_to_pids,
-            "len_to_phrases": self.len_to_phrases,
-            "fwd_graph": self.fwd_graph,
-            "rev_graph": self.rev_graph,
-            "fwd_prob": self.fwd_prob,
-            "fwd_prob_top": self.fwd_prob_top,
-            "unaccented_map": self.unaccented_map,
-            "ua_phrase_to_pids": self.ua_phrase_to_pids,
-            "acronym_to_pids": self.acronym_to_pids,
-        }
-
-    def _import_payload(self, payload: dict) -> None:
-        self.dict_freq = payload["dict_freq"]
-        self.word_freq = payload["word_freq"]
-        self.real_vocab = payload["real_vocab"]
-        self.phrases = payload["phrases"]
-        self.word_to_phrases = payload["word_to_phrases"]
-        self.initial_pair_to_pids = payload["initial_pair_to_pids"]
-        self.len_to_phrases = payload["len_to_phrases"]
-        self.fwd_graph = payload["fwd_graph"]
-        self.rev_graph = payload["rev_graph"]
-        self.fwd_prob = payload["fwd_prob"]
-        self.fwd_prob_top = payload["fwd_prob_top"]
-        self.unaccented_map = payload["unaccented_map"]
-        self.ua_phrase_to_pids = payload["ua_phrase_to_pids"]
-        self.acronym_to_pids = payload["acronym_to_pids"]
-        self.len_range_cache = {}
-        self._rebuild_col_id_indexes()
-
-    def _try_load_cache(
-        self,
-        cache_path: Path,
-        expected_sig: tuple[int, tuple[tuple[bool, int, int], ...]],
-    ) -> bool:
-        if not cache_path.exists():
-            return False
-        gc_was_enabled = gc.isenabled()
-        try:
-            gc.disable()
-            with open(cache_path, "rb") as f:
-                payload = pickle.load(f)
-        except Exception:
-            return False
-        finally:
-            if gc_was_enabled:
-                gc.enable()
-
-        if not isinstance(payload, dict) or payload.get("signature") != expected_sig:
-            return False
-
-        try:
-            self._import_payload(payload)
-            return True
-        except Exception:
-            return False
-
-    def _save_cache(
-        self,
-        cache_path: Path,
-        sig: tuple[int, tuple[tuple[bool, int, int], ...]],
-    ) -> None:
-        payload = self._export_payload(signature=sig)
-        tmp_path = cache_path.with_suffix(".pkl.tmp")
-        try:
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(tmp_path, "wb") as f:
-                pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
-            tmp_path.replace(cache_path)
-        except Exception:
-            if tmp_path.exists():
-                try:
-                    tmp_path.unlink()
-                except OSError:
-                    pass
-
     def save_standalone(self, model_path: str | Path) -> Path:
-        """Lưu mô hình thành 1 file `.ftm` thuần dữ liệu (JSON + zlib, an toàn khi chia sẻ, không dùng pickle)."""
-        dest = Path(model_path)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = dest.with_suffix(dest.suffix + ".tmp")
-        data = {
-            "version": CACHE_VERSION,
-            "phrases": [[p_str, freq] for p_str, _, freq in self.phrases],
-            "fwd_graph": self.fwd_graph,
-            "unaccented_map": self.unaccented_map,
-        }
-        raw = FTM_MAGIC + zlib.compress(
-            json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
-            level=3,
-        )
-        try:
-            with open(tmp_path, "wb") as f:
-                f.write(raw)
-            tmp_path.replace(dest)
-        except Exception:
-            if tmp_path.exists():
-                try:
-                    tmp_path.unlink()
-                except OSError:
-                    pass
-            raise
-        return dest
-
-    def _load_from_json_data(self, data: dict) -> None:
-        """Dựng toàn bộ chỉ mục RAM từ dữ liệu thuần JSON (.ftm), tối ưu bộ nhớ."""
-        intern = sys.intern
-        self.dict_freq = {}
-        self.word_freq = defaultdict(int)
-        self.real_vocab = set()
-        self.phrases = []
-        self.word_to_phrases = defaultdict(set)
-        self.col_id_to_pids = {}
-        self.col_id_to_set = {}
-        self.col_id_to_initial = {}
-        self.initial_pair_to_pids = {}
-        self.len_to_phrases = defaultdict(set)
-        self.len_range_cache = {}
-        self.fwd_graph = {
-            intern(u): {intern(v): w for v, w in nbrs.items()}
-            for u, nbrs in data["fwd_graph"].items()
-        }
-        self.rev_graph = {}
-        self.fwd_prob = {}
-        self.fwd_prob_top = {}
-        self.unaccented_map = {}
-        for k, cands in data["unaccented_map"].items():
-            filtered = self._filter_unaccented_candidates(k, cands)
-            if k and filtered:
-                self.unaccented_map[intern(k)] = [intern(w) for w in filtered]
-        self.ua_phrase_to_pids = {}
-        self.acronym_to_pids = {}
-
-        word_ua_cache: dict[str, str] = {}
-        ua_phrase_tmp: dict[str, list[int]] = defaultdict(list)
-        acronym_tmp: dict[str, list[int]] = defaultdict(list)
-        initial_pair_tmp: dict[str, set[int]] = defaultdict(set)
-
-        for phrase, freq in data["phrases"]:
-            self.dict_freq[phrase] = freq
-            words = tuple(intern(w) for w in phrase.split())
-            idx = len(self.phrases)
-            self.phrases.append((phrase, words, freq))
-            n_w = len(words)
-            self.len_to_phrases[n_w].add(idx)
-            initials: list[str] = []
-            ua_words: list[str] = []
-            for w in words:
-                self.real_vocab.add(w)
-                self.word_to_phrases[w].add(idx)
-                if self.word_freq[w] < freq:
-                    self.word_freq[w] = freq
-                ua = word_ua_cache.get(w)
-                if ua is None:
-                    ua = remove_accents(w)
-                    word_ua_cache[w] = ua
-                ua_words.append(ua)
-                initials.append(ua[0] if ua else "")
-            if n_w >= 2:
-                ua_phrase_tmp[" ".join(ua_words)].append(idx)
-                acr = "".join(initials)
-                if len(acr) == n_w:
-                    acronym_tmp[acr].append(idx)
-            for i in range(n_w - 1):
-                if initials[i] and initials[i + 1]:
-                    initial_pair_tmp[initials[i] + initials[i + 1]].add(idx)
-
-        phrases_ref = self.phrases
-        self.ua_phrase_to_pids = {
-            k: (v[0] if len(v) == 1 else tuple(sorted(v, key=lambda pid: -phrases_ref[pid][2])))
-            for k, v in ua_phrase_tmp.items()
-        }
-        self.acronym_to_pids = {
-            k: (v[0] if len(v) == 1 else tuple(sorted(v, key=lambda pid: -phrases_ref[pid][2])))
-            for k, v in acronym_tmp.items()
-        }
-        self.initial_pair_to_pids = {
-            intern(k): array("I", v) for k, v in initial_pair_tmp.items()
-        }
-        del ua_phrase_tmp, acronym_tmp, initial_pair_tmp
-
-        self._augment_all_class_edges()
-        rev_tmp: dict[str, dict[str, int]] = defaultdict(dict)
-        for u, nbrs in self.fwd_graph.items():
-            total_out = sum(w for v, w in nbrs.items() if not v.startswith("<"))
-            if total_out > 0:
-                probs = {v: w / total_out for v, w in nbrs.items() if not v.startswith("<")}
-                self.fwd_prob[u] = probs
-                self.fwd_prob_top[u] = sorted(probs.items(), key=lambda x: -x[1])[:25]
-            for v, w in nbrs.items():
-                if not u.startswith("<") and not v.startswith("<"):
-                    rev_tmp[v][u] = w
-        self.rev_graph = dict(rev_tmp)
-
-        self._rebuild_col_id_indexes()
+        """Lưu mô hình thành 1 file `.ftm` thuần dữ liệu (JSON + zlib)."""
+        return graph_io.save_standalone(self, model_path)
 
     def load_standalone(self, model_path: str | Path, allow_pickle: bool = False) -> None:
-        """
-        Nạp mô hình từ file `.ftm` thuần dữ liệu (JSON + zlib, an toàn mặc định).
-        Chỉ nạp file `.pkl` cục bộ khi người dùng chủ động bật `allow_pickle=True`.
-        """
-        src = Path(model_path)
-        if not src.exists():
-            raise FileNotFoundError(f"Không tìm thấy file mô hình: {src}")
-        raw = src.read_bytes()
-        if raw.startswith(FTM_MAGIC):
-            gc_was_enabled = gc.isenabled()
-            try:
-                gc.disable()
-                data = json.loads(zlib.decompress(raw[4:]).decode("utf-8"))
-                self._load_from_json_data(data)
-            finally:
-                if gc_was_enabled:
-                    gc.enable()
-            self.loaded_from_cache = True
-            return
-
-        if not allow_pickle:
-            raise ValueError(
-                f"File '{src.name}' không ở định dạng .ftm an toàn (JSON+zlib). "
-                "Nếu đây là file cache pickle cục bộ đáng tin cậy, hãy truyền allow_pickle=True."
-            )
-
-        gc_was_enabled = gc.isenabled()
-        try:
-            gc.disable()
-            payload = pickle.loads(raw)
-        finally:
-            if gc_was_enabled:
-                gc.enable()
-        if not isinstance(payload, dict) or "phrases" not in payload:
-            raise ValueError(f"File mô hình không hợp lệ: {src}")
-        self._import_payload(payload)
-        self.loaded_from_cache = True
+        """Nạp mô hình từ file `.ftm` (JSON + zlib), hoặc `.pkl` khi bật `allow_pickle=True`."""
+        graph_io.load_standalone(self, model_path, allow_pickle=allow_pickle)
 
     def load(
         self,
@@ -404,191 +146,16 @@ class GraphIndex:
         use_cache: bool = True,
         cache_path: Path | None = None,
     ) -> None:
-        intern = sys.intern
-        self.dict_freq = {}
-        self.word_freq = defaultdict(int)
-        self.real_vocab = set()
-        self.phrases = []
-        self.word_to_phrases = defaultdict(set)
-        self.col_id_to_pids = {}
-        self.col_id_to_set = {}
-        self.col_id_to_initial = {}
-        self.initial_pair_to_pids = {}
-        self.len_to_phrases = defaultdict(set)
-        self.len_range_cache = {}
-        self.fwd_graph = {}
-        self.rev_graph = {}
-        self.fwd_prob = {}
-        self.fwd_prob_top = {}
-        self.unaccented_map = {}
-        self.ua_phrase_to_pids = {}
-        self.acronym_to_pids = {}
-        self.loaded_from_cache = False
-
-        effective_cache: Path | None = None
-        if use_cache:
-            if cache_path is not None:
-                effective_cache = cache_path
-            elif (
-                kb_path == KB_PATH
-                and data_path == DATA_PATH
-                and unaccented_path == UNACCENTED_MAP_PATH
-            ):
-                effective_cache = CACHE_PATH
-
-        sig = (
-            self._build_source_signature(kb_path, data_path, unaccented_path)
-            if effective_cache is not None
-            else None
+        """Nạp đồ thị từ bộ file văn bản KB / data.txt / UM (có hỗ trợ cache cục bộ)."""
+        graph_io.load_from_files(
+            self,
+            kb_path=kb_path,
+            data_path=data_path,
+            unaccented_path=unaccented_path,
+            show_progress=show_progress,
+            use_cache=use_cache,
+            cache_path=cache_path,
         )
-        if effective_cache is not None and sig is not None:
-            if self._try_load_cache(effective_cache, sig):
-                self.loaded_from_cache = True
-                return
-
-        fwd_graph_tmp: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
-
-        word_ua_cache: dict[str, str] = {}
-        ua_phrase_tmp: dict[str, list[int]] = defaultdict(list)
-        acronym_tmp: dict[str, list[int]] = defaultdict(list)
-        initial_pair_tmp: dict[str, set[int]] = defaultdict(set)
-        if kb_path.exists():
-            total_kb = max(1, kb_path.stat().st_size // 1024)
-            bytes_read = 0
-            t_load = time.perf_counter()
-            last_draw = 0.0
-            with open(kb_path, "r", encoding="utf-8") as f:
-                for raw_line in f:
-                    if raw_line.startswith("AB,"):
-                        break
-                    bytes_read += len(raw_line)
-                    if show_progress:
-                        now = time.perf_counter()
-                        if now - last_draw >= 0.1:
-                            print_progress(
-                                min(total_kb, bytes_read // 1024),
-                                total_kb,
-                                t_load,
-                                label="Nạp RAM ",
-                                unit="KB",
-                            )
-                            last_draw = now
-                    line = raw_line.strip()
-                    if not line or not line.startswith("A,"):
-                        continue
-                    c1 = line.find(",", 2)
-                    if c1 == -1:
-                        continue
-                    phrase = line[2:c1]
-                    if not phrase:
-                        continue
-                    freq = int(line[c1 + 1 :])
-                    self.dict_freq[phrase] = freq
-                    words = tuple(intern(w) for w in phrase.split())
-                    idx = len(self.phrases)
-                    self.phrases.append((phrase, words, freq))
-                    self.len_to_phrases[len(words)].add(idx)
-                    initials: list[str] = []
-                    ua_words: list[str] = []
-                    for w in words:
-                        self.real_vocab.add(w)
-                        self.word_to_phrases[w].add(idx)
-                        if self.word_freq[w] < freq:
-                            self.word_freq[w] = freq
-                        ua = word_ua_cache.get(w)
-                        if ua is None:
-                            ua = remove_accents(w)
-                            word_ua_cache[w] = ua
-                        ua_words.append(ua)
-                        initials.append(ua[0] if ua else "")
-                    n_w = len(words)
-                    if n_w >= 2:
-                        ua_phrase_tmp[" ".join(ua_words)].append(idx)
-                        acr = "".join(initials)
-                        if len(acr) == n_w:
-                            acronym_tmp[acr].append(idx)
-                    for i in range(n_w - 1):
-                        u_w, v_w = words[i], words[i + 1]
-                        if fwd_graph_tmp[u_w][v_w] < freq:
-                            fwd_graph_tmp[u_w][v_w] = freq
-                        if initials[i] and initials[i + 1]:
-                            initial_pair_tmp[initials[i] + initials[i + 1]].add(idx)
-            if show_progress:
-                print_progress(total_kb, total_kb, t_load, label="Nạp RAM ", unit="KB")
-
-        phrases_ref = self.phrases
-        self.ua_phrase_to_pids = {
-            k: (v[0] if len(v) == 1 else tuple(sorted(v, key=lambda pid: -phrases_ref[pid][2])))
-            for k, v in ua_phrase_tmp.items()
-        }
-        self.acronym_to_pids = {
-            k: (v[0] if len(v) == 1 else tuple(sorted(v, key=lambda pid: -phrases_ref[pid][2])))
-            for k, v in acronym_tmp.items()
-        }
-        self.initial_pair_to_pids = {
-            intern(k): array("I", v) for k, v in initial_pair_tmp.items()
-        }
-        del ua_phrase_tmp, acronym_tmp, initial_pair_tmp
-
-        if data_path.exists():
-            with open(data_path, "r", encoding="utf-8") as f:
-                next(f, None)
-                for raw_line in f:
-                    line = raw_line.strip()
-                    if not line:
-                        continue
-                    c1 = line.find(",")
-                    if c1 == -1:
-                        continue
-                    c2 = line.find(",", c1 + 1)
-                    if c2 == -1:
-                        continue
-                    c3 = line.find(",", c2 + 1)
-                    w_a = line[:c1]
-                    w_b = line[c1 + 1 : c2]
-                    freq_str = line[c2 + 1 : c3] if c3 != -1 else line[c2 + 1 :]
-                    freq = int(float(freq_str))
-                    sp_a = w_a.rfind(" ")
-                    u = w_a[sp_a + 1 :] if sp_a != -1 else w_a
-                    sp_b = w_b.find(" ")
-                    v = w_b[:sp_b] if sp_b != -1 else w_b
-                    if u and v and fwd_graph_tmp[u][v] < freq:
-                        fwd_graph_tmp[u][v] = freq
-
-        self.fwd_graph = {u: dict(nbrs) for u, nbrs in fwd_graph_tmp.items()}
-        self._augment_all_class_edges()
-        rev_tmp: dict[str, dict[str, int]] = defaultdict(dict)
-        for u, nbrs in self.fwd_graph.items():
-            for v, w in nbrs.items():
-                if not u.startswith("<") and not v.startswith("<"):
-                    rev_tmp[v][u] = w
-        self.rev_graph = dict(rev_tmp)
-
-        for u, neighbors in self.fwd_graph.items():
-            total_out = sum(w for v, w in neighbors.items() if not v.startswith("<"))
-            if total_out > 0:
-                probs = {v: w / total_out for v, w in neighbors.items() if not v.startswith("<")}
-                self.fwd_prob[u] = probs
-                self.fwd_prob_top[u] = sorted(probs.items(), key=lambda x: -x[1])[:25]
-
-        if unaccented_path.exists():
-            with open(unaccented_path, "r", encoding="utf-8") as f:
-                for raw_line in f:
-                    line = raw_line.strip()
-                    if not line or ":" not in line:
-                        continue
-                    key, vals = line.split(":", 1)
-                    key = key.strip()
-                    candidates = self._filter_unaccented_candidates(
-                        key, [v.strip() for v in vals.split(",") if v.strip()]
-                    )
-                    if key and candidates:
-                        self.unaccented_map[intern(key)] = [intern(w) for w in candidates]
-
-        self._rebuild_col_id_indexes()
-
-        if effective_cache is not None and sig is not None and self.phrases:
-            self._save_cache(effective_cache, sig)
 
     def get_len_range_pids(self, min_len: int, max_len: int) -> set[int]:
         key = (min_len, max_len)
@@ -837,11 +404,6 @@ class GraphIndex:
             self.col_id_to_initial[cid] = ua_key[0] if ua_key else ""
 
         self.len_range_cache.clear()
-        self.rev_prob = {
-            v: {u: w / tot for u, w in us.items()}
-            for v, us in self.rev_graph.items()
-            if (tot := sum(us.values())) > 0
-        }
         return {"added": added, "updated": updated}
 
     def pids_to_exact_matches(

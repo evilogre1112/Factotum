@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from factotum.core.config import DEFAULT_PATHS
+from factotum.core.extension import is_valid_vietnamese_syllable, remove_accents
 
 OUTPUT_DIR = DEFAULT_PATHS.output_dir
 KB_PATH = DEFAULT_PATHS.kb_path
@@ -20,6 +21,16 @@ MAX_CONTEXT_WINDOW = 4        # Số từ ngữ cảnh chuẩn tối đa xét �
 MAX_CTX_CANDIDATES = 12       # Số ứng viên F tối đa đưa vào chấm ngữ cảnh 2 đầu
 
 
+@dataclass(frozen=True)
+class EditSpan:
+    """Mô tả một đoạn [start, end) trong câu đáp án mà Worker đã sửa, bung viết tắt hoặc chèn thêm."""
+
+    orig: str   # Token gốc trước khi sửa ("" nếu là từ thiếu được chèn thêm)
+    start: int  # Chỉ số từ bắt đầu (inclusive) trong `phrase.split()`
+    end: int    # Chỉ số từ kết thúc (exclusive) trong `phrase.split()`
+    kind: str   # "acronym" | "unaccented" | "typo" | "missing_insert" | "segment"
+
+
 @dataclass
 class QueryMatch:
     phrase: str
@@ -33,6 +44,7 @@ class QueryMatch:
     markov_prob: float = 0.0   # Xác suất chuỗi Markov P(w1 -> ... -> wn)
     confidence: float = 0.0    # Độ tin cậy tổng hợp [0.0 .. 1.0]
     is_fallback: bool = False  # True: câu bị cụt lủn / không đoán được nên trả lại nguyên văn câu gốc
+    edits: list[EditSpan] = field(default_factory=list)  # Danh sách các đoạn Worker đã sửa/bung gửi sang Reviewer
 
 
 def evidence_tier(m: QueryMatch) -> int:
@@ -124,3 +136,123 @@ def finalize_matches(
 
     ordered = kb_part + mk_part + fb_part
     return ordered[:top_k] if top_k is not None else ordered
+
+
+def build_edit_spans(
+    orig_tokens: list[str],
+    words: list[str],
+    *,
+    offset: int = 0,
+    missing_words: list[str] | None = None,
+    include_unaccented_unchanged: bool = False,
+) -> list[EditSpan]:
+    """
+    Tính danh sách các đoạn `EditSpan` đã sửa/bung/chèn giữa `orig_tokens` và `words` (tại độ lệch `offset`).
+    Các từ neo giữ nguyên không thay đổi sẽ không nằm trong danh sách này; nếu `include_unaccented_unchanged=True`,
+    các từ không dấu nằm trong vùng chưa chuẩn hóa (dù Worker tạm giữ nguyên thanh ngang) vẫn được gửi sang Reviewer.
+    """
+    n_orig = len(orig_tokens)
+    n_words = len(words)
+    if n_words == 0:
+        return []
+    if n_orig == 0:
+        return [EditSpan(orig="", start=offset, end=offset + n_words, kind="missing_insert")]
+
+    if n_orig == n_words:
+        edits: list[EditSpan] = []
+        for i, (orig, w) in enumerate(zip(orig_tokens, words)):
+            if orig == w:
+                if include_unaccented_unchanged and orig == remove_accents(orig) and orig.isalpha():
+                    edits.append(EditSpan(orig=orig, start=offset + i, end=offset + i + 1, kind="unaccented"))
+                continue
+            ua_orig, ua_w = remove_accents(orig), remove_accents(w)
+            if ua_orig == ua_w:
+                kind = "unaccented"
+            elif len(ua_orig) == 1 and ua_orig.isalpha() and ua_w.startswith(ua_orig):
+                kind = "abbrev"
+            else:
+                kind = "typo"
+            edits.append(EditSpan(orig=orig, start=offset + i, end=offset + i + 1, kind=kind))
+        return edits
+
+    if n_words < n_orig:
+        return [EditSpan(orig=" ".join(orig_tokens), start=offset, end=offset + n_words, kind="segment")]
+
+    miss_counts: dict[str, int] = {}
+    for mw in (missing_words or ()):
+        miss_counts[mw] = miss_counts.get(mw, 0) + 1
+    total_missing = sum(miss_counts.values())
+
+    memo: dict[tuple[int, int, int], list[EditSpan] | None] = {}
+
+    def _dp(ti: int, wi: int, rem_miss: int) -> list[EditSpan] | None:
+        if ti == n_orig and wi == n_words:
+            return []
+        if wi == n_words:
+            return None
+        if ti == n_orig:
+            if rem_miss >= (n_words - wi):
+                return [
+                    EditSpan(orig="", start=offset + k, end=offset + k + 1, kind="missing_insert")
+                    for k in range(wi, n_words)
+                ]
+            return None
+        if (n_words - wi) < (n_orig - ti):
+            return None
+        key = (ti, wi, rem_miss)
+        if key in memo:
+            return memo[key]
+
+        tok = orig_tokens[ti]
+        ua = remove_accents(tok)
+
+        # 1. Bung viết tắt (len >= 2, không phải âm tiết tiếng Việt chuẩn) khớp chữ cái đầu
+        if len(ua) >= 2 and ua.isalpha() and not is_valid_vietnamese_syllable(ua) and wi + len(ua) <= n_words:
+            if all(
+                (rw := remove_accents(words[wi + k])) and rw[0] == ua[k]
+                for k in range(len(ua))
+            ):
+                rest = _dp(ti + 1, wi + len(ua), rem_miss)
+                if rest is not None:
+                    res = [EditSpan(orig=tok, start=offset + wi, end=offset + wi + len(ua), kind="acronym")] + rest
+                    memo[key] = res
+                    return res
+
+        # 2. Khớp 1-1 chính xác hoặc cùng gốc không dấu
+        if tok == words[wi] or ua == remove_accents(words[wi]):
+            rest1 = _dp(ti + 1, wi + 1, rem_miss)
+            if rest1 is not None:
+                if tok == words[wi]:
+                    if include_unaccented_unchanged and tok == ua and tok.isalpha():
+                        res = [EditSpan(orig=tok, start=offset + wi, end=offset + wi + 1, kind="unaccented")] + rest1
+                    else:
+                        res = rest1
+                else:
+                    res = [EditSpan(orig=tok, start=offset + wi, end=offset + wi + 1, kind="unaccented")] + rest1
+                memo[key] = res
+                return res
+
+        # 3. Chèn từ thiếu tại vị trí wi (ưu tiên trước khớp typo 1-1 để tránh lệch vị trí chèn)
+        if rem_miss > 0 and words[wi] in miss_counts:
+            rest_m = _dp(ti, wi + 1, rem_miss - 1)
+            if rest_m is not None:
+                res = [EditSpan(orig="", start=offset + wi, end=offset + wi + 1, kind="missing_insert")] + rest_m
+                memo[key] = res
+                return res
+
+        # 4. Khớp 1-1 dạng viết tắt 1 chữ cái (vd 't' -> 'tiền') hoặc sửa lỗi chính tả (typo)
+        rest_typo = _dp(ti + 1, wi + 1, rem_miss)
+        if rest_typo is not None:
+            ua_w = remove_accents(words[wi])
+            kind = "abbrev" if (len(ua) == 1 and ua.isalpha() and ua_w.startswith(ua)) else "typo"
+            res = [EditSpan(orig=tok, start=offset + wi, end=offset + wi + 1, kind=kind)] + rest_typo
+            memo[key] = res
+            return res
+
+        memo[key] = None
+        return None
+
+    aligned = _dp(0, 0, total_missing)
+    if aligned is not None:
+        return aligned
+    return [EditSpan(orig=" ".join(orig_tokens), start=offset, end=offset + n_words, kind="segment")]
