@@ -38,10 +38,10 @@ Hằng ngày người dùng thường gõ tắt (`tngt`, `atgt`, `csgt`, `xpvphc
 | **Tự hiểu viết tắt theo ngữ cảnh** | `nd 23/24 quy định về atgt đường bộ` | `nghị định 23/24 quy định về an toàn giao thông đường bộ` |
 | **Cùng từ `nd`, khác ngữ cảnh** | `tòa án nd tối cao` | `tòa án nhân dân tối cao` |
 | **Phân biệt nghĩa không dấu** | `co the bị xử phạt` / `xâm phạm co the người khác` | `có thể bị xử phạt` / `xâm phạm cơ thể người khác` |
-| **Rơi mất từ ở giữa** | `an toan thong` / `xe k bang` | `an toàn giao thông` / `xe không có bằng` |
+| **Rơi mất từ ở giữa** | `an toan thong` / `xe k bang lai` | `an toàn giao thông` / `xe không có bằng lái` |
 | **Lỗi gõ Telex & lặp phím** | `buowcs`, `vi pham phappp luat` | `bước`, `vi phạm pháp luật` |
 | **Sai chính tả trên câu có dấu** | `uống dượu bia phạt bao nhiêu` | `uống rượu bia phạt bao nhiêu` |
-| **Gõ nhầm/thiếu chữ đa từ** | `con nui` / `Hộ kilh doan` | `con nuôi` / `hộ kinh doanh` |
+| **Gõ nhầm/thiếu chữ đa từ** | `con nui` / `hộ kihw doan` | `con nuôi` / `hộ kinh doanh` |
 | **Giữ nguyên câu đã gõ đúng** | `chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền` | Giữ nguyên không sửa bừa |
 
 ---

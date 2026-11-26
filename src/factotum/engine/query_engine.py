@@ -287,21 +287,17 @@ class GraphQueryEngine(GraphIndex):
                             if is_class_token(mid_w) or right_w not in self.fwd_graph.get(mid_w, ()):
                                 continue
                             trial = cur_tokens[:gap_i] + [mid_w] + cur_tokens[gap_i:]
-                            kb_hit = 0
-                            for wlen in (4, 3):
-                                s_lo = max(0, gap_i + 2 - wlen)
-                                s_hi = min(gap_i, len(trial) - wlen + 1)
-                                eff_diff_k = 0 if strong_f >= 5 else 2
-                                for s_idx in range(s_lo, s_hi):
-                                    f_w, d_w, _ = self.lookup_real_phrase_score(trial[s_idx : s_idx + wlen], max_diff_k=eff_diff_k)
-                                    if f_w >= strong_f and d_w >= 0:
-                                        kb_hit = max(kb_hit, f_w)
-                            if kb_hit < strong_f and gap_i >= 2 and gap_i + 1 < len(trial):
-                                f_l, d_l, _ = self.lookup_real_phrase_score(trial[gap_i - 2 : gap_i + 1], max_diff_k=0)
-                                f_r, d_r, _ = self.lookup_real_phrase_score(trial[gap_i - 1 : gap_i + 2], max_diff_k=max_diff_k)
-                                if f_l >= strong_f and d_l == 0 and f_r > 0 and d_r >= 0 and (d_r == 0 or gap_i + 2 == len(trial)):
-                                    kb_hit = f_l
-                            if kb_hit >= strong_f:
+                            kb_hit, _ = self.score_kb_bridge(
+                                trial, gap_i, max_diff_k=max_diff_k, require_tail_on_subphrase=True
+                            )
+                            if kb_hit == 0:
+                                eff_diff_k = 0 if strong_f > 1 else max_diff_k
+                                f_w, d_w, _ = self.lookup_real_phrase_score(
+                                    trial[gap_i - 1 : gap_i + 2], max_diff_k=eff_diff_k
+                                )
+                                if f_w >= strong_f and d_w >= 0:
+                                    kb_hit = f_w
+                            if kb_hit > 0:
                                 e_min = min(
                                     self.fwd_graph.get(left_w, {}).get(mid_w, 0),
                                     self.fwd_graph.get(mid_w, {}).get(right_w, 0),
@@ -317,9 +313,7 @@ class GraphQueryEngine(GraphIndex):
                             min_kb_hit = best_mid_score[0] if min_kb_hit == 0 else min(min_kb_hit, best_mid_score[0])
                             offset += 1
                     if inserted_words:
-                        m_prob = max(self.dict_freq.get(cur_tokens[0], 1), 1) / 100000.0
-                        for i in range(len(cur_tokens) - 1):
-                            m_prob *= self.fwd_prob.get(cur_tokens[i], {}).get(cur_tokens[i + 1], 1e-6)
+                        m_prob = self.markov_prob(cur_tokens)
                         cand = QueryMatch(
                             phrase=" ".join(cur_tokens),
                             freq=min_kb_hit,
@@ -484,9 +478,7 @@ class GraphQueryEngine(GraphIndex):
         if not committed:
             return []
         phrase_str = " ".join(committed)
-        m_prob = max(self.dict_freq.get(committed[0], 1), 1) / 100000.0
-        for i in range(len(committed) - 1):
-            m_prob *= self.fwd_prob.get(committed[i], {}).get(committed[i + 1], 1e-6)
+        m_prob = self.markov_prob(committed)
         avg_conf = sum(chunk_confs) / len(chunk_confs) if chunk_confs else 0.5
         res = QueryMatch(
             phrase=phrase_str,

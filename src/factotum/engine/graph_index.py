@@ -3,8 +3,10 @@ from collections import defaultdict
 import math
 from pathlib import Path
 import sys
+import unicodedata
 
 _MAX_COL_PID_CACHE = 2048
+_NFD_TONE_MARKS = frozenset(("\u0300", "\u0301", "\u0309", "\u0303", "\u0323"))
 
 from factotum.builder.make_tree import generate_unaccented_keys
 from factotum.core.extension import (
@@ -71,6 +73,105 @@ class GraphIndex:
     def medium_kb_freq(self) -> int:
         """Ngưỡng tần suất cụm KB trung bình theo quy mô kho."""
         return max(1, self.strong_kb_freq // 2)
+
+    def markov_prob(self, words: list[str]) -> float:
+        """Tính xác suất chuỗi Markov bậc 1 trên danh sách từ `words`."""
+        if not words:
+            return 0.0
+        p = max(self.dict_freq.get(words[0], 1), 1) / 100000.0
+        fwd_prob = self.fwd_prob
+        for i in range(len(words) - 1):
+            p *= fwd_prob.get(words[i], {}).get(words[i + 1], 1e-6)
+        return p
+
+    def step_prob(self, words: list[str]) -> float:
+        """Tính xác suất chuẩn hóa theo độ dài G(W) = P(W)^(1/|W|)."""
+        if not words:
+            return 0.0
+        return self.markov_prob(words) ** (1.0 / len(words))
+
+    def count_broken_edges(self, words: list[str]) -> int:
+        """Đếm số cạnh đứt (tần suất chuyển tiếp = 0) trên chuỗi `words`."""
+        fwd = self.fwd_graph
+        return sum(1 for i in range(len(words) - 1) if fwd.get(words[i], {}).get(words[i + 1], 0) == 0)
+
+    @staticmethod
+    def within_distortion_bound(ua_a: str, ua_b: str, sim: float, *, is_known_anchor: bool) -> bool:
+        """Kiểm tra độ biến dạng c(a|b) = 1 - sim <= 1/max(|a|,|b|) và < 1/2 (neo nghi vấn) hoặc <= 1/2 (từ lỗi)."""
+        dist = 1.0 - sim
+        if is_known_anchor:
+            max_l = max(len(ua_a), len(ua_b), 1)
+            return dist < 0.5 - 1e-9 and dist <= (1.0 / max_l) + 1e-9
+        return dist <= 0.5 + 1e-9
+
+    @staticmethod
+    def is_subsequence_expansion(ua_short: str, ua_long: str) -> bool:
+        """Kiểm tra `ua_short` có bảo toàn 100% thứ tự ký tự đã gõ bên trong `ua_long` (phép bung ký tự rớt)."""
+        if len(ua_short) >= len(ua_long):
+            return False
+        it = iter(ua_long)
+        return all(ch in it for ch in ua_short)
+
+    @staticmethod
+    def nfd_token_distortion(raw_tok: str, cand_w: str) -> tuple[float, int]:
+        """Đo độ biến dạng ký tự/dấu trên không gian phân rã Unicode NFD: (c_NFD, số dấu thanh chênh lệch)."""
+        if raw_tok == cand_w:
+            return (0.0, 0)
+        nfd_a = unicodedata.normalize("NFD", raw_tok.lower()).replace("đ", "d\u0335")
+        nfd_b = unicodedata.normalize("NFD", cand_w.lower()).replace("đ", "d\u0335")
+        max_l = max(len(nfd_a), len(nfd_b), 1)
+        if remove_accents(raw_tok) == remove_accents(cand_w):
+            c_nfd = abs(len(nfd_b) - len(nfd_a)) / max_l
+        else:
+            it = iter(nfd_b)
+            sub_hits = sum(1 for ch in nfd_a if ch in it)
+            c_nfd = (max_l - sub_hits) / max_l
+        tones_a = sum(1 for ch in nfd_a if ch in _NFD_TONE_MARKS)
+        tones_b = sum(1 for ch in nfd_b if ch in _NFD_TONE_MARKS)
+        return (round(c_nfd, 4), abs(tones_b - tones_a))
+
+    def score_kb_bridge(
+        self,
+        words: list[str],
+        gap_i: int,
+        *,
+        max_diff_k: int = MAX_SUPERSTRING_DIFF_K,
+        require_tail_on_subphrase: bool = False,
+    ) -> tuple[int, tuple[int, int] | None]:
+        """Đánh giá cầu nối từ thiếu tại `gap_i` bằng phép giao bung u_R(X) ∩ u_L(Y) trên KB."""
+        n_w = len(words)
+        if gap_i <= 0 or gap_i >= n_w - 1:
+            return 0, None
+        dict_freq = self.dict_freq
+        strong_f = self.strong_kb_freq
+        max_kb_l = max(self.len_to_phrases, default=6)
+
+        for wlen in range(min(n_w, max_kb_l), 3, -1):
+            s_lo = max(0, gap_i + 2 - wlen)
+            s_hi = min(gap_i, n_w - wlen + 1)
+            for s_i in range(s_lo, s_hi):
+                f_w = dict_freq.get(" ".join(words[s_i : s_i + wlen]), 0)
+                if f_w > 0:
+                    return f_w, (s_i, s_i + wlen)
+
+        f_c, d_c, _ = self.lookup_real_phrase_score(
+            words[gap_i - 1 : gap_i + 2], max_diff_k=max_diff_k
+        )
+        if f_c > 0 and d_c >= 0:
+            if gap_i >= 2:
+                f_left = dict_freq.get(" ".join(words[gap_i - 2 : gap_i + 1]), 0)
+                if f_left >= strong_f and (not require_tail_on_subphrase or d_c == 0 or gap_i + 2 == n_w):
+                    return max(f_left, f_c), (gap_i - 2, gap_i + 2)
+            if gap_i + 2 < n_w:
+                f_right = dict_freq.get(" ".join(words[gap_i : gap_i + 3]), 0)
+                f_pair_l = dict_freq.get(f"{words[gap_i - 1]} {words[gap_i]}", 0)
+                if (
+                    f_right >= strong_f
+                    and f_pair_l >= strong_f
+                    and (not require_tail_on_subphrase or d_c == 0 or gap_i == 1)
+                ):
+                    return max(f_right, f_c), (gap_i - 1, gap_i + 3)
+        return 0, None
 
     def build_kb_horizons(self, tokens: list[str]) -> list[tuple[int, int]]:
         """Phân đoạn chuỗi token thành các khoảng giao cụm KB liên tiếp [st, ed)."""

@@ -181,8 +181,9 @@ class TestFactotum(unittest.TestCase):
                 * 4
             ]
         )
-        for q in ("hộ kilh doan", "ho kilh doanh", "ho kinh doan", "ho kilh doan"):
+        for q in ("hộ kilh doan", "ho kilh doanh", "ho kinh doan", "ho kilh doan", "hộ kihw doan", "ho kihw doan"):
             self.assertEqual(model.restore(q), "hộ kinh doanh", f"Failed on {q!r}")
+        self.assertEqual(model.restore("kihw doan"), "kinh doanh")
 
     def test_long_sentence_spell_and_multi_missing_gaps(self) -> None:
         """Sửa lỗi chính tả trên câu dài và chèn nhiều vị trí thiếu từ."""

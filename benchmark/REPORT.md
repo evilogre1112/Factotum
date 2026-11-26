@@ -2,14 +2,14 @@
 
 ## Tóm tắt kết quả chính
 
-Báo cáo tổng hợp kết quả kiểm thử Factotum trên **20.064 câu** thuộc 3 bộ dữ liệu độc lập (nguồn số liệu chạy thực tế: [report_10000_20261126_184925.txt](report_10000_20261126_184925.txt)):
+Báo cáo tổng hợp kết quả kiểm thử Factotum trên **20.064 câu** thuộc 3 bộ dữ liệu độc lập (nguồn số liệu chạy thực tế: [report_10000_20261127_040855.txt](report_10000_20261127_040855.txt)):
 
 | Bộ kiểm thử | Quy mô | Câu gốc chưa xử lý (`KW-Rec`) | Đối chiếu chính (`KW-Rec`) | **Factotum (`KW-Rec` / `All-KW` / `Ctx-F1`)** | Tốc độ trung bình |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **1. Văn bản chưa từng học (Held-out)** | 10.000 câu | 20,0% | Base-2g: 86,8% | **91,9% / 83,8% / 92,5%** | `3,17 ms/câu` |
-| **2. Bộ 64 ca thực tế có từ khóa bắt buộc** | 64 câu | 23,4% | Base-2g: 64,3% | **97,7% / 95,3% / 99,1%** | `13,02 ms/câu` |
+| **1. Văn bản chưa từng học (Held-out)** | 10.000 câu | 20,0% | Base-2g: 86,8% | **91,9% / 84,0% / 92,5%** | `5,67 ms/câu` |
+| **2. Bộ 64 ca thực tế có từ khóa bắt buộc** | 64 câu | 23,4% | Base-2g: 64,3% | **97,7% / 95,3% / 99,1%** | `18,00 ms/câu` |
 | **3. Đối đầu trực tiếp với LLM (Held-out)** | 893 cụm trọn nghĩa | 11,3% | Gemini: 71,2% / Claude: 68,9% | **74,7% / 59,2% / 75,5%** | `9,39 giây / 1.000 câu` |
-| **4. Kiểm thử tải trên thuật ngữ đã học** | 10.000 câu | 17,1% | Base-2g: 91,1% | **96,2% / 92,6% / 96,4%** | `3,28 ms/câu` |
+| **4. Kiểm thử tải trên thuật ngữ đã học** | 10.000 câu | 17,1% | Base-2g: 91,1% | **96,2% / 92,6% / 96,4%** | `4,61 ms/câu` |
 
 > Xem quy trình tạo dữ liệu và câu lệnh tự chạy lại toàn bộ benchmark tại [benchmark/README.md](README.md).
 
@@ -33,35 +33,35 @@ Báo cáo tổng hợp kết quả kiểm thử Factotum trên **20.064 câu** t
 
 ### 2.1. Kiểm thử trên văn bản chưa từng học (124 văn bản học / 32 văn bản mới — 10.000 câu)
 
-Tập dữ liệu gồm 156 văn bản pháp luật được tách hoàn toàn theo từng file (`seed = 42`): 124 văn bản dùng để học (`24,92 giây` dựng mô hình, `100.246` cụm) và 32 văn bản còn lại dùng để trích xuất 10.000 câu kiểm thử trọn nghĩa.
+Tập dữ liệu gồm 156 văn bản pháp luật được tách hoàn toàn theo từng file (`seed = 42`): 124 văn bản dùng để học (`25,58 giây` dựng mô hình, `100.246` cụm) và 32 văn bản còn lại dùng để trích xuất 10.000 câu kiểm thử trọn nghĩa.
 
 | Nhóm câu hỏi | Số câu | Câu gốc (`KW / All / F1`) | Base-1g (`KW / All / F1`) | Base-2g (`KW / All / F1`) | Factotum (`KW / All / F1`) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| Không dấu đã có trong tập học | 3.585 | 9,2 / 0,5 / 9,1% | 78,3 / 55,5 / 79,6% (`0,03 ms`) | 99,5 / 99,2 / 99,5% (`0,04 ms`) | **99,8 / 99,7 / 99,8%** (`1,33 ms`) |
-| Không dấu mới hoàn toàn | 415 | 11,1 / 0,0 / 10,6% | 71,6 / 33,0 / 73,4% (`0,04 ms`) | **95,7 / 91,1 / 95,9%** (`0,05 ms`) | 95,5 / 90,8 / 95,1% (`3,56 ms`) |
-| Viết tắt hỗn hợp | 2.000 | 41,9 / 0,2 / 41,2% | 61,0 / 17,5 / 64,5% (`0,04 ms`) | 90,1 / 77,5 / 90,8% (`0,09 ms`) | **94,9 / 89,2 / 95,2%** (`4,44 ms`) |
-| Thiếu 1 từ ở giữa | 2.000 | 7,3 / 0,0 / 7,9% | 62,8 / 8,8 / 70,6% (`0,04 ms`) | 72,8 / 14,0 / 80,8% (`0,06 ms`) | **92,7 / 79,2 / 94,4%** (`3,32 ms`) |
-| Viết tắt toàn cụm (chuẩn & có từ neo) | 2.000 | 32,0 / 0,3 / 39,2% | 41,3 / 3,6 / 43,3% (`0,05 ms`) | 73,1 / 47,4 / 74,4% (`1,52 ms`) | **73,2 / 52,6 / 74,3%** (`5,15 ms`) |
-| **Tổng cộng** | **10.000** | **20,0 / 0,3 / 21,4%** | **64,0 / 27,3 / 67,2%** (`0,04 ms`) | **86,8 / 67,1 / 88,9%** (`0,35 ms`) | **91,9 / 83,8 / 92,5%** (**`3,17 ms`**) |
+| Không dấu đã có trong tập học | 3.585 | 9,2 / 0,5 / 9,1% | 78,3 / 55,5 / 79,6% (`0,03 ms`) | 99,5 / 99,2 / 99,5% (`0,04 ms`) | **99,8 / 99,7 / 99,8%** (`1,31 ms`) |
+| Không dấu mới hoàn toàn | 415 | 11,1 / 0,0 / 10,6% | 71,6 / 33,0 / 73,4% (`0,04 ms`) | **95,7 / 91,1 / 95,9%** (`0,05 ms`) | 94,7 / 89,2 / 94,5% (`12,44 ms`) |
+| Viết tắt hỗn hợp | 2.000 | 41,9 / 0,2 / 41,2% | 61,0 / 17,5 / 64,5% (`0,04 ms`) | 90,1 / 77,5 / 90,8% (`0,08 ms`) | **94,9 / 89,2 / 95,2%** (`6,43 ms`) |
+| Thiếu 1 từ ở giữa | 2.000 | 7,3 / 0,0 / 7,9% | 62,8 / 8,8 / 70,6% (`0,04 ms`) | 72,8 / 14,0 / 80,8% (`0,04 ms`) | **93,0 / 80,5 / 94,5%** (`11,76 ms`) |
+| Viết tắt toàn cụm (chuẩn & có từ neo) | 2.000 | 32,0 / 0,3 / 39,2% | 41,3 / 3,6 / 43,3% (`0,04 ms`) | 73,1 / 47,4 / 74,4% (`1,56 ms`) | **73,2 / 52,8 / 74,2%** (`5,23 ms`) |
+| **Tổng cộng** | **10.000** | **20,0 / 0,3 / 21,4%** | **64,0 / 27,3 / 67,2%** (`0,04 ms`) | **86,8 / 67,1 / 88,9%** (`0,35 ms`) | **91,9 / 84,0 / 92,5%** (**`5,67 ms`**) |
 
 **Nhận xét:**
 - So với câu gốc chưa xử lý, Factotum nâng tỷ lệ phủ từ khóa thêm **`+71,9%`** (`20,0% → 91,9%`) và độ sát ngữ cảnh thêm **`+71,1%`** (`21,4% → 92,5%`).
-- So với `Base-2g` (Bigram + Viterbi), Factotum vượt **`+5,1%` KW-Rec** và **`+16,7%` All-KW**, cách biệt lớn nhất nằm ở các nhóm khó: **thiếu từ ở giữa** (`79,2%` vs `14,0%` All-KW), **viết tắt hỗn hợp** (`89,2%` vs `77,5%` All-KW) và **viết tắt toàn cụm** (`52,6%` vs `47,4%` All-KW).
-- Tốc độ trung bình đạt **`3,15 ms/câu`** (trung vị `2,26 ms`, tốc độ xử lý `318 câu/giây`).
+- So với `Base-2g` (Bigram + Viterbi), Factotum vượt **`+5,1%` KW-Rec** và **`+16,9%` All-KW**, cách biệt lớn nhất nằm ở các nhóm khó: **thiếu từ ở giữa** (`80,5%` vs `14,0%` All-KW), **viết tắt hỗn hợp** (`89,2%` vs `77,5%` All-KW) và **viết tắt toàn cụm** (`52,8%` vs `47,4%` All-KW).
+- Tốc độ trung bình đạt **`5,67 ms/câu`** (trung vị `2,79 ms`, tốc độ xử lý `176 câu/giây`).
 
 ### 2.2. Kiểm thử tải 10.000 câu trên thuật ngữ đã học
 
-Đo tốc độ và độ ổn định trên kho tri thức đầy đủ (`113.107` cụm, `3.399` từ đơn, thời gian nạp vào RAM `0,338 giây`):
+Đo tốc độ và độ ổn định trên kho tri thức đầy đủ (`113.107` cụm, `3.399` từ đơn, thời gian nạp vào RAM `0,233 giây`):
 
 | Nhóm câu hỏi | Số câu | Câu gốc (`KW / All / F1`) | Base-1g (`KW / All / F1`) | Base-2g (`KW / All / F1`) | Factotum (`KW / All / F1`) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| Không dấu | 5.000 | 10,0 / 0,3 / 9,9% | 77,5 / 52,4 / 78,8% (`0,04 ms`) | 99,5 / 99,1 / 99,6% (`0,05 ms`) | **99,8 / 99,6 / 99,8%** (`1,57 ms`) |
-| Viết tắt hỗn hợp | 2.000 | 31,2 / 0,2 / 29,9% | 62,7 / 11,1 / 65,3% (`0,05 ms`) | 93,1 / 79,1 / 93,8% (`0,12 ms`) | **98,6 / 96,2 / 98,7%** (`5,57 ms`) |
-| Viết tắt toàn cụm | 1.500 | 31,3 / 0,2 / 38,6% | 39,2 / 2,9 / 41,7% (`0,05 ms`) | 78,2 / 56,1 / 79,3% (`1,62 ms`) | **79,4 / 63,9 / 80,3%** (`6,36 ms`) |
-| Thiếu 1 từ ở giữa | 1.500 | 7,8 / 0,0 / 8,4% | 62,4 / 7,6 / 70,3% (`0,04 ms`) | 73,3 / 12,9 / 81,3% (`0,05 ms`) | **97,8 / 93,3 / 98,2%** (`3,57 ms`) |
-| **Tổng cộng** | **10.000** | **17,1 / 0,2 / 18,0%** | **66,5 / 30,0 / 69,3%** (`0,04 ms`) | **91,1 / 75,7 / 92,6%** (`0,30 ms`) | **96,2 / 92,6 / 96,4%** (**`3,28 ms`**) |
+| Không dấu | 5.000 | 10,0 / 0,3 / 9,9% | 77,5 / 52,4 / 78,8% (`0,03 ms`) | 99,5 / 99,1 / 99,6% (`0,03 ms`) | **99,8 / 99,6 / 99,8%** (`1,26 ms`) |
+| Viết tắt hỗn hợp | 2.000 | 31,2 / 0,2 / 29,9% | 62,7 / 11,1 / 65,3% (`0,04 ms`) | 93,1 / 79,1 / 93,8% (`0,10 ms`) | **98,6 / 96,2 / 98,7%** (`7,62 ms`) |
+| Viết tắt toàn cụm | 1.500 | 31,3 / 0,2 / 38,6% | 39,2 / 2,9 / 41,7% (`0,04 ms`) | 78,2 / 56,1 / 79,3% (`1,26 ms`) | **79,5 / 63,9 / 80,4%** (`5,44 ms`) |
+| Thiếu 1 từ ở giữa | 1.500 | 7,8 / 0,0 / 8,4% | 62,4 / 7,6 / 70,3% (`0,04 ms`) | 73,3 / 12,9 / 81,3% (`0,04 ms`) | **97,8 / 93,3 / 98,2%** (`10,91 ms`) |
+| **Tổng cộng** | **10.000** | **17,1 / 0,2 / 18,0%** | **66,5 / 30,0 / 69,3%** (`0,03 ms`) | **91,1 / 75,7 / 92,6%** (`0,23 ms`) | **96,2 / 92,6 / 96,4%** (**`4,61 ms`**) |
 
-- Trung vị `2,19 ms/câu`, tốc độ **`305 câu/giây`**, vượt `Base-2g` **`+5,0%` KW-Rec** và **`+16,9%` All-KW**.
+- Trung vị `2,11 ms/câu`, tốc độ **`217 câu/giây`**, vượt `Base-2g` **`+5,1%` KW-Rec** và **`+16,9%` All-KW**.
 - Danh sách chi tiết các câu còn thiếu từ khóa được xuất cục bộ ra file `benchmark/failures.csv` khi chạy lại script.
 
 ---
@@ -74,14 +74,14 @@ Bộ dữ liệu gồm 64 câu gõ thực tế có gán danh sách thực từ b
 
 | Nhóm câu hỏi | Số câu | Câu gốc (`KW / All / F1`) | Base-1g (`KW / All / F1`) | Base-2g (`KW / All / F1`) | Factotum (`KW / All / F1`) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| Viết tắt cơ quan/tổ chức chuẩn (`canonical_acronym`) | 11 | 0,0 / 0,0 / 0,0% | 0,0 / 0,0 / 9,1% (`0,02 ms`) | 36,4 / 36,4 / 51,8% (`1,24 ms`) | **100,0 / 100,0 / 100,0%** (`0,08 ms`) |
-| Giải nhập nhằng ngữ cảnh (`context_disambiguation`) | 10 | 51,7 / 10,0 / 75,7% | 46,7 / 20,0 / 78,7% (`0,08 ms`) | 70,0 / 50,0 / 92,2% (`0,58 ms`) | **100,0 / 100,0 / 100,0%** (`17,08 ms`) |
-| Viết tắt kèm từ neo (`contextual_acronym`) | 5 | 13,3 / 0,0 / 13,3% | 33,3 / 0,0 / 48,4% (`0,06 ms`) | 66,7 / 0,0 / 74,6% (`1,43 ms`) | **100,0 / 100,0 / 100,0%** (`15,48 ms`) |
-| Bổ sung từ rơi ở giữa (`missing_word_enrichment`) | 5 | 10,0 / 0,0 / 22,3% | 20,0 / 0,0 / 67,7% (`0,02 ms`) | 20,0 / 0,0 / 76,5% (`0,03 ms`) | **100,0 / 100,0 / 100,0%** (`2,14 ms`) |
-| Nhiều thực thể viết tắt (`multi_entity_context`) | 10 | 15,0 / 0,0 / 54,4% | 15,0 / 0,0 / 49,6% (`0,11 ms`) | 53,3 / 20,0 / 79,8% (`3,18 ms`) | **90,0 / 80,0 / 93,9%** (`36,86 ms`) |
-| Cụm câu trọn vẹn không dấu (`repaired_clean_phrases`) | 10 | 0,0 / 0,0 / 9,5% | 50,0 / 20,0 / 70,3% (`0,07 ms`) | 100,0 / 100,0 / 100,0% (`0,09 ms`) | **100,0 / 100,0 / 100,0%** (`6,96 ms`) |
-| Lỗi chính tả & câu hỏi thực tế (`typo_and_user_query`) | 13 | 55,1 / 38,5 / 72,0% | 66,7 / 38,5 / 81,0% (`0,05 ms`) | 80,8 / 61,5 / 86,6% (`0,24 ms`) | **96,2 / 92,3 / 100,0%** (`7,04 ms`) |
-| **Tổng cộng** | **64** | **23,4 / 9,4 / 39,2%** | **35,2 / 14,1 / 58,1%** (`0,06 ms`) | **64,3 / 45,3 / 80,8%** (`0,98 ms`) | **97,7 / 95,3 / 99,1%** (**`12,34 ms`**) |
+| Viết tắt cơ quan/tổ chức chuẩn (`canonical_acronym`) | 11 | 0,0 / 0,0 / 0,0% | 0,0 / 0,0 / 9,1% (`0,02 ms`) | 36,4 / 36,4 / 51,8% (`2,24 ms`) | **100,0 / 100,0 / 100,0%** (`0,09 ms`) |
+| Giải nhập nhằng ngữ cảnh (`context_disambiguation`) | 10 | 51,7 / 10,0 / 75,7% | 46,7 / 20,0 / 78,7% (`0,06 ms`) | 70,0 / 50,0 / 92,2% (`0,33 ms`) | **100,0 / 100,0 / 100,0%** (`16,51 ms`) |
+| Viết tắt kèm từ neo (`contextual_acronym`) | 5 | 13,3 / 0,0 / 13,3% | 33,3 / 0,0 / 48,4% (`0,06 ms`) | 66,7 / 0,0 / 74,6% (`1,67 ms`) | **100,0 / 100,0 / 100,0%** (`54,71 ms`) |
+| Bổ sung từ rơi ở giữa (`missing_word_enrichment`) | 5 | 10,0 / 0,0 / 22,3% | 20,0 / 0,0 / 67,7% (`0,03 ms`) | 20,0 / 0,0 / 76,5% (`0,07 ms`) | **100,0 / 100,0 / 100,0%** (`5,32 ms`) |
+| Nhiều thực thể viết tắt (`multi_entity_context`) | 10 | 15,0 / 0,0 / 54,4% | 15,0 / 0,0 / 49,6% (`0,11 ms`) | 53,3 / 20,0 / 79,8% (`2,65 ms`) | **90,0 / 80,0 / 93,9%** (`21,80 ms`) |
+| Cụm câu trọn vẹn không dấu (`repaired_clean_phrases`) | 10 | 0,0 / 0,0 / 9,5% | 50,0 / 20,0 / 70,3% (`0,07 ms`) | 100,0 / 100,0 / 100,0% (`0,08 ms`) | **100,0 / 100,0 / 100,0%** (`32,45 ms`) |
+| Lỗi chính tả & câu hỏi thực tế (`typo_and_user_query`) | 13 | 55,1 / 38,5 / 72,0% | 66,7 / 38,5 / 81,0% (`0,05 ms`) | 80,8 / 61,5 / 86,6% (`0,26 ms`) | **96,2 / 92,3 / 100,0%** (`11,04 ms`) |
+| **Tổng cộng** | **64** | **23,4 / 9,4 / 39,2%** | **35,2 / 14,1 / 58,1%** (`0,06 ms`) | **64,3 / 45,3 / 80,8%** (`1,05 ms`) | **97,7 / 95,3 / 99,1%** (**`18,00 ms`**) |
 
 **Nhận xét:**
 - Factotum đạt **61/64 câu đủ 100% từ khóa bắt buộc** (`97,7% KW-Rec`, vượt `Base-2g` **`+33,3%` KW-Rec** và **`+50,0%` All-KW**).
@@ -114,13 +114,13 @@ Rút `1.000` câu độc nhất từ 32 văn bản chưa từng học (`seed = 4
 
 | Mức điểm tin cậy (`confidence`) | Số câu (Held-out) | `confidence` TB | `KW-Rec` | `All-KW` | `Ctx-F1` | Khuyến nghị ứng dụng |
 | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| `90 – 100%` | 6.992 | 98,2% | **93,9%** | **88,4%** | **94,3%** | Tự động áp dụng |
-| `70 – 90%` | 1.725 | 78,3% | 93,3% | 86,1% | 93,6% | Tự động áp dụng |
-| `50 – 70%` | 644 | 59,0% | 89,3% | 77,0% | 89,6% | Hiển thị gợi ý |
-| `30 – 50%` | 376 | 44,2% | 74,1% | 40,4% | 77,0% | Hiển thị gợi ý |
-| `< 30%` | 263 | 8,8% | 61,0% | 22,4% | 66,3% | Giữ nguyên câu gốc |
+| `90 – 100%` | 6.999 | 98,2% | **93,8%** | **88,3%** | **94,3%** | Tự động áp dụng |
+| `70 – 90%` | 1.749 | 78,3% | 93,2% | 85,9% | 93,4% | Tự động áp dụng |
+| `50 – 70%` | 665 | 58,9% | 90,0% | 77,9% | 89,9% | Hiển thị gợi ý |
+| `30 – 50%` | 350 | 44,2% | 73,4% | 42,0% | 75,8% | Hiển thị gợi ý |
+| `< 30%` | 237 | 8,7% | 59,5% | 20,7% | 64,4% | Giữ nguyên câu gốc |
 
-Ở nhóm `confidence < 30%` (`263` câu), tỷ lệ đủ 100% từ khóa giảm rõ rệt còn `22,4%`, giúp ứng dụng dễ dàng đặt ngưỡng an toàn để tránh sửa nhầm những câu quá mơ hồ.
+Ở nhóm `confidence < 30%` (`237` câu), tỷ lệ đủ 100% từ khóa giảm rõ rệt còn `20,7%`, giúp ứng dụng dễ dàng đặt ngưỡng an toàn để tránh sửa nhầm những câu quá mơ hồ.
 
 ---
 
@@ -145,14 +145,14 @@ Số liệu `Base-1g`, `Base-2g` và `Factotum` lấy từ Held-out 10.000 câu 
 
 | Tiêu chí | `Base-1g` (Unigram) | `Base-2g` (Bigram + Viterbi) | **Factotum** | SymSpell / Edit Distance* | LLM (zero-shot) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| Làm rõ ngữ cảnh (Held-out 10.000 câu) | `64,0%` KW-Rec | `86,8%` KW-Rec (`67,1%` All-KW) | **`91,9%` KW-Rec (`83,7%` All-KW)** | Không hỗ trợ viết tắt/dấu | `68,9% – 71,2%` KW-Rec (mục 4) |
+| Làm rõ ngữ cảnh (Held-out 10.000 câu) | `64,0%` KW-Rec | `86,8%` KW-Rec (`67,1%` All-KW) | **`91,9%` KW-Rec (`84,0%` All-KW)** | Không hỗ trợ viết tắt/dấu | `68,9% – 71,2%` KW-Rec (mục 4) |
 | Giải nhập nhằng & nhiều thực thể (64 ca) | `35,2%` KW-Rec | `64,3%` KW-Rec (`45,3%` All-KW) | **`97,7%` KW-Rec (`95,3%` All-KW)** | Không | Cao* |
 | Viết tắt toàn cụm chuyên ngành (mục 4) | `14,5%` KW-Rec | `32,4%` KW-Rec | **`38,6%` KW-Rec (`27,3%` All-KW)** | Không | `20,3% – 27,8%` KW-Rec (`5,5% – 10,9%` All-KW) |
-| Bổ sung từ rơi ở giữa (Held-out) | `8,8%` All-KW | `14,0%` All-KW | **`79,0%` All-KW (`94,4%` Ctx-F1)** | Không | `44,9% – 46,7%` All-KW (mục 4) |
+| Bổ sung từ rơi ở giữa (Held-out) | `8,8%` All-KW | `14,0%` All-KW | **`80,5%` All-KW (`94,5%` Ctx-F1)** | Không | `44,9% – 46,7%` All-KW (mục 4) |
 | Sửa lỗi chính tả & gõ Telex | Không | Không | Có, giữ nguyên từ đúng | Tốt (từng từ đơn) | Tốt |
 | Tự học từ dữ liệu nội bộ | Nhanh | Nhanh | `~25 giây` (bản C++) | Nhanh | Chậm, thường cần GPU |
 | Dung lượng lưu trữ / RAM | Vài MB | Vài MB | `1,29 MB` đĩa / `~150–200 MB` RAM | Rất nhỏ | `400 MB` – hàng chục GB* |
-| Tốc độ xử lý | `0,04 ms/câu` | `0,35 ms/câu` | `3,15 – 3,39 ms/câu` | `< 1 ms/câu`* | `~15 ms` (batch) – `1,2 s/câu` |
+| Tốc độ xử lý | `0,04 ms/câu` | `0,35 ms/câu` | `4,61 – 5,67 ms/câu` | `< 1 ms/câu`* | `~15 ms` (batch) – `1,2 s/câu` |
 
 *\*Khoảng tham khảo định tính tùy kiến trúc mô hình và phần cứng.*
 

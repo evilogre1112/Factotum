@@ -371,15 +371,23 @@ def _review_single_edits(
                 left_nbrs = index.fwd_graph.get(left_w, {}) if left_w else {}
                 right_nbrs = index.rev_graph.get(right_w, {}) if right_w else {}
                 if left_w and right_w:
-                    nbr_pool = (set(left_nbrs) & set(right_nbrs)) or (set(left_nbrs) | set(right_nbrs))
+                    nbr_pool = (
+                        (set(left_nbrs) | set(right_nbrs))
+                        if is_valid_ua
+                        else ((set(left_nbrs) & set(right_nbrs)) or (set(left_nbrs) | set(right_nbrs)))
+                    )
                 elif left_w:
                     nbr_pool = left_nbrs
                 else:
                     nbr_pool = right_nbrs
 
-                min_nbr_sim = 0.72 if is_valid_ua else 0.65
                 min_valid_kb_freq = index.strong_kb_freq if not all_edges_broken else index.medium_kb_freq
-                max_len_diff = max(2, len(ua_orig) // 3)
+                strong_f = index.strong_kb_freq
+                right_starts_ind_kb = (
+                    i + 3 < n
+                    and index.dict_freq.get(f"{words[i + 1]} {words[i + 2]} {words[i + 3]}", 0) >= strong_f
+                )
+                max_len_diff = max(1, len(ua_orig) // 3)
                 best_nbr = ""
                 best_nbr_score = (0, 0.0, 0.0)
                 for cand in nbr_pool:
@@ -388,23 +396,42 @@ def _review_single_edits(
                     ua_cand = remove_accents(cand)
                     if abs(len(ua_cand) - len(ua_orig)) > max_len_diff:
                         continue
+                    sim = token_similarity(ua_orig, ua_cand)
+                    if not index.within_distortion_bound(ua_orig, ua_cand, sim, is_known_anchor=is_valid_ua):
+                        continue
                     if is_valid_ua:
                         cl = fwd_prob.get(left_w, {}).get(cand, 0.0) if left_w else 1.0
                         cr = fwd_prob.get(cand, {}).get(right_w, 0.0) if right_w else 1.0
-                        if (left_w and cl == 0.0) or (right_w and cr == 0.0):
+                        both_ok = (not left_w or cl > 0.0) and (not right_w or cr > 0.0)
+                        ind_clause_ok = (
+                            not both_ok
+                            and cur_adj_kb_freq == 0
+                            and left_w
+                            and cl > 0.0
+                            and i >= 2
+                            and right_starts_ind_kb
+                            and index.is_subsequence_expansion(ua_orig, ua_cand)
+                            and index.dict_freq.get(f"{words[i - 2]} {left_w} {cand}", 0) >= strong_f
+                        )
+                        if not (both_ok or ind_clause_ok):
                             continue
                         trial = list(words)
                         trial[i] = cand
-                        if index.dict_freq.get(" ".join(trial), 0) < min_valid_kb_freq:
+                        local_kb_freq = index.dict_freq.get(" ".join(trial), 0)
+                        if both_ok and not right_w and i >= 2 and index.is_subsequence_expansion(ua_orig, ua_cand):
+                            f3_l = index.dict_freq.get(f"{words[i - 2]} {left_w} {cand}", 0)
+                            if f3_l > 0:
+                                local_kb_freq = max(
+                                    local_kb_freq,
+                                    f3_l,
+                                    index.dict_freq.get(f"{left_w} {cand}", 0),
+                                )
+                        if ind_clause_ok:
+                            local_kb_freq = max(local_kb_freq, index.dict_freq.get(f"{words[i - 2]} {left_w} {cand}", 0))
+                        if local_kb_freq < min_valid_kb_freq:
                             continue
-                        sim = token_similarity(ua_orig, ua_cand)
-                        if sim < min_nbr_sim:
-                            continue
-                        cand_broken = 0
+                        cand_broken = 0 if both_ok else 1
                     else:
-                        sim = token_similarity(ua_orig, ua_cand)
-                        if sim < min_nbr_sim:
-                            continue
                         cl = fwd_prob.get(left_w, {}).get(cand, 0.0) if left_w else 1.0
                         cr = fwd_prob.get(cand, {}).get(right_w, 0.0) if right_w else 1.0
                         cand_broken = (1 if (left_w and cl == 0.0) else 0) + (1 if (right_w and cr == 0.0) else 0)
@@ -417,6 +444,55 @@ def _review_single_edits(
                         best_nbr = cand
                 if best_nbr:
                     best_f = best_nbr
+
+            # Cấu hình (1) b/c1 - lỗi1 - lỗi2 và (2) lỗi2 - lỗi1 - b/c2 (Idea.txt dòng 70-82):
+            # Khi đổi dấu w1 thuộc ua_map[orig] nối được với b/c1 nhưng đứt với từ kề bên (do từ kề bên là neo giả lỗi2),
+            # đồng thời dò hàng xóm đồ thị w2 cho từ kề bên trong cận biến dạng 1/max(|x|,|y|) tạo cụm 3 từ KB mạnh.
+            if not best_f and is_valid_ua and cands and cur_adj_kb_freq == 0:
+                strong_f = index.strong_kb_freq
+                single_map = {pos_s: orig_s for orig_s, pos_s in single_targets}
+                if left_w and i + 1 < n and (i + 1) in single_map:
+                    cur_next = words[i + 1]
+                    after_next = words[i + 2] if i + 2 < n else ""
+                    next_adj_kb = max(
+                        index.dict_freq.get(f"{cur} {cur_next}", 0),
+                        index.dict_freq.get(f"{cur_next} {after_next}", 0) if after_next else 0,
+                    )
+                    if next_adj_kb == 0:
+                        orig_next = remove_accents(single_map[i + 1])
+                        best_pair_sc = (0, 0.0, 0.0)
+                        best_pair: tuple[str, str] | None = None
+                        for w1 in cands:
+                            p_l1 = fwd_prob.get(left_w, {}).get(w1, 0.0)
+                            if p_l1 == 0.0:
+                                continue
+                            for w2, p_12 in index.fwd_prob_top.get(w1, ()):
+                                if w2.startswith("<"):
+                                    continue
+                                after_ind_kb = (
+                                    i + 4 < n
+                                    and index.dict_freq.get(f"{words[i + 2]} {words[i + 3]} {words[i + 4]}", 0) >= strong_f
+                                )
+                                if (not after_next and not all_edges_broken) or (
+                                    after_next and fwd_prob.get(w2, {}).get(after_next, 0.0) == 0.0 and not after_ind_kb
+                                ):
+                                    continue
+                                ua_w2 = remove_accents(w2)
+                                sim2 = token_similarity(orig_next, ua_w2)
+                                if not index.within_distortion_bound(orig_next, ua_w2, sim2, is_known_anchor=(orig_next in ua_map)):
+                                    continue
+                                if (orig_next in ua_map) and not index.is_subsequence_expansion(orig_next, ua_w2):
+                                    continue
+                                f3 = index.dict_freq.get(f"{left_w} {w1} {w2}", 0)
+                                if f3 >= strong_f:
+                                    sc = (f3, round(sim2, 4), p_l1 * p_12)
+                                    if sc > best_pair_sc:
+                                        best_pair_sc = sc
+                                        best_pair = (w1, w2)
+                        if best_pair is not None:
+                            words[i], words[i + 1] = best_pair
+                            changed = True
+                            continue
 
         if best_f:
             words[i] = best_f
@@ -439,6 +515,8 @@ def _try_bridge_broken_edge_by_overlapping_kb(
     if len(broken_gaps) != 1:
         return None
     gap_i = broken_gaps[0]
+    if edits and not any(e.start <= gap_i <= e.end for e in edits):
+        return None
     left_w, right_w = words[gap_i - 1], words[gap_i]
     strong_f = index.strong_kb_freq
     best_mid = ""
@@ -448,18 +526,11 @@ def _try_bridge_broken_edge_by_overlapping_kb(
         if mid_w.startswith("<") or right_w not in fwd.get(mid_w, ()):
             continue
         trial = words[:gap_i] + [mid_w] + words[gap_i:]
-        f_r, d_r, _ = index.lookup_real_phrase_score(trial[gap_i - 1 : gap_i + 2])
-        if f_r <= 0 or d_r < 0:
-            continue
-        f_l = 0
-        if gap_i >= 2:
-            fl_val, dl_val, _ = index.lookup_real_phrase_score(trial[gap_i - 2 : gap_i + 1], max_diff_k=0)
-            if fl_val > 0 and dl_val == 0:
-                f_l = fl_val
-        if f_l < strong_f or (d_r > 0 and gap_i + 2 < len(trial)):
+        best_f, _span = index.score_kb_bridge(trial, gap_i, require_tail_on_subphrase=True)
+        if best_f <= 0:
             continue
         e_min = min(fwd.get(left_w, {}).get(mid_w, 0), fwd.get(mid_w, {}).get(right_w, 0))
-        sc = (f_l, f_r, e_min)
+        sc = (best_f, e_min, 0)
         if sc > best_score:
             best_score = sc
             best_mid = mid_w
@@ -468,9 +539,7 @@ def _try_bridge_broken_edge_by_overlapping_kb(
         return None
 
     new_words = words[:gap_i] + [best_mid] + words[gap_i:]
-    m_prob = max(index.dict_freq.get(new_words[0], 1), 1) / 100000.0
-    for i in range(len(new_words) - 1):
-        m_prob *= index.fwd_prob.get(new_words[i], {}).get(new_words[i + 1], 1e-6)
+    m_prob = index.markov_prob(new_words)
     shifted_edits: list[EditSpan] = []
     for e in edits:
         st = e.start + (1 if e.start >= gap_i else 0)
@@ -533,9 +602,7 @@ def _repair_broken_markov_bridge(
         return match
 
     new_phrase = " ".join(words)
-    new_prob = max(index.dict_freq.get(words[0], 1), 1) / 100000.0
-    for i in range(n - 1):
-        new_prob *= index.fwd_prob.get(words[i], {}).get(words[i + 1], 1e-6)
+    new_prob = index.markov_prob(words)
     repaired = QueryMatch(
         phrase=new_phrase,
         freq=match.freq,
@@ -572,16 +639,60 @@ def _count_strong_acronym_kb_hits(
     return hits
 
 
+def _broken_edge_nfd_distortion(
+    index: GraphIndex,
+    orig_tokens: list[str],
+    words: list[str],
+) -> tuple[float, int]:
+    """Tính tổng độ biến dạng NFD + dấu thanh tại các token bị đứt toàn bộ cạnh nối (P_markov = 0)."""
+    n = len(words)
+    if n == 0 or len(orig_tokens) != n:
+        return (0.0, 0)
+    fwd = index.fwd_graph
+    real_vocab = index.real_vocab
+    dict_freq = index.dict_freq
+    strong_f = index.strong_kb_freq
+    total_c = 0.0
+    total_tones = 0
+    for i in range(n):
+        if remove_accents(orig_tokens[i]) in real_vocab:
+            continue
+        if i > 0 and words[i - 1] not in real_vocab:
+            continue
+        if i + 1 < n and words[i + 1] not in real_vocab:
+            continue
+        left_ok = i > 0 and fwd.get(words[i - 1], {}).get(words[i], 0) > 0
+        right_ok = i + 1 < n and fwd.get(words[i], {}).get(words[i + 1], 0) > 0
+        if not left_ok and not right_ok:
+            prev_connected = i <= 1 or fwd.get(words[i - 2], {}).get(words[i - 1], 0) > 0
+            next_connected = i + 2 >= n or fwd.get(words[i + 1], {}).get(words[i + 2], 0) > 0
+            if not (prev_connected and next_connected):
+                continue
+            if dict_freq.get(words[i], 0) < strong_f:
+                total_c += 1.0
+                total_tones += 2
+            else:
+                c_nfd, d_tone = index.nfd_token_distortion(orig_tokens[i], words[i])
+                total_c += c_nfd
+                total_tones += d_tone
+    return (round(total_c, 4), total_tones)
+
+
 def _deep_rerank_score(
     index: GraphIndex,
     m: QueryMatch,
     orig_tokens: list[str],
-) -> tuple[int, int, int, int, int, int, float, float, int]:
-    """Khóa xếp hạng tổng thể toàn câu theo hạng bằng chứng, cụm viết tắt KB, cạnh đứt, độ phủ KB và Markov."""
+) -> tuple[int, int, int, int, int, int, float, tuple[float, int], float, int]:
+    """Khóa xếp hạng tổng thể toàn câu theo hạng bằng chứng, cụm viết tắt KB, cạnh đứt, độ phủ KB, biến dạng NFD khi đứt cạnh và Markov."""
     words = m.phrase.split()
     is_acr_exp = m.missing_count == 0 and len(words) > len(orig_tokens)
     broken_edges, _kb_covered, weighted_kb, kb4_plus_hits, kb3_hits, _ = _sentence_global_metrics(index, words)
     acr_kb_hits = _count_strong_acronym_kb_hits(index, m, orig_tokens, words) if is_acr_exp else 0
+    broken_dist = (
+        _broken_edge_nfd_distortion(index, orig_tokens, words)
+        if (broken_edges > 0 and round(m.confidence, 4) <= 0.12)
+        else (0.0, 0)
+    )
     return (
         evidence_tier(m),
         m.missing_count,
@@ -590,6 +701,7 @@ def _deep_rerank_score(
         0 if (is_acr_exp and m.context_tier > 0) else -weighted_kb,
         0 if is_acr_exp else -(kb4_plus_hits + kb3_hits),
         -round(m.confidence, 4),
+        broken_dist,
         -m.markov_prob,
         -m.freq,
     )

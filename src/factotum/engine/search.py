@@ -307,10 +307,22 @@ def search_variant(
         ([w], max(dict_freq.get(w, 1), 1) / 100000.0, 0, []) for w in trimmed_cols[0]
     ]
 
+    ua_map = index.unaccented_map
+
+    def _is_initial_col(col: list[str]) -> bool:
+        if not col:
+            return False
+        ch = remove_accents(col[0])[:1]
+        return bool(ch) and col is ua_map.get(ch)
+
     for col_idx in range(1, len(columns)):
         full_col = columns[col_idx]
         target_list = trimmed_cols[col_idx]
         target_set = set(full_col)
+        is_init_c = _is_initial_col(full_col)
+        prev_init_c = _is_initial_col(columns[col_idx - 1])
+        prev2_init_c = _is_initial_col(columns[col_idx - 2]) if col_idx >= 2 else False
+        in_acronym_span = (is_init_c and prev_init_c) or (prev_init_c and prev2_init_c)
         per_state_zero: dict[str, list[tuple[list[str], float, int, list[str]]]] = {}
         with_miss_next: list[tuple[list[str], float, int, list[str]]] = []
 
@@ -364,7 +376,12 @@ def search_variant(
                     else:
                         with_miss_next.append(cand_item)
 
-                if allow_missing and MAX_MISSING_GAP >= 1 and len(trimmed_cols) <= 6 and miss_cnt < 1:
+                if (
+                    allow_missing
+                    and MAX_MISSING_GAP >= 1
+                    and miss_cnt < 1
+                    and not in_acronym_span
+                ):
                     t_len = len(target_list)
                     for mid, p1 in fwd_prob_top.get(last_w, ()):
                         if is_class_token(mid):
@@ -408,86 +425,170 @@ def search_variant(
             break
 
         zero_flat.sort(key=lambda x: -x[1])
-        strong_f = index.strong_kb_freq
         if with_miss_next:
-            with_miss_kb = [
-                item
-                for item in with_miss_next
-                if (len(item[0]) >= 4 and dict_freq.get(" ".join(item[0][-4:-1]), 0) >= strong_f)
-                or (len(item[0]) >= 3 and dict_freq.get(" ".join(item[0][-3:]), 0) >= strong_f)
-            ]
-            with_miss_kb.sort(key=lambda x: -x[1])
-            with_miss_next.sort(key=lambda x: -x[1])
+            w2p = index.word_to_phrases
+
+            def _has_kb_3gram(a: str, b: str, c: str) -> bool:
+                if dict_freq.get(f"{a} {b} {c}", 0) > 0:
+                    return True
+                p0 = w2p.get(a)
+                if p0:
+                    p1 = w2p.get(b)
+                    p2 = w2p.get(c)
+                    if p1 and p2 and (p0 & p1 & p2):
+                        return True
+                return False
+
+            def _has_kb_suffix(pw: list[str]) -> bool:
+                if len(pw) >= 3 and _has_kb_3gram(pw[-3], pw[-2], pw[-1]):
+                    return True
+                if len(pw) >= 4 and _has_kb_3gram(pw[-4], pw[-3], pw[-2]):
+                    return True
+                return False
+
+            with_miss_next.sort(
+                key=lambda x: (
+                    1 if _has_kb_suffix(x[0]) else 0,
+                    x[1] ** (1.0 / max(len(x[0]), 1)),
+                ),
+                reverse=True,
+            )
             seen_miss: set[tuple[str, ...]] = set()
-            merged_miss: list[tuple[list[str], float, int, list[str]]] = []
-            for item in with_miss_kb[:5] + with_miss_next[:10]:
+            top_miss: list[tuple[list[str], float, int, list[str]]] = []
+            for item in with_miss_next:
                 k_pw = tuple(item[0])
                 if k_pw not in seen_miss:
                     seen_miss.add(k_pw)
-                    merged_miss.append(item)
-            top_miss = merged_miss[:10]
+                    top_miss.append(item)
+                    if len(top_miss) >= BEAM_WIDTH:
+                        break
         else:
             top_miss = []
-        if col_idx < len(columns) - 1 and len(full_col) > 15:
-            # Viterbi chuẩn trên cột viết tắt: giữ đường tốt nhất cho từng từ đích (tối đa 60 trạng thái)
-            # để không cắt tham lam nhánh đúng (vd: gây -> tai -> nạn -> giao -> thông) ở bước đầu.
+        if col_idx < len(columns) - 1 and is_init_c:
             best_per_word = [bucket[0] for bucket in per_state_zero.values()]
             best_per_word.sort(key=lambda x: -x[1])
             second_per_word = [bucket[1] for bucket in per_state_zero.values() if len(bucket) > 1]
             second_per_word.sort(key=lambda x: -x[1])
-            beam = best_per_word[:60] + second_per_word[:10] + top_miss
+            beam = (
+                best_per_word[: BEAM_WIDTH * max_per_state]
+                + second_per_word[: BEAM_WIDTH // (max_per_state + 1)]
+                + top_miss
+            )
         else:
             beam = zero_flat[:BEAM_WIDTH] + top_miss
 
     has_direct_kb = bool(results_map)
+    max_kb_len = max(index.len_to_phrases, default=6)
+
+    def _kb_covered_count(ws: list[str], min_wlen: int = 2, extra_span: tuple[int, int] | None = None) -> int:
+        n_w = len(ws)
+        cov: set[int] = set(range(extra_span[0], extra_span[1])) if extra_span else set()
+        for wlen in range(min(n_w, max_kb_len), min_wlen - 1, -1):
+            for s_i in range(n_w - wlen + 1):
+                if dict_freq.get(" ".join(ws[s_i : s_i + wlen]), 0) > 0:
+                    cov.update(range(s_i, s_i + wlen))
+                    if len(cov) == n_w:
+                        return n_w
+        return len(cov)
+
     strong_f = index.strong_kb_freq
-    fwd_graph = index.fwd_graph
+
+    def _junction_kb_connected(ws: list[str], j_idx: int) -> bool:
+        n_w = len(ws)
+        if j_idx <= 0 or j_idx >= n_w:
+            return False
+        for wlen in range(min(n_w, max_kb_len), 2, -1):
+            s_lo = max(0, j_idx + 1 - wlen)
+            s_hi = min(j_idx, n_w - wlen + 1)
+            for s_i in range(s_lo, s_hi):
+                if dict_freq.get(" ".join(ws[s_i : s_i + wlen]), 0) > 0:
+                    return True
+        return False
+
+    def _has_independent_boundary_phrases(ws: list[str], j_idx: int) -> tuple[bool, bool]:
+        n_w = len(ws)
+        left_ind = any(
+            dict_freq.get(" ".join(ws[s_i:j_idx]), 0) >= strong_f
+            for s_i in range(max(0, j_idx - max_kb_len), max(0, j_idx - 1))
+        )
+        right_ind = any(
+            dict_freq.get(" ".join(ws[j_idx:e_i]), 0) >= strong_f
+            for e_i in range(min(n_w + 1, j_idx + 2), min(n_w + 1, j_idx + max_kb_len + 1))
+        )
+        return left_ind, right_ind
+
+    zero_beams = [pw for pw, _, mc, _ in beam if mc == 0]
+    top_zero = zero_beams[0] if zero_beams else []
+    min_zero_broken = min((index.count_broken_edges(pw) for pw in zero_beams), default=len(columns))
+    best_zero_step_prob = max((index.step_prob(pw) for pw in zero_beams if pw), default=0.0)
+    best_zero_cov2_ratio = max(
+        (_kb_covered_count(pw, min_wlen=2) / len(pw) for pw in zero_beams if pw),
+        default=0.0,
+    )
+    best_zero_cov3_ratio = max(
+        (_kb_covered_count(pw, min_wlen=3) / len(pw) for pw in zero_beams if pw),
+        default=0.0,
+    )
+
     for path_words, m_prob, miss_cnt, miss_words in beam:
         phrase = " ".join(path_words)
         if phrase in results_map:
             continue
         promoted = False
+        cand_broken = index.count_broken_edges(path_words) if (not has_direct_kb and miss_cnt == 1) else 0
         if (
             not has_direct_kb
             and miss_cnt == 1
             and len(miss_words) == 1
-            and len(path_words) >= 4
-            and all(
-                fwd_graph.get(path_words[k], {}).get(path_words[k + 1], 0) > 0
-                for k in range(len(path_words) - 1)
-            )
+            and len(path_words) >= 3
+            and cand_broken <= min_zero_broken
+            and (cand_broken < min_zero_broken or index.step_prob(path_words) > best_zero_step_prob)
         ):
             mw = miss_words[0]
             n_pw = len(path_words)
-            for gap_i in range(2, n_pw - 1):
+            for gap_i in range(1, n_pw - 1):
                 if path_words[gap_i] != mw:
                     continue
-                f_l, d_l, _ = index.lookup_real_phrase_score(path_words[gap_i - 2 : gap_i + 1], max_diff_k=0)
-                if f_l >= strong_f and d_l == 0:
-                    f_r, d_r, _ = index.lookup_real_phrase_score(
-                        path_words[gap_i - 1 : gap_i + 2], max_diff_k=max_diff_k
-                    )
-                    if f_r > 0 and d_r >= 0 and (d_r == 0 or gap_i + 2 == n_pw):
-                        covered = set(range(gap_i - 2, gap_i + 2))
-                        if len(covered) < n_pw:
-                            for s_i in range(n_pw - 2):
-                                f_s, d_s, _ = index.lookup_real_phrase_score(
-                                    path_words[s_i : s_i + 3], max_diff_k=0
-                                )
-                                if f_s > 0 and d_s == 0:
-                                    covered.update(range(s_i, s_i + 3))
-                        if len(covered) == n_pw:
-                            results_map[phrase] = QueryMatch(
-                                phrase,
-                                f_l,
-                                miss_cnt,
-                                0,
-                                "",
-                                miss_words,
-                                markov_prob=m_prob,
-                            )
-                            promoted = True
-                            break
+                if min_zero_broken == 0 and any(_junction_kb_connected(zw, gap_i) for zw in zero_beams):
+                    continue
+                # Kẽ hở 3: khi cột gap_i-1 là âm tiết đầy đủ và đường 0-thiếu đầu bảng đã thông suốt tại biên đó,
+                # không dùng nhánh đồng âm cụt đường để chèn từ thiếu
+                if (
+                    min_zero_broken == 0
+                    and top_zero
+                    and gap_i < len(top_zero)
+                    and gap_i - 1 < len(columns)
+                    and not _is_initial_col(columns[gap_i - 1])
+                    and path_words[gap_i - 1] != top_zero[gap_i - 1]
+                    and dict_freq.get(f"{top_zero[gap_i - 1]} {top_zero[gap_i]}", 0) >= strong_f
+                ):
+                    continue
+                # Kẽ hở 2: nếu X_0 và Y_0 đều là cụm KB độc lập quanh biên gap_i, phép bung không được phá hủy X_0 hay Y_0
+                if top_zero and gap_i < len(top_zero):
+                    l_ind, r_ind = _has_independent_boundary_phrases(top_zero, gap_i)
+                    if l_ind and r_ind and (
+                        path_words[:gap_i] != top_zero[:gap_i] or path_words[gap_i + 1 :] != top_zero[gap_i:]
+                    ):
+                        continue
+                bridge_freq, bridge_span = index.score_kb_bridge(
+                    path_words, gap_i, max_diff_k=max_diff_k
+                )
+                if bridge_freq > 0 and bridge_span is not None:
+                    cov2_ratio = _kb_covered_count(path_words, min_wlen=2, extra_span=bridge_span) / n_pw
+                    cov3_ratio = _kb_covered_count(path_words, min_wlen=3, extra_span=bridge_span) / n_pw
+                    strictly_better = (cand_broken < min_zero_broken) or (cov3_ratio > best_zero_cov3_ratio)
+                    if cov2_ratio >= best_zero_cov2_ratio and strictly_better:
+                        results_map[phrase] = QueryMatch(
+                            phrase,
+                            bridge_freq,
+                            miss_cnt,
+                            0,
+                            "",
+                            miss_words,
+                            markov_prob=m_prob,
+                        )
+                        promoted = True
+                        break
         if not promoted:
             results_map[phrase] = QueryMatch(
                 phrase, 0, miss_cnt, -1, "", miss_words, markov_prob=m_prob

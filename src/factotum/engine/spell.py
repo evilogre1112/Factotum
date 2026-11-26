@@ -63,7 +63,8 @@ def _lookup_spell_kb_window(
     w = fixed_words[pos]
     if n == 1:
         return index.dict_freq.get(w, 0) or index.word_freq.get(w, 0), 0, w
-    if n <= 6:
+    max_kb_l = max(index.len_to_phrases, default=6)
+    if n <= max_kb_l:
         freq, diff, src = index.lookup_real_phrase_score(fixed_words, max_diff_k=max_diff_k)
         if freq > 0 or n == 2:
             return freq, diff, src
@@ -121,6 +122,9 @@ def try_graph_spell_correction(
     for i, tok in enumerate(raw_tokens):
         if len(tok) < 2 or not tok.isalpha():
             continue
+        ua_tok = remove_accents(tok)
+        if not any(ch in "aeiouy" for ch in ua_tok):
+            continue
         if i in unacc_positions and len(unacc_positions) >= 2:
             continue
 
@@ -150,8 +154,8 @@ def try_graph_spell_correction(
         else:
             cand_pool = index.unaccented_map.get(remove_accents(tok)[:1], ())
 
-        eff_min_sim = min_sim if is_nonword else max(min_sim, 0.75)
         tok_has_tone = tok != remove_accents(tok)
+        ua_tok = remove_accents(tok)
         scored_cands: list[tuple[float, int, int, str, bool]] = []
 
         for w in cand_pool:
@@ -161,7 +165,7 @@ def try_graph_spell_correction(
             if (one_side_ok or at_long_edge) and not is_ortho:
                 continue
             sim = vn_word_similarity(tok, w)
-            if sim < eff_min_sim:
+            if not index.within_distortion_bound(ua_tok, remove_accents(w), sim, is_known_anchor=(not is_nonword)):
                 continue
             e_l = fwd.get(prev_w, {}).get(w, 0) if prev_w else 0
             e_r = fwd.get(w, {}).get(next_w, 0) if next_w else 0
@@ -288,9 +292,7 @@ def _beam_graph_spell_correction(
                 if any_repaired and not any(
                     w.isalpha() and len(w) >= 2 and w not in real_vocab for w in repaired
                 ):
-                    m_prob = max(index.dict_freq.get(repaired[0], 1), 1) / 100000.0
-                    for k in range(n - 1):
-                        m_prob *= fwd_prob.get(repaired[k], {}).get(repaired[k + 1], 1e-6)
+                    m_prob = index.markov_prob(repaired)
                     m = QueryMatch(
                         phrase=" ".join(repaired),
                         freq=max(1, total_freq // max(span_count, 1)),
@@ -305,8 +307,10 @@ def _beam_graph_spell_correction(
                     m.confidence = round(min(0.95, max(0.5, min_sim_all)), 4)
                     return [m]
                 return []
-    elif len(index.build_kb_horizons(raw_tokens)) > 2:
+    horizons = index.build_kb_horizons(raw_tokens)
+    if not has_accent and len(horizons) > 2:
         return []
+    single_horizon = len(horizons) <= 1
 
     strong_anchors = [
         i
@@ -321,8 +325,10 @@ def _beam_graph_spell_correction(
                 continue
             buf = [""] * n
             buf[seed_pos] = sw
-            sim0 = 1.0 if sw == raw_tokens[seed_pos] else token_similarity(raw_tokens[seed_pos], sw)
-            beam.append((buf, 0.0, sim0))
+            raw_s = raw_tokens[seed_pos]
+            sim0 = 1.0 if (sw == raw_s or remove_accents(sw) == remove_accents(raw_s)) else token_similarity(remove_accents(raw_s), remove_accents(sw))
+            dist0 = 1.0 - sim0
+            beam.append((buf, 0.0, dist0))
         if not beam:
             return []
 
@@ -330,13 +336,17 @@ def _beam_graph_spell_correction(
             nonlocal beam
             tok = raw_tokens[j]
             ua_tok = remove_accents(tok)
-            tok_accented = tok != ua_tok and tok in real_vocab
+            if not any(ch in "aeiouy" for ch in ua_tok) or (
+                index.get_acronym_pids(ua_tok) and not is_valid_vietnamese_syllable(tok)
+            ):
+                beam = []
+                return
+            tok_accented = tok != ua_tok and (tok in real_vocab or is_valid_vietnamese_syllable(tok))
             tok_is_valid_ua = (not tok_accented) and (tok in ua_map)
-            min_s = 0.72 if tok_is_valid_ua else 0.65
             next_beam: list[tuple[list[str], float, float]] = []
             seen_states: set[tuple[str, str]] = set()
 
-            for buf, score, min_sim in beam:
+            for buf, score, sum_dist in beam:
                 anchor_w = buf[prev_idx]
                 nbrs = fwd.get(anchor_w, {}) if go_right else rev.get(anchor_w, {})
                 if not nbrs:
@@ -349,7 +359,7 @@ def _beam_graph_spell_correction(
                         if w == tok:
                             sim = 1.0
                         elif is_vn_orthographic_confusion(tok, w):
-                            sim = max(0.8, token_similarity(tok, w))
+                            sim = token_similarity(tok, w)
                         else:
                             continue
                     else:
@@ -357,15 +367,24 @@ def _beam_graph_spell_correction(
                             sim = 1.0
                         else:
                             ua_w = remove_accents(w)
-                            if abs(len(ua_w) - len(ua_tok)) > max(2, len(ua_tok) // 3):
+                            max_l = max(len(ua_w), len(ua_tok), 1)
+                            if abs(len(ua_w) - len(ua_tok)) > max(1, len(ua_tok) // 3):
                                 continue
                             if ua_w == ua_tok:
                                 sim = 1.0
                             else:
                                 sim = token_similarity(ua_tok, ua_w)
-                                if sim < min_s:
+                                if not index.within_distortion_bound(ua_tok, ua_w, sim, is_known_anchor=tok_is_valid_ua):
                                     continue
                                 if tok_is_valid_ua:
+                                    # Chỉ cho phép hạ neo từ hợp lệ trong ua_map khi kề trực tiếp với từ lỗi hoặc câu đơn cụm
+                                    adj_nonword = (
+                                        (j > 0 and raw_tokens[j - 1] not in real_vocab and raw_tokens[j - 1] not in ua_map)
+                                        or (j + 1 < n and raw_tokens[j + 1] not in real_vocab and raw_tokens[j + 1] not in ua_map)
+                                        or single_horizon
+                                    )
+                                    if not adj_nonword:
+                                        continue
                                     edit_weight = 6.0
                     p = (
                         fwd_prob.get(anchor_w, {}).get(w, 0.0)
@@ -374,14 +393,15 @@ def _beam_graph_spell_correction(
                     )
                     if p <= 0.0:
                         continue
-                    new_score = score + math.log(p) + edit_weight * math.log(max(sim, 0.1))
+                    dist_step = 1.0 - sim
+                    new_score = score + math.log(p) - edit_weight * dist_step
                     new_buf = list(buf)
                     new_buf[j] = w
                     state_key = (anchor_w, w)
                     if state_key in seen_states and len(next_beam) >= beam_width * 2:
                         continue
                     seen_states.add(state_key)
-                    next_beam.append((new_buf, new_score, min(min_sim, sim)))
+                    next_beam.append((new_buf, new_score, sum_dist + dist_step))
 
             if not next_beam:
                 beam = []
@@ -397,7 +417,24 @@ def _beam_graph_spell_correction(
             _step(j, j + 1, go_right=False)
             if not beam:
                 return []
-        return beam
+        return [(buf, sc, max(0.0, 1.0 - (sum_d / n))) for buf, sc, sum_d in beam]
+
+    def _fuzzy_vocab_seeds(tok: str) -> list[str]:
+        ua_t = remove_accents(tok)
+        if len(ua_t) < 2:
+            return []
+        first_ch = ua_t[0]
+        scored: list[tuple[float, int, str]] = []
+        for k_ua, words_list in ua_map.items():
+            if not k_ua or k_ua[0] != first_ch or abs(len(k_ua) - len(ua_t)) > max(1, len(ua_t) // 3):
+                continue
+            sim = token_similarity(ua_t, k_ua)
+            if sim > 1.0 - (1.0 / max(len(ua_t), len(k_ua))) or sim >= 0.5:
+                for w in words_list[:2]:
+                    if w in real_vocab:
+                        scored.append((sim, index.dict_freq.get(w, 0) or index.word_freq.get(w, 0), w))
+        scored.sort(key=lambda x: (-round(x[0], 3), -x[1]))
+        return [w for _, _, w in scored[:beam_width]]
 
     raw_paths: list[tuple[list[str], float, float]] = []
     if strong_anchors:
@@ -407,17 +444,27 @@ def _beam_graph_spell_correction(
         for pos in seed_positions:
             raw_paths.extend(_expand_from_seed(pos, [raw_tokens[pos]]))
     else:
-        left_seeds = list(ua_map.get(raw_tokens[0], ()))[:6]
+        left_seeds = list(ua_map.get(raw_tokens[0], ()))[:beam_width]
         if not left_seeds and raw_tokens[0] in real_vocab:
             left_seeds = [raw_tokens[0]]
         if left_seeds:
             raw_paths.extend(_expand_from_seed(0, left_seeds))
 
-        right_seeds = list(ua_map.get(raw_tokens[-1], ()))[:6]
+        right_seeds = list(ua_map.get(raw_tokens[-1], ()))[:beam_width]
         if not right_seeds and raw_tokens[-1] in real_vocab:
             right_seeds = [raw_tokens[-1]]
         if right_seeds:
             raw_paths.extend(_expand_from_seed(n - 1, right_seeds))
+
+        # Cấu hình (1),(2),(3): khi từ neo đầu/cuối thực chất cũng là từ lỗi (false anchor), hạ neo để dò hạt giống mờ
+        if not any(
+            index.lookup_real_phrase_score(p_words, max_diff_k=max_diff_k)[0] > 0
+            for p_words, _, _ in raw_paths
+        ):
+            for end_pos in (0, n - 1):
+                f_seeds = _fuzzy_vocab_seeds(raw_tokens[end_pos])
+                if f_seeds:
+                    raw_paths.extend(_expand_from_seed(end_pos, f_seeds))
 
     if not raw_paths:
         return []
@@ -429,25 +476,48 @@ def _beam_graph_spell_correction(
     min_kb_freq = 1 if has_nonword else index.strong_kb_freq
 
     found: dict[str, tuple[tuple[int, int, float, int], QueryMatch]] = {}
-    for fixed_words, _bscore, min_sim in raw_paths:
+    for fixed_words, _bscore, avg_sim in raw_paths:
         if fixed_words == raw_tokens:
+            continue
+        # Độ biến dạng trung bình toàn cụm c_avg = 1 - avg_sim phải nhỏ hơn ngưỡng nhiễu cấu trúc 1/2
+        if (1.0 - avg_sim) >= 0.5:
             continue
         if any(fwd.get(fixed_words[k], {}).get(fixed_words[k + 1], 0) == 0 for k in range(n - 1)):
             continue
 
+        edited_positions = [
+            idx
+            for idx, (raw_t, fix_w) in enumerate(zip(raw_tokens, fixed_words))
+            if remove_accents(fix_w) != remove_accents(raw_t)
+        ]
+        mutated_valid_set = {
+            idx
+            for idx in edited_positions
+            if raw_tokens[idx] in ua_map
+        }
+
         kb_freq, kb_diff, kb_src = index.lookup_real_phrase_score(
             fixed_words, max_diff_k=max_diff_k
         )
+        if kb_freq > 0 and len(mutated_valid_set) > 1:
+            continue
         if kb_freq <= 0 and n >= 4:
             win_freqs: list[int] = []
             for k in range(n - 2):
                 wf, _, _ = index.lookup_real_phrase_score(
                     fixed_words[k : k + 3], max_diff_k=max_diff_k
                 )
+                if wf > 0 and sum(1 for j in range(k, k + 3) if j in mutated_valid_set) > 1:
+                    wf = 0
                 win_freqs.append(wf)
+            # Kẽ hở 4: mọi vị trí có biến dạng khung (idx thuộc edited_positions) đều phải nằm trong ít nhất 1 cửa sổ KB có wf > 0
+            all_edits_kb_covered = bool(edited_positions) and all(
+                any(win_freqs[k] > 0 for k in range(max(0, idx - 2), min(n - 2, idx + 1)))
+                for idx in edited_positions
+            )
             if win_freqs and (
                 all(wf > 0 for wf in win_freqs)
-                or (has_nonword and any(wf > 0 for wf in win_freqs))
+                or (has_nonword and all_edits_kb_covered)
             ):
                 kb_freq = max(win_freqs) if has_nonword else min(win_freqs)
                 kb_diff = 1
@@ -455,14 +525,8 @@ def _beam_graph_spell_correction(
         if kb_freq < min_kb_freq or (not has_nonword and kb_diff > 0):
             continue
 
-        n_mutated_valid = sum(
-            1
-            for raw_t, fix_w in zip(raw_tokens, fixed_words)
-            if raw_t in ua_map and remove_accents(fix_w) != remove_accents(raw_t)
-        )
-        m_prob = max(index.dict_freq.get(fixed_words[0], 1), 1) / 100000.0
-        for k in range(n - 1):
-            m_prob *= fwd_prob.get(fixed_words[k], {}).get(fixed_words[k + 1], 1e-6)
+        n_mutated_valid = len(mutated_valid_set)
+        m_prob = index.markov_prob(fixed_words)
 
         phrase_str = " ".join(fixed_words)
         m = QueryMatch(
@@ -476,8 +540,8 @@ def _beam_graph_spell_correction(
             context_span_len=min(n - 1, 2),
             markov_prob=m_prob,
         )
-        m.confidence = round(min(0.96, compute_confidence(m) * (0.50 + 0.50 * min_sim)), 4)
-        rank_k = (0, kb_diff, n_mutated_valid, -round(min_sim, 3), -kb_freq)
+        m.confidence = round(min(0.96, compute_confidence(m) * (0.50 + 0.50 * avg_sim)), 4)
+        rank_k = (0, kb_diff, n_mutated_valid, -round(avg_sim, 3), -kb_freq)
         if phrase_str not in found or rank_k < found[phrase_str][0]:
             found[phrase_str] = (rank_k, m)
 
