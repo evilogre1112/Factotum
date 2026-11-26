@@ -206,10 +206,10 @@ def score_candidate_in_context(
     right_ctx: list[str],
     max_diff_k: int = MAX_SUPERSTRING_DIFF_K,
 ) -> tuple[int, int, int, int, str]:
-    """Chấm điểm ứng viên F theo ngữ cảnh trái/phải (Tier 1: 2 đầu, Tier 2: 1 đầu, Tier 3: nối 1 từ, Tier 4: cạnh 1-gram, Tier 5: đơn lẻ)."""
+    """Chấm điểm ứng viên F theo ngữ cảnh trái/phải (Tier 1..5)."""
     f_words = f_match.phrase.split()
-    left_win = left_ctx[-MAX_CONTEXT_WINDOW:] if left_ctx else []
-    right_win = right_ctx[:MAX_CONTEXT_WINDOW] if right_ctx else []
+    left_win = left_ctx if left_ctx else []
+    right_win = right_ctx if right_ctx else []
     fwd = index.fwd_graph
 
     e_left = fwd.get(left_win[-1], {}).get(f_words[0], 0) if left_win else 0
@@ -353,7 +353,7 @@ def query_with_context(
             continue
 
         right_ctx = segments[seg_idx + 1][1] if (seg_idx + 1 < len(segments) and segments[seg_idx + 1][0]) else []
-        seg_allow_missing = allow_missing and len(seg_tokens) <= 3
+        seg_allow_missing = allow_missing and len(index.build_kb_horizons(seg_tokens)) <= 1
         f_variants = expand_query_variants(index, " ".join(seg_tokens))
         f_candidates_map: dict[str, QueryMatch] = {}
         left_anchors = {bw[-1] for bw, *_ in sentence_beam if bw}

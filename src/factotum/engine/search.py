@@ -23,12 +23,12 @@ from factotum.engine.models import (
 def split_sticky_token(index: GraphIndex, token: str) -> list[list[str]]:
     """Tách token dính liền (vd: 'btup') thành các tổ hợp mảnh hợp lệ trong UnaccentedMap."""
     n = len(token)
-    if n == 0 or n > 20:
-        return []
-
     results: list[list[str]] = []
     path: list[str] = []
     ua_map = index.unaccented_map
+    max_piece_len = index.max_vocab_word_len
+    if n == 0 or n > max_piece_len * 3:
+        return []
 
     def backtrack(start: int) -> None:
         if len(results) >= MAX_SPLITS_PER_TOKEN:
@@ -37,7 +37,7 @@ def split_sticky_token(index: GraphIndex, token: str) -> list[list[str]]:
             results.append(path.copy())
             return
 
-        max_end = min(n, start + MAX_SYLLABLE_LEN)
+        max_end = min(n, start + max_piece_len)
         for end in range(max_end, start, -1):
             piece = token[start:end]
             if piece in ua_map and (len(piece) == 1 or is_valid_vietnamese_syllable(piece)):
@@ -108,7 +108,9 @@ def expand_query_variants(index: GraphIndex, raw_query: str) -> list[list[list[s
             else:
                 per_token_options.append([[[tok]]])
 
-    max_vars = 4 if len(raw_tokens) >= 6 else (8 if len(raw_tokens) >= 4 else MAX_QUERY_VARIANTS)
+    multi_split_tokens = sum(1 for opts in per_token_options if len(opts) > 1)
+    ambig_tokens = sum(1 for opts in per_token_options if len(opts) > 1 or len(opts[0][0]) > 1)
+    max_vars = max(4, MAX_QUERY_VARIANTS // (1 + multi_split_tokens + max(0, ambig_tokens - 3) // 2))
     variants: list[list[list[str]]] = []
     for combo in product(*per_token_options):
         merged: list[list[str]] = []
@@ -211,8 +213,9 @@ def direct_kb_search(
                     if prev is None or rank_key(cand) < rank_key(prev):
                         matches_by_phrase[sub_phrase] = cand
 
+    strong_f = index.strong_kb_freq
     strong_zero_miss = sum(
-        1 for m in matches_by_phrase.values() if m.superstring_diff == 0 or m.freq >= 10
+        1 for m in matches_by_phrase.values() if m.superstring_diff == 0 or m.freq >= strong_f
     )
     is_pure_acronym = all(len(col) > 15 for col in columns)
     if not allow_missing or L < 2 or strong_zero_miss >= 3 or (is_pure_acronym and strong_zero_miss >= 1):
@@ -405,7 +408,26 @@ def search_variant(
             break
 
         zero_flat.sort(key=lambda x: -x[1])
-        with_miss_next.sort(key=lambda x: -x[1])
+        strong_f = index.strong_kb_freq
+        if with_miss_next:
+            with_miss_kb = [
+                item
+                for item in with_miss_next
+                if (len(item[0]) >= 4 and dict_freq.get(" ".join(item[0][-4:-1]), 0) >= strong_f)
+                or (len(item[0]) >= 3 and dict_freq.get(" ".join(item[0][-3:]), 0) >= strong_f)
+            ]
+            with_miss_kb.sort(key=lambda x: -x[1])
+            with_miss_next.sort(key=lambda x: -x[1])
+            seen_miss: set[tuple[str, ...]] = set()
+            merged_miss: list[tuple[list[str], float, int, list[str]]] = []
+            for item in with_miss_kb[:5] + with_miss_next[:10]:
+                k_pw = tuple(item[0])
+                if k_pw not in seen_miss:
+                    seen_miss.add(k_pw)
+                    merged_miss.append(item)
+            top_miss = merged_miss[:10]
+        else:
+            top_miss = []
         if col_idx < len(columns) - 1 and len(full_col) > 15:
             # Viterbi chuẩn trên cột viết tắt: giữ đường tốt nhất cho từng từ đích (tối đa 60 trạng thái)
             # để không cắt tham lam nhánh đúng (vd: gây -> tai -> nạn -> giao -> thông) ở bước đầu.
@@ -413,17 +435,63 @@ def search_variant(
             best_per_word.sort(key=lambda x: -x[1])
             second_per_word = [bucket[1] for bucket in per_state_zero.values() if len(bucket) > 1]
             second_per_word.sort(key=lambda x: -x[1])
-            beam = best_per_word[:60] + second_per_word[:10] + with_miss_next[:10]
+            beam = best_per_word[:60] + second_per_word[:10] + top_miss
         else:
-            beam = zero_flat[:BEAM_WIDTH] + with_miss_next[:10]
+            beam = zero_flat[:BEAM_WIDTH] + top_miss
 
+    has_direct_kb = bool(results_map)
+    strong_f = index.strong_kb_freq
+    fwd_graph = index.fwd_graph
     for path_words, m_prob, miss_cnt, miss_words in beam:
         phrase = " ".join(path_words)
         if phrase in results_map:
             continue
-        results_map[phrase] = QueryMatch(
-            phrase, 0, miss_cnt, -1, "", miss_words, markov_prob=m_prob
-        )
+        promoted = False
+        if (
+            not has_direct_kb
+            and miss_cnt == 1
+            and len(miss_words) == 1
+            and len(path_words) >= 4
+            and all(
+                fwd_graph.get(path_words[k], {}).get(path_words[k + 1], 0) > 0
+                for k in range(len(path_words) - 1)
+            )
+        ):
+            mw = miss_words[0]
+            n_pw = len(path_words)
+            for gap_i in range(2, n_pw - 1):
+                if path_words[gap_i] != mw:
+                    continue
+                f_l, d_l, _ = index.lookup_real_phrase_score(path_words[gap_i - 2 : gap_i + 1], max_diff_k=0)
+                if f_l >= strong_f and d_l == 0:
+                    f_r, d_r, _ = index.lookup_real_phrase_score(
+                        path_words[gap_i - 1 : gap_i + 2], max_diff_k=max_diff_k
+                    )
+                    if f_r > 0 and d_r >= 0 and (d_r == 0 or gap_i + 2 == n_pw):
+                        covered = set(range(gap_i - 2, gap_i + 2))
+                        if len(covered) < n_pw:
+                            for s_i in range(n_pw - 2):
+                                f_s, d_s, _ = index.lookup_real_phrase_score(
+                                    path_words[s_i : s_i + 3], max_diff_k=0
+                                )
+                                if f_s > 0 and d_s == 0:
+                                    covered.update(range(s_i, s_i + 3))
+                        if len(covered) == n_pw:
+                            results_map[phrase] = QueryMatch(
+                                phrase,
+                                f_l,
+                                miss_cnt,
+                                0,
+                                "",
+                                miss_words,
+                                markov_prob=m_prob,
+                            )
+                            promoted = True
+                            break
+        if not promoted:
+            results_map[phrase] = QueryMatch(
+                phrase, 0, miss_cnt, -1, "", miss_words, markov_prob=m_prob
+            )
 
     return list(results_map.values())
 
@@ -435,9 +503,9 @@ def query_by_kb_composition(
     max_diff_k: int = MAX_SUPERSTRING_DIFF_K,
     min_bridge: int = 0,
 ) -> list[QueryMatch]:
-    """Thử tách câu thành 2 cụm KB độc lập (vd: 'xpvphc atgt' hoặc 'quy định' + 'thời hạn') nối qua cạnh đồ thị."""
+    """Tách truy vấn thành 2 cụm KB độc lập nối qua cạnh đồ thị."""
     n_tok = len(raw_tokens)
-    if n_tok < 2 or n_tok > 8:
+    if n_tok < 2:
         return []
 
     def find_exact_kb(sub_tokens: list[str]) -> list[QueryMatch]:
@@ -480,7 +548,19 @@ def query_by_kb_composition(
         return sorted(found.values(), key=lambda x: -x.freq)[:3]
 
     composed: dict[str, tuple[tuple[int, int, int], QueryMatch]] = {}
-    for k in range(1, n_tok):
+    horizons = index.build_kb_horizons(raw_tokens)
+    if len(horizons) >= 2 and n_tok > 8:
+        split_points = sorted(
+            {
+                pt
+                for _, ed in horizons[:-1]
+                for pt in (ed - 1, ed, ed + 1)
+                if 1 <= pt < n_tok
+            }
+        )
+    else:
+        split_points = list(range(1, n_tok))
+    for k in split_points:
         left_cands = find_exact_kb(raw_tokens[:k])
         if not left_cands:
             continue

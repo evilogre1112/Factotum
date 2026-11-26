@@ -38,9 +38,10 @@ Every day, users type shorthand (`tngt`, `atgt`, `csgt`, `xpvphc`, `nd`), omit V
 | **Context-aware acronym** | `nd 23/24 quy định về atgt đường bộ` | `nghị định 23/24 quy định về an toàn giao thông đường bộ` |
 | **Same `nd`, different context** | `tòa án nd tối cao` | `tòa án nhân dân tối cao` |
 | **Diacritic disambiguation** | `co the bị xử phạt` / `xâm phạm co the người khác` | `có thể bị xử phạt` / `xâm phạm cơ thể người khác` |
-| **Dropped middle word** | `an toan thong` | `an toàn giao thông` |
+| **Dropped middle word** | `an toan thong` / `xe k bang` | `an toàn giao thông` / `xe không có bằng` |
 | **Telex & key-repeat typos** | `buowcs`, `vi pham phappp luat` | `bước`, `vi phạm pháp luật` |
 | **Accented spelling error** | `uống dượu bia phạt bao nhiêu` | `uống rượu bia phạt bao nhiêu` |
+| **Multi-token & real-word typos** | `con nui` / `Hộ kilh doan` | `con nuôi` / `hộ kinh doanh` |
 | **Already valid sentence** | `chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền` | Kept intact without over-correcting |
 
 ---
@@ -196,7 +197,7 @@ To help you evaluate Factotum accurately for your project, here are its practica
 
 Full evaluation reports, charts, and reproduction instructions are maintained in dedicated documents:
 
-- **[Benchmark Report & Charts](benchmark/REPORT.md)** — Evaluation across 20,030 test queries, head-to-head comparison against Gemini & Claude, confidence calibration, and corpus scaling curves.
+- **[Benchmark Report & Charts](benchmark/REPORT.md)** — Evaluation across 20,064 test queries, head-to-head comparison against Gemini & Claude, confidence calibration, and corpus scaling curves.
 - **[Benchmark Methodology & Reproduction](benchmark/README.md)** — Breakdown of the 3 benchmark suites and commands (`python benchmark/run_benchmark.py 10000`).
 - **[Knowledge Files & Customization Guide](output/README.md)** — Details on every file inside `output/`.
 - **[Web Demo Deployment Guide](demo/README.md)** — Packaging and deploying the Gradio demo on Hugging Face Spaces.

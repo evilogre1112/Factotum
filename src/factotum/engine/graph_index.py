@@ -1,5 +1,6 @@
 from array import array
 from collections import defaultdict
+import math
 from pathlib import Path
 import sys
 
@@ -47,6 +48,74 @@ class GraphIndex:
         self.ua_phrase_to_pids: dict[str, int | tuple[int, ...]] = {}      # Cụm không dấu -> pid (int) hoặc tuple[pid]
         self.acronym_to_pids: dict[str, int | tuple[int, ...]] = {}        # Mã viết tắt chữ cái đầu -> pid (int) hoặc tuple[pid]
         self.loaded_from_cache: bool = False
+        self._max_key_len_cache: tuple[int, int] = (0, 7)
+
+    @property
+    def max_vocab_word_len(self) -> int:
+        """Độ dài khóa không dấu lớn nhất trong từ điển."""
+        n_keys = len(self.unaccented_map)
+        if n_keys == 0:
+            return 7
+        if self._max_key_len_cache[0] == n_keys:
+            return self._max_key_len_cache[1]
+        val = max((len(k) for k in self.unaccented_map), default=7)
+        self._max_key_len_cache = (n_keys, max(4, val))
+        return self._max_key_len_cache[1]
+
+    @property
+    def strong_kb_freq(self) -> int:
+        """Ngưỡng tần suất cụm KB mạnh theo quy mô kho."""
+        return max(1, round(2.0 * math.log10(max(len(self.phrases), 1))))
+
+    @property
+    def medium_kb_freq(self) -> int:
+        """Ngưỡng tần suất cụm KB trung bình theo quy mô kho."""
+        return max(1, self.strong_kb_freq // 2)
+
+    def build_kb_horizons(self, tokens: list[str]) -> list[tuple[int, int]]:
+        """Phân đoạn chuỗi token thành các khoảng giao cụm KB liên tiếp [st, ed)."""
+        n = len(tokens)
+        if n == 0:
+            return []
+
+        ua_map = self.unaccented_map
+        real_vocab = self.real_vocab
+
+        def _tok_pids(tok: str) -> set[int] | tuple[int, ...]:
+            ua = remove_accents(tok)
+            cands = ua_map.get(tok) or ua_map.get(ua) or ([tok] if tok in real_vocab else [])
+            if cands:
+                return self.get_col_pids(cands)
+            return self.get_acronym_pids(ua)
+
+        raw_segs: list[list[int]] = []
+        pos = 0
+        while pos < n:
+            first_pids = _tok_pids(tokens[pos])
+            k = pos + 1
+            if first_pids:
+                cur: set[int] | None = None
+                while k < n:
+                    nxt = _tok_pids(tokens[k])
+                    if not nxt:
+                        break
+                    base = first_pids if cur is None else cur
+                    inter = set(base).intersection(nxt) if not isinstance(base, set) else base.intersection(nxt)
+                    if inter:
+                        cur = inter
+                        k += 1
+                    else:
+                        break
+            raw_segs.append([pos, k])
+            pos = k
+
+        merged: list[list[int]] = []
+        for st, ed in raw_segs:
+            if merged and ((ed - st) == 1 or (merged[-1][1] - merged[-1][0]) == 1):
+                merged[-1][1] = ed
+            else:
+                merged.append([st, ed])
+        return [(st, ed) for st, ed in merged]
 
     @staticmethod
     def _record_class_edge(fwd_graph: dict[str, dict[str, int]], u: str, v: str, freq: int) -> None:

@@ -29,6 +29,7 @@ from factotum.core.vietnamese import (
     is_vn_orthographic_confusion,
     normalize_vietnamese_tone,
     remove_accents,
+    token_similarity,
     vn_word_similarity,
 )
 

@@ -31,9 +31,9 @@
   },
   {
     "category": "multi_entity_context",
-    "query": "trách nhiệm của ubnd cấp tỉnh về bgtvt",
-    "required_keywords": ["ủy ban nhân dân", "bộ giao thông vận tải"],
-    "expected": "trách nhiệm của ủy ban nhân dân cấp tỉnh về bộ giao thông vận tải"
+    "query": "trách nhiệm của ubnd cấp tỉnh và sgtvt",
+    "required_keywords": ["ủy ban nhân dân", "sở giao thông vận tải"],
+    "expected": "trách nhiệm của ủy ban nhân dân cấp tỉnh và sở giao thông vận tải"
   },
   {
     "category": "multi_entity_context",
@@ -120,6 +120,162 @@
     "expected": "quan hệ hôn nhân và gia đình"
   },
   {
+    "category": "repaired_clean_phrases",
+    "query": "he thong trich xuat ma so thue",
+    "required_keywords": ["hệ thống", "trích xuất", "mã số thuế"],
+    "expected": "hệ thống trích xuất mã số thuế"
+  },
+  {
+    "category": "repaired_clean_phrases",
+    "query": "hoan thien hop dong de ky ket",
+    "required_keywords": ["hoàn thiện", "hợp đồng", "ký kết"],
+    "expected": "hoàn thiện hợp đồng để ký kết"
+  },
+  {
+    "category": "repaired_clean_phrases",
+    "query": "tinh tu so dau tien cua hoa don",
+    "required_keywords": ["số đầu tiên", "hóa đơn"],
+    "expected": "tính từ số đầu tiên của hóa đơn"
+  },
+  {
+    "category": "repaired_clean_phrases",
+    "query": "khoi kien theo quy dinh phap luat",
+    "required_keywords": ["khởi kiện", "quy định", "pháp luật"],
+    "expected": "khởi kiện theo quy định pháp luật"
+  },
+  {
+    "category": "repaired_clean_phrases",
+    "query": "thi hanh quyet dinh cua trong tai",
+    "required_keywords": ["thi hành", "quyết định", "trọng tài"],
+    "expected": "thi hành quyết định của trọng tài"
+  },
+  {
+    "category": "repaired_clean_phrases",
+    "query": "con dau cua chi nhanh cong ty",
+    "required_keywords": ["con dấu", "chi nhánh", "công ty"],
+    "expected": "con dấu của chi nhánh công ty"
+  },
+  {
+    "category": "repaired_clean_phrases",
+    "query": "gia tri hop dong khong tinh thue",
+    "required_keywords": ["giá trị", "hợp đồng", "thuế"],
+    "expected": "giá trị hợp đồng không tính thuế"
+  },
+  {
+    "category": "repaired_clean_phrases",
+    "query": "cai nghien tai co so giao duc",
+    "required_keywords": ["cai nghiện", "cơ sở giáo dục"],
+    "expected": "cai nghiện tại cơ sở giáo dục"
+  },
+  {
+    "category": "repaired_clean_phrases",
+    "query": "cac yeu cau ky thuat cua goi thau",
+    "required_keywords": ["yêu cầu", "kỹ thuật", "gói thầu"],
+    "expected": "các yêu cầu kỹ thuật của gói thầu"
+  },
+  {
+    "category": "repaired_clean_phrases",
+    "query": "bao ve chu quyen toan ven lanh tho",
+    "required_keywords": ["chủ quyền", "toàn vẹn lãnh thổ"],
+    "expected": "bảo vệ chủ quyền toàn vẹn lãnh thổ"
+  },
+  {
+    "category": "contextual_acronym",
+    "query": "bien ban bqts ke bien",
+    "required_keywords": ["biên bản", "bảo quản tài sản", "kê biên"],
+    "expected": "biên bản bảo quản tài sản kê biên"
+  },
+  {
+    "category": "contextual_acronym",
+    "query": "thu tuc ldc hop phap",
+    "required_keywords": ["thủ tục", "lập di chúc", "hợp pháp"],
+    "expected": "thủ tục lập di chúc hợp pháp"
+  },
+  {
+    "category": "contextual_acronym",
+    "query": "can cu xdth hop dong lao dong",
+    "required_keywords": ["căn cứ", "xác định thời hạn", "hợp đồng lao động"],
+    "expected": "căn cứ xác định thời hạn hợp đồng lao động"
+  },
+  {
+    "category": "contextual_acronym",
+    "query": "nop ban sao btn dai hoc",
+    "required_keywords": ["bản sao", "bằng tốt nghiệp", "đại học"],
+    "expected": "nộp bản sao bằng tốt nghiệp đại học"
+  },
+  {
+    "category": "contextual_acronym",
+    "query": "xe máy không gplx bị phạt bao nhiêu",
+    "required_keywords": ["xe máy", "giấy phép lái xe", "phạt"],
+    "expected": "xe máy không giấy phép lái xe bị phạt bao nhiêu"
+  },
+  {
+    "category": "canonical_acronym",
+    "query": "ubnd",
+    "required_keywords": ["ủy ban nhân dân"],
+    "expected": "ủy ban nhân dân"
+  },
+  {
+    "category": "canonical_acronym",
+    "query": "csgt",
+    "required_keywords": ["cảnh sát giao thông"],
+    "expected": "cảnh sát giao thông"
+  },
+  {
+    "category": "canonical_acronym",
+    "query": "bhxh",
+    "required_keywords": ["bảo hiểm xã hội"],
+    "expected": "bảo hiểm xã hội"
+  },
+  {
+    "category": "canonical_acronym",
+    "query": "bhyt",
+    "required_keywords": ["bảo hiểm y tế"],
+    "expected": "bảo hiểm y tế"
+  },
+  {
+    "category": "canonical_acronym",
+    "query": "btp",
+    "required_keywords": ["bộ tư pháp"],
+    "expected": "bộ tư pháp"
+  },
+  {
+    "category": "canonical_acronym",
+    "query": "gplx",
+    "required_keywords": ["giấy phép lái xe"],
+    "expected": "giấy phép lái xe"
+  },
+  {
+    "category": "canonical_acronym",
+    "query": "tand",
+    "required_keywords": ["tòa án nhân dân"],
+    "expected": "tòa án nhân dân"
+  },
+  {
+    "category": "canonical_acronym",
+    "query": "dkkh",
+    "required_keywords": ["đăng ký kết hôn"],
+    "expected": "đăng ký kết hôn"
+  },
+  {
+    "category": "canonical_acronym",
+    "query": "xpvphc",
+    "required_keywords": ["xử phạt vi phạm hành chính"],
+    "expected": "xử phạt vi phạm hành chính"
+  },
+  {
+    "category": "canonical_acronym",
+    "query": "blds",
+    "required_keywords": ["bộ luật dân sự"],
+    "expected": "bộ luật dân sự"
+  },
+  {
+    "category": "canonical_acronym",
+    "query": "blhs",
+    "required_keywords": ["bộ luật hình sự"],
+    "expected": "bộ luật hình sự"
+  },
+  {
     "category": "missing_word_enrichment",
     "query": "an toan thong đường bộ",
     "required_keywords": ["an toàn giao thông", "đường bộ"],
@@ -150,31 +306,79 @@
     "expected": "không gây trở ngại"
   },
   {
-    "category": "typo_and_unaccented",
+    "category": "typo_and_user_query",
     "query": "xu phat vi pham hanh chinh",
     "required_keywords": ["xử phạt", "vi phạm", "hành chính"],
     "expected": "xử phạt vi phạm hành chính"
   },
   {
-    "category": "typo_and_unaccented",
+    "category": "typo_and_user_query",
     "query": "vi pham phappp luat",
     "required_keywords": ["vi phạm", "pháp luật"],
     "expected": "vi phạm pháp luật"
   },
   {
-    "category": "typo_and_unaccented",
+    "category": "typo_and_user_query",
     "query": "uống dượu bia phạt bao nhiêu",
     "required_keywords": ["rượu bia", "phạt"],
     "expected": "uống rượu bia phạt bao nhiêu"
   },
   {
-    "category": "typo_and_unaccented",
+    "category": "typo_and_user_query",
+    "query": "uong ruou bia lai xe bi xu phat",
+    "required_keywords": ["uống rượu bia", "lái xe", "xử phạt"],
+    "expected": "uống rượu bia lái xe bị xử phạt"
+  },
+  {
+    "category": "typo_and_user_query",
+    "query": "chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền",
+    "required_keywords": ["vượt đèn đỏ", "phạt tiền"],
+    "expected": "chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền"
+  },
+  {
+    "category": "typo_and_user_query",
+    "query": "sang tên sổ đỏ mất những khoản phí nào",
+    "required_keywords": ["sang tên", "sổ đỏ", "phí"],
+    "expected": "sang tên sổ đỏ mất những khoản phí nào"
+  },
+  {
+    "category": "typo_and_user_query",
+    "query": "ly hôn đơn phương mất bao lâu thì xong",
+    "required_keywords": ["ly hôn đơn phương"],
+    "expected": "ly hôn đơn phương mất bao lâu thì xong"
+  },
+  {
+    "category": "typo_and_user_query",
+    "query": "làm căn cước công dân gắn chip ở đâu",
+    "required_keywords": ["căn cước công dân"],
+    "expected": "làm căn cước công dân gắn chip ở đâu"
+  },
+  {
+    "category": "typo_and_user_query",
+    "query": "trốn đóng bảo hiểm xã hội bị xử lý thế nào",
+    "required_keywords": ["trốn đóng", "bảo hiểm xã hội", "xử lý"],
+    "expected": "trốn đóng bảo hiểm xã hội bị xử lý thế nào"
+  },
+  {
+    "category": "typo_and_user_query",
+    "query": "khởi kiện đòi nợ cần chuẩn bị hồ sơ gì",
+    "required_keywords": ["khởi kiện", "đòi nợ", "hồ sơ"],
+    "expected": "khởi kiện đòi nợ cần chuẩn bị hồ sơ gì"
+  },
+  {
+    "category": "typo_and_user_query",
+    "query": "sữ lý vi phạm hành chính",
+    "required_keywords": ["xử lý", "vi phạm hành chính"],
+    "expected": "xử lý vi phạm hành chính"
+  },
+  {
+    "category": "typo_and_user_query",
     "query": "hôn nhân gd có yt nc ngoài",
     "required_keywords": ["gia đình", "yếu tố", "nước ngoài"],
     "expected": "hôn nhân gia đình có yếu tố nước ngoài"
   },
   {
-    "category": "typo_and_unaccented",
+    "category": "typo_and_user_query",
     "query": "thẩm quyền của btp trong đăng ký",
     "required_keywords": ["thẩm quyền", "bộ tư pháp", "đăng ký"],
     "expected": "thẩm quyền của bộ tư pháp trong đăng ký"

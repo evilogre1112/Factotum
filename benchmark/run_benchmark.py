@@ -40,7 +40,7 @@ FAILURES_CSV_PATH = BENCH_DIR / "failures.csv"
 
 _LOG_EPS = math.log(1e-8)
 
-# Hư từ / từ chức năng phổ biến được bỏ qua khi trích từ khóa nội dung tự động
+# Hư từ / từ chức năng / từ nghi vấn phụ trợ được bỏ qua khi trích từ khóa nội dung tự động
 _VN_STOPWORDS = frozenset(
     {
         "của", "cho", "về", "với", "bởi", "để", "nhằm", "tại", "do", "vì", "nhờ",
@@ -48,8 +48,58 @@ _VN_STOPWORDS = frozenset(
         "các", "những", "mỗi", "mọi", "là", "trong", "trên", "dưới", "theo",
         "từ", "đến", "khi", "được", "bị", "có", "không", "đã", "đang", "sẽ",
         "này", "đó", "nào", "như", "sau", "trước", "qua", "bằng", "vào", "ra",
+        "bao", "nhiêu", "thế", "phải", "chưa", "rồi", "đâu", "sao", "gì", "ai",
+        "mấy", "cũng", "vẫn", "đều", "chỉ", "rất", "quá", "lắm", "hơn", "nhất",
+        "lại", "còn", "cùng", "nhau", "vậy", "thôi", "nên", "một", "nữa",
     }
 )
+
+# Từ nối/hư từ không được đứng đầu câu mẫu để tránh sinh câu cụt lủn
+_DANGLING_START_WORDS = frozenset(
+    {
+        "và", "hoặc", "nhưng", "hay", "mà", "thì", "nếu", "tuy", "dù", "hễ",
+        "của", "về", "cho", "với", "bởi", "để", "nhằm", "tại", "do", "vì",
+        "nhờ", "trong", "trên", "dưới", "theo", "từ", "đến", "khi", "sau",
+        "trước", "qua", "bằng", "vào", "ra", "các", "những", "là", "được",
+        "bị", "đã", "đang", "sẽ", "cũng", "vẫn", "đều", "lại", "còn", "này", "đó",
+    }
+)
+
+# Danh sách viết tắt chuẩn của cơ quan, văn bản, tổ chức được phép đứng độc lập
+_CANONICAL_STANDALONE_ACRONYMS = {
+    "bộ tư pháp": "btp",
+    "ủy ban nhân dân": "ubnd",
+    "cảnh sát giao thông": "csgt",
+    "giấy phép lái xe": "gplx",
+    "an toàn giao thông": "atgt",
+    "xử phạt vi phạm hành chính": "xpvphc",
+    "đăng ký kết hôn": "dkkh",
+    "bảo hiểm xã hội": "bhxh",
+    "bảo hiểm y tế": "bhyt",
+    "hội đồng nhân dân": "hdnd",
+    "tòa án nhân dân": "tand",
+    "bộ luật dân sự": "blds",
+    "bộ luật hình sự": "blhs",
+    "bộ giao thông vận tải": "bgtvt",
+    "bộ tài chính": "btc",
+    "bộ y tế": "byt",
+}
+
+
+def _is_clean_benchmark_phrase(words: list[str] | tuple[str, ...], dangling_words: set[str]) -> bool:
+    """Lọc bỏ câu cụt lủn ở đầu/cuối và đảm bảo có ít nhất 2 từ khóa thực từ (danh từ/động từ)."""
+    if len(words) < 2:
+        return False
+    if words[0] in _DANGLING_START_WORDS or words[-1] in dangling_words or words[-1] in _VN_STOPWORDS:
+        return False
+    if len(extract_content_tokens(" ".join(words))) < 2:
+        return False
+    return True
+
+
+def _is_named_entity_phrase(p_str: str) -> bool:
+    """Kiểm tra cụm có phải tên cơ quan, văn bản hoặc tổ chức chuẩn được viết tắt độc lập không."""
+    return p_str.strip().lower() in _CANONICAL_STANDALONE_ACRONYMS
 
 
 def percentile(values: list[float], p: float) -> float:
@@ -373,7 +423,7 @@ def build_auto_stress_cases(
         for p_str, words, freq in engine.phrases
         if 2 <= len(words) <= 6
         and freq >= 2
-        and words[-1] not in dangling_words
+        and _is_clean_benchmark_phrase(words, dangling_words)
         and all(
             w.isalpha()
             and len(w) >= 2
@@ -387,12 +437,26 @@ def build_auto_stress_cases(
         for p_str, words, freq in pool_2_6
         if 3 <= len(words) <= 5 and freq >= 3
     ]
+    pool_4_6 = [
+        (p_str, words, freq)
+        for p_str, words, freq in pool_2_6
+        if 4 <= len(words) <= 6 and freq >= 3
+    ]
+    pool_entity_acro = [
+        (p_str, words, freq)
+        for p_str, words, freq in pool_3_5
+        if _is_named_entity_phrase(p_str)
+    ]
     if not pool_2_6:
         return []
 
     weights_2_6 = [freq for _, _, freq in pool_2_6]
     pool_3_5_use = pool_3_5 or pool_2_6
     weights_3_5 = [freq for _, _, freq in pool_3_5_use]
+    pool_4_6_use = pool_4_6 or pool_3_5_use
+    weights_4_6 = [freq for _, _, freq in pool_4_6_use]
+    pool_ent_use = pool_entity_acro or pool_3_5_use
+    weights_ent = [freq for _, _, freq in pool_ent_use]
 
     n_unacc = int(total_target * 0.50)
     n_mixed = int(total_target * 0.20)
@@ -408,10 +472,21 @@ def build_auto_stress_cases(
             for idx, w in enumerate(words)
         ]
         cases.append({"category": "auto_mixed_abbr", "query": " ".join(q_tokens), "expected": p_str})
-    for p_str, words, _freq in rng.choices(pool_3_5_use, weights=weights_3_5, k=n_acro):
-        acro = "".join(remove_accents(w)[0] for w in words)
-        cases.append({"category": "auto_acronym", "query": acro, "expected": p_str})
-    for p_str, words, _freq in rng.choices(pool_3_5_use, weights=weights_3_5, k=n_miss):
+    # Viết tắt toàn cụm: Chỉ viết tắt độc lập nếu là cơ quan/tổ chức chuẩn, còn lại bắt buộc có từ neo ngữ cảnh
+    canon_stress_cases = [(p, w, f) for p, w, f in pool_2_6 if p in _CANONICAL_STANDALONE_ACRONYMS]
+    if canon_stress_cases:
+        n_canon = min(n_acro // 2, len(canon_stress_cases))
+        for p_str, _words, _freq in rng.choices(canon_stress_cases, k=n_canon):
+            cases.append(
+                {"category": "auto_acronym", "query": _CANONICAL_STANDALONE_ACRONYMS[p_str], "expected": p_str}
+            )
+    n_acro_remain = n_acro - len([c for c in cases if c["category"] == "auto_acronym"])
+    for p_str, words, _freq in rng.choices(pool_4_6_use, weights=weights_4_6, k=n_acro_remain):
+        anchor_k = 1 if len(words) == 4 else 2
+        acro = "".join(remove_accents(w)[0] for w in words[anchor_k:])
+        q = " ".join(list(words[:anchor_k]) + [acro])
+        cases.append({"category": "auto_acronym", "query": q, "expected": p_str})
+    for p_str, words, _freq in rng.choices(pool_4_6_use, weights=weights_4_6, k=n_miss):
         if len(words) >= 3:
             drop_idx = rng.randint(1, len(words) - 2)
             dropped = [remove_accents(w) for i, w in enumerate(words) if i != drop_idx]
@@ -457,10 +532,6 @@ def run_held_out_benchmark(
         test_idx = set(indices[n_train:])
 
         train_docs = [docs[i] for i in sorted(train_idx)]
-        held_out_tokens_all: list[str] = []
-        for i in sorted(test_idx):
-            held_out_tokens_all.extend(doc_tokens_list[i][1])
-
         batch_res = extract_phrases_batch([raw for _, raw in train_docs])
         for (doc_name, _), res in zip(train_docs, batch_res):
             write_pure_log(pure_dir / f"train_{doc_name}.txt", res)
@@ -479,27 +550,39 @@ def run_held_out_benchmark(
             show_progress=False,
         )
 
+        test_docs = [docs[i] for i in sorted(test_idx)]
+        batch_res_test = extract_phrases_batch([raw for _, raw in test_docs])
         dangling_words = load_dangling_end_words()
         ngram_counts: Counter[str] = Counter()
-        for k in (3, 4, 5):
-            for i in range(len(held_out_tokens_all) - k + 1):
-                window = held_out_tokens_all[i : i + k]
-                if window[-1] not in dangling_words and all(
-                    w.isalpha()
-                    and len(w) >= 2
-                    and not is_single_consonant_bullet(w)
-                    and is_valid_vietnamese_syllable(w)
-                    and w in train_engine.real_vocab
-                    for w in window
+        for doc_res in batch_res_test:
+            for item in doc_res:
+                p_str = item.text
+                count = item.freq
+                words = p_str.split()
+                if (
+                    2 <= len(words) <= 6
+                    and _is_clean_benchmark_phrase(words, dangling_words)
+                    and all(
+                        w.isalpha()
+                        and len(w) >= 2
+                        and not is_single_consonant_bullet(w)
+                        and is_valid_vietnamese_syllable(w)
+                        and w in train_engine.real_vocab
+                        for w in words
+                    )
                 ):
-                    ngram_counts[" ".join(window)] += 1
+                    ngram_counts[p_str] += count
 
         test_pool = [(p, c) for p, c in ngram_counts.items() if c >= 2]
         if not test_pool:
             return ""
+        test_pool_4_5 = [(p, c) for p, c in test_pool if p.count(" ") >= 3] or test_pool
+        test_pool_ent = [(p, c) for p, c in test_pool if _is_named_entity_phrase(p)] or test_pool
 
         rng = random.Random(seed)
         weights = [c for _, c in test_pool]
+        weights_4_5 = [c for _, c in test_pool_4_5]
+        weights_ent = [c for _, c in test_pool_ent]
         heldout_cases: list[dict] = []
 
         for p_str, _c in rng.choices(test_pool, weights=weights, k=n_unacc):
@@ -512,11 +595,22 @@ def run_held_out_benchmark(
                 for idx, w in enumerate(words)
             ]
             heldout_cases.append({"category": "heldout_mixed_abbr", "query": " ".join(q_tokens), "expected": p_str})
-        for p_str, _c in rng.choices(test_pool, weights=weights, k=n_acro):
+        # Viết tắt toàn cụm: Chỉ viết tắt độc lập nếu là cơ quan/tổ chức chuẩn, còn lại bắt buộc có từ neo ngữ cảnh
+        canon_ent_cases = [(p, c) for p, c in test_pool if p in _CANONICAL_STANDALONE_ACRONYMS]
+        if canon_ent_cases:
+            n_canon = min(n_acro // 2, len(canon_ent_cases))
+            for p_str, _c in rng.choices(canon_ent_cases, k=n_canon):
+                heldout_cases.append(
+                    {"category": "heldout_acronym", "query": _CANONICAL_STANDALONE_ACRONYMS[p_str], "expected": p_str}
+                )
+        n_acro_remain = n_acro - len([c for c in heldout_cases if c["category"] == "heldout_acronym"])
+        for p_str, _c in rng.choices(test_pool_4_5, weights=weights_4_5, k=n_acro_remain):
             words = p_str.split()
-            acro = "".join(remove_accents(w)[0] for w in words)
-            heldout_cases.append({"category": "heldout_acronym", "query": acro, "expected": p_str})
-        for p_str, _c in rng.choices(test_pool, weights=weights, k=n_miss):
+            anchor_k = 1 if len(words) == 4 else 2
+            acro = "".join(remove_accents(w)[0] for w in words[anchor_k:])
+            q = " ".join(words[:anchor_k] + [acro])
+            heldout_cases.append({"category": "heldout_acronym", "query": q, "expected": p_str})
+        for p_str, _c in rng.choices(test_pool_4_5, weights=weights_4_5, k=n_miss):
             words = p_str.split()
             drop_idx = rng.randint(1, len(words) - 2)
             dropped = [remove_accents(w) for i, w in enumerate(words) if i != drop_idx]
@@ -593,7 +687,13 @@ def main() -> None:
         report_sections.append(text_auto)
 
     all_failures.sort(key=lambda x: (x["suite"], x["category"], x["kw_recall"]))
-    with open(FAILURES_CSV_PATH, "w", encoding="utf-8-sig", newline="") as csv_f:
+    out_csv = FAILURES_CSV_PATH
+    try:
+        csv_f = open(out_csv, "w", encoding="utf-8-sig", newline="")
+    except PermissionError:
+        out_csv = BENCH_DIR / f"failures_{get_current_timestamp()}.csv"
+        csv_f = open(out_csv, "w", encoding="utf-8-sig", newline="")
+    with csv_f:
         writer = csv.DictWriter(
             csv_f,
             fieldnames=[
@@ -618,7 +718,7 @@ def main() -> None:
     report_path = BENCH_DIR / f"report_{target_n}_{get_current_timestamp()}.txt"
     report_path.write_text("\n\n".join(report_sections) + "\n", encoding="utf-8")
     print(f"\n>> Đã lưu báo cáo benchmark tại: {report_path}")
-    print(f">> Đã xuất {len(all_failures):,} câu còn thiếu từ khóa bắt buộc ra: {FAILURES_CSV_PATH}")
+    print(f">> Đã xuất {len(all_failures):,} câu còn thiếu từ khóa bắt buộc ra: {out_csv}")
 
 
 if __name__ == "__main__":

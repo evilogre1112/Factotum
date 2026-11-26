@@ -136,6 +136,79 @@ class TestFactotum(unittest.TestCase):
             "an toàn giao thông",
         )
 
+    def test_reviewer_zero_markov_neighbor_spell_repair(self) -> None:
+        """Khi Worker cho chuỗi 0% Markov (đứt cạnh), Reviewer dò hàng xóm đồ thị để sửa lỗi chính tả."""
+        from factotum.engine.models import EditSpan, QueryMatch
+        from factotum.engine.reviewer import review_matches
+
+        model = Factotum().fit(
+            [
+                (
+                    "hoạt động kinh doanh và đăng ký kinh doanh theo quy định. "
+                    "công đoàn cơ sở và đoàn kiểm tra liên ngành."
+                )
+                * 4
+            ]
+        )
+        dead_match = QueryMatch(
+            phrase="kinh đoàn",
+            freq=0,
+            missing_count=0,
+            superstring_diff=-1,
+            source_phrase="",
+            missing_words=[],
+            markov_prob=1e-12,
+            edits=[
+                EditSpan(orig="kinh", start=0, end=1, kind="unaccented"),
+                EditSpan(orig="doan", start=1, end=2, kind="unaccented"),
+            ],
+        )
+        reviewed = review_matches(model.engine, [dead_match], "kinh doan", top_k=3)
+        self.assertTrue(reviewed)
+        self.assertEqual(reviewed[0].phrase, "kinh doanh")
+        self.assertGreater(reviewed[0].markov_prob, dead_match.markov_prob)
+        self.assertEqual(model.restore("kinh doan"), "kinh doanh")
+        self.assertEqual(model.restore("kinh doang"), "kinh doanh")
+
+    def test_bidirectional_beam_spell_multi_typos(self) -> None:
+        """Beam Search 2 chiều từ neo sửa được 2 từ lỗi liền kề dù neo ở đầu, giữa, cuối hay không có neo."""
+        model = Factotum().fit(
+            [
+                (
+                    "đăng ký hộ kinh doanh và hoạt động hộ kinh doanh theo quy định pháp luật. "
+                    "hộ kinh doanh chịu trách nhiệm về nghĩa vụ thuế."
+                )
+                * 4
+            ]
+        )
+        for q in ("hộ kilh doan", "ho kilh doanh", "ho kinh doan", "ho kilh doan"):
+            self.assertEqual(model.restore(q), "hộ kinh doanh", f"Failed on {q!r}")
+
+    def test_long_sentence_spell_and_multi_missing_gaps(self) -> None:
+        """Sửa lỗi chính tả trên câu dài và chèn nhiều vị trí thiếu từ."""
+        model = Factotum().fit(
+            [
+                (
+                    "thủ tục đăng ký hộ kinh doanh tại ủy ban nhân dân cấp huyện. "
+                    "hoạt động hộ kinh doanh theo quy định của pháp luật. "
+                    "người sử dụng lao động có trách nhiệm đóng bảo hiểm xã hội. "
+                    "người sử dụng lao động và giấy phép lái xe của công dân. "
+                    "giấy phép lái xe theo quy định hiện hành."
+                )
+                * 4
+            ]
+        )
+        self.assertEqual(
+            model.restore("thủ tục đăng ký hộ kilh doan tại ủy ban nhân dân"),
+            "thủ tục đăng ký hộ kinh doanh tại ủy ban nhân dân",
+        )
+        self.assertEqual(
+            model.restore("người sử dụng động và giấy phép xe"),
+            "người sử dụng lao động và giấy phép lái xe",
+        )
+        self.assertGreaterEqual(model.engine.strong_kb_freq, 1)
+        self.assertLessEqual(model.engine.medium_kb_freq, model.engine.strong_kb_freq)
+
 
 if __name__ == "__main__":
     unittest.main()

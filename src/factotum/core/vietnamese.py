@@ -228,6 +228,23 @@ def is_vn_orthographic_confusion(word_a: str, word_b: str) -> bool:
     return any(onset_a in g and onset_b in g for g in _VN_HOMOPHONE_ONSET_GROUPS)
 
 
+def token_similarity(word_a: str, word_b: str) -> float:
+    """Đo độ tương đồng chữ cái trung lập ngôn ngữ [0.0 .. 1.0] dựa trên Damerau-Levenshtein."""
+    if not word_a or not word_b:
+        return 0.0
+    if word_a == word_b:
+        return 1.0
+    ua_a = remove_accents(collapse_repeated_chars(word_a))
+    ua_b = remove_accents(collapse_repeated_chars(word_b))
+    if ua_a == ua_b:
+        return 0.98 if word_a != word_b else 1.0
+    max_len = max(len(ua_a), len(ua_b), 1)
+    dl = _damerau_levenshtein(ua_a, ua_b)
+    if dl > max(2, max_len // 2):
+        return 0.0
+    return max(0.0, 1.0 - dl / max_len)
+
+
 def vn_word_similarity(raw_word: str, candidate: str) -> float:
     """Đo độ tương đồng âm tiết tiếng Việt [0.0 .. 1.0] theo khung không dấu, dấu mũ/móc, thanh điệu và phần vần."""
     if not raw_word or not candidate:

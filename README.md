@@ -38,9 +38,10 @@ Hằng ngày người dùng thường gõ tắt (`tngt`, `atgt`, `csgt`, `xpvphc
 | **Tự hiểu viết tắt theo ngữ cảnh** | `nd 23/24 quy định về atgt đường bộ` | `nghị định 23/24 quy định về an toàn giao thông đường bộ` |
 | **Cùng từ `nd`, khác ngữ cảnh** | `tòa án nd tối cao` | `tòa án nhân dân tối cao` |
 | **Phân biệt nghĩa không dấu** | `co the bị xử phạt` / `xâm phạm co the người khác` | `có thể bị xử phạt` / `xâm phạm cơ thể người khác` |
-| **Rơi mất từ ở giữa** | `an toan thong` | `an toàn giao thông` |
+| **Rơi mất từ ở giữa** | `an toan thong` / `xe k bang` | `an toàn giao thông` / `xe không có bằng` |
 | **Lỗi gõ Telex & lặp phím** | `buowcs`, `vi pham phappp luat` | `bước`, `vi phạm pháp luật` |
 | **Sai chính tả trên câu có dấu** | `uống dượu bia phạt bao nhiêu` | `uống rượu bia phạt bao nhiêu` |
+| **Gõ nhầm/thiếu chữ đa từ** | `con nui` / `Hộ kilh doan` | `con nuôi` / `hộ kinh doanh` |
 | **Giữ nguyên câu đã gõ đúng** | `chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền` | Giữ nguyên không sửa bừa |
 
 ---
@@ -196,7 +197,7 @@ g++ -O3 -std=c++17 -shared -fPIC src/factotum/builder/native/sa_lcp.cpp -o src/f
 
 Toàn bộ báo cáo kiểm thử, biểu đồ trực quan và hướng dẫn tự chạy benchmark được tách riêng để trang giới thiệu luôn gọn gàng:
 
-- **[Báo cáo Benchmark & Biểu đồ trực quan](benchmark/REPORT.md)** — Kết quả đánh giá trên 20.030 câu kiểm thử, đối đầu trực tiếp với Gemini & Claude, biểu đồ so sánh trực quan, phân tích độ tin cậy và đường cong tăng trưởng dữ liệu.
+- **[Báo cáo Benchmark & Biểu đồ trực quan](benchmark/REPORT.md)** — Kết quả đánh giá trên 20.064 câu kiểm thử, đối đầu trực tiếp với Gemini & Claude, biểu đồ so sánh trực quan, phân tích độ tin cậy và đường cong tăng trưởng dữ liệu.
 - **[Phương pháp & Hướng dẫn tự chạy Benchmark](benchmark/README.md)** — Cấu trúc 3 bộ kiểm thử và lệnh tái lập kết quả (`python benchmark/run_benchmark.py 10000`).
 - **[Giải thích các file tri thức & Cách tùy chỉnh](output/README.md)** — Chi tiết từng file trong thư mục `output/`.
 - **[Hướng dẫn đóng gói Demo Web](demo/README.md)** — Tự triển khai demo trên Hugging Face Spaces hoặc Gradio.

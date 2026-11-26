@@ -3,6 +3,7 @@ from factotum.core.extension import (
     is_dangling_phrase,
     is_valid_vietnamese_syllable,
     remove_accents,
+    token_similarity,
 )
 from factotum.engine.graph_index import GraphIndex
 from factotum.engine.models import (
@@ -213,7 +214,8 @@ def _review_acronym_edits(
             right_b = words[ed] if ed < n else ""
             cur_l_ok = _has_graph_edge(fwd_g, left_b, words[st])
             cur_r_ok = _has_graph_edge(fwd_g, words[ed - 1], right_b)
-            if cur_block_freq >= 5 and (span_len >= 3 or (cur_l_ok and cur_r_ok)):
+            med_kb_freq = index.medium_kb_freq
+            if cur_block_freq >= med_kb_freq and (span_len >= 3 or (cur_l_ok and cur_r_ok)):
                 continue
 
             def _block_key(
@@ -225,7 +227,7 @@ def _review_acronym_edits(
                 l_ok = _has_graph_edge(fwd_g, left_b, trial_words[st])
                 r_ok = _has_graph_edge(fwd_g, trial_words[ed - 1], right_b)
                 both_broken = 1 if (left_b and right_b and not l_ok and not r_ok) else 0
-                strong_kb = 1 if block_freq >= 5 else 0
+                strong_kb = 1 if block_freq >= med_kb_freq else 0
                 s_max_len, s_cross, _s_hits, s_freq = _span_kb_context(
                     index, trial_words, st, ed, allow_superstring=False
                 )
@@ -301,10 +303,12 @@ def _review_single_edits(
         if not edge_broken and not (allow_kb_upgrade and n >= 3 and cur_kb_len < max_possible_len):
             continue
 
-        cands = ua_map.get(orig) or ua_map.get(ua_orig)
-        if not cands:
-            continue
+        cands = ua_map.get(orig) or ua_map.get(ua_orig) or ()
 
+        cur_adj_kb_freq = max(
+            index.dict_freq.get(f"{left_w} {cur}", 0) if left_w else 0,
+            index.dict_freq.get(f"{cur} {right_w}", 0) if right_w else 0,
+        )
         orig_is_syll = len(ua_orig) >= 2 and is_valid_vietnamese_syllable(ua_orig)
         best_f = ""
         best_score = (0, 0, 0, 0, 0.0)
@@ -328,6 +332,12 @@ def _review_single_edits(
 
             # Ưu tiên sửa cạnh đứt trước, sau đó nâng cấp ngữ cảnh KB quanh vị trí đang xét
             if edge_broken and cand_broken < cur_broken:
+                cand_adj_kb_freq = max(
+                    index.dict_freq.get(f"{left_w} {cand}", 0) if left_w else 0,
+                    index.dict_freq.get(f"{cand} {right_w}", 0) if right_w else 0,
+                )
+                if cur_adj_kb_freq > 0 and c_kb_len <= cur_kb_len and cand_adj_kb_freq < cur_adj_kb_freq:
+                    continue
                 tier_gain = 3 if cand_broken == 0 else 2
                 score = (tier_gain, c_kb_len, c_kb_hits, c_kb_freq, cl * cr if cand_broken == 0 else max(cl, cr))
             elif (
@@ -345,10 +355,142 @@ def _review_single_edits(
                 best_score = score
                 best_f = cand
 
+        # Dò hàng xóm đồ thị để sửa lỗi chính tả khi đổi dấu trong ua_map không nối được cạnh.
+        is_valid_ua = orig in ua_map
+        if (
+            not best_f
+            and edge_broken
+            and n >= 2
+            and len(ua_orig) >= 2
+            and ua_orig.isalpha()
+        ):
+            all_edges_broken = all(
+                fwd_prob.get(words[j], {}).get(words[j + 1], 0.0) == 0.0 for j in range(n - 1)
+            )
+            if all_edges_broken or is_valid_ua:
+                left_nbrs = index.fwd_graph.get(left_w, {}) if left_w else {}
+                right_nbrs = index.rev_graph.get(right_w, {}) if right_w else {}
+                if left_w and right_w:
+                    nbr_pool = (set(left_nbrs) & set(right_nbrs)) or (set(left_nbrs) | set(right_nbrs))
+                elif left_w:
+                    nbr_pool = left_nbrs
+                else:
+                    nbr_pool = right_nbrs
+
+                min_nbr_sim = 0.72 if is_valid_ua else 0.65
+                min_valid_kb_freq = index.strong_kb_freq if not all_edges_broken else index.medium_kb_freq
+                max_len_diff = max(2, len(ua_orig) // 3)
+                best_nbr = ""
+                best_nbr_score = (0, 0.0, 0.0)
+                for cand in nbr_pool:
+                    if not cand or cand == cur or cand.startswith("<"):
+                        continue
+                    ua_cand = remove_accents(cand)
+                    if abs(len(ua_cand) - len(ua_orig)) > max_len_diff:
+                        continue
+                    if is_valid_ua:
+                        cl = fwd_prob.get(left_w, {}).get(cand, 0.0) if left_w else 1.0
+                        cr = fwd_prob.get(cand, {}).get(right_w, 0.0) if right_w else 1.0
+                        if (left_w and cl == 0.0) or (right_w and cr == 0.0):
+                            continue
+                        trial = list(words)
+                        trial[i] = cand
+                        if index.dict_freq.get(" ".join(trial), 0) < min_valid_kb_freq:
+                            continue
+                        sim = token_similarity(ua_orig, ua_cand)
+                        if sim < min_nbr_sim:
+                            continue
+                        cand_broken = 0
+                    else:
+                        sim = token_similarity(ua_orig, ua_cand)
+                        if sim < min_nbr_sim:
+                            continue
+                        cl = fwd_prob.get(left_w, {}).get(cand, 0.0) if left_w else 1.0
+                        cr = fwd_prob.get(cand, {}).get(right_w, 0.0) if right_w else 1.0
+                        cand_broken = (1 if (left_w and cl == 0.0) else 0) + (1 if (right_w and cr == 0.0) else 0)
+                        if cand_broken >= cur_broken:
+                            continue
+                    tier_gain = 3 if cand_broken == 0 else 2
+                    nbr_score = (tier_gain, round(sim, 4), cl * cr if cand_broken == 0 else max(cl, cr))
+                    if nbr_score > best_nbr_score:
+                        best_nbr_score = nbr_score
+                        best_nbr = cand
+                if best_nbr:
+                    best_f = best_nbr
+
         if best_f:
             words[i] = best_f
             changed = True
     return changed
+
+
+def _try_bridge_broken_edge_by_overlapping_kb(
+    index: GraphIndex,
+    match: QueryMatch,
+    words: list[str],
+    edits: list[EditSpan],
+) -> QueryMatch | None:
+    """Chèn từ nối tại cạnh đứt khi tạo được hai cụm 3 từ KB gối đầu nhau phủ kín hai phía."""
+    n = len(words)
+    if n < 3 or match.missing_count > 0:
+        return None
+    fwd = index.fwd_graph
+    broken_gaps = [i for i in range(1, n) if fwd.get(words[i - 1], {}).get(words[i], 0) == 0]
+    if len(broken_gaps) != 1:
+        return None
+    gap_i = broken_gaps[0]
+    left_w, right_w = words[gap_i - 1], words[gap_i]
+    strong_f = index.strong_kb_freq
+    best_mid = ""
+    best_score = (0, 0, 0)
+
+    for mid_w, _p1 in index.fwd_prob_top.get(left_w, ()):
+        if mid_w.startswith("<") or right_w not in fwd.get(mid_w, ()):
+            continue
+        trial = words[:gap_i] + [mid_w] + words[gap_i:]
+        f_r, d_r, _ = index.lookup_real_phrase_score(trial[gap_i - 1 : gap_i + 2])
+        if f_r <= 0 or d_r < 0:
+            continue
+        f_l = 0
+        if gap_i >= 2:
+            fl_val, dl_val, _ = index.lookup_real_phrase_score(trial[gap_i - 2 : gap_i + 1], max_diff_k=0)
+            if fl_val > 0 and dl_val == 0:
+                f_l = fl_val
+        if f_l < strong_f or (d_r > 0 and gap_i + 2 < len(trial)):
+            continue
+        e_min = min(fwd.get(left_w, {}).get(mid_w, 0), fwd.get(mid_w, {}).get(right_w, 0))
+        sc = (f_l, f_r, e_min)
+        if sc > best_score:
+            best_score = sc
+            best_mid = mid_w
+
+    if not best_mid:
+        return None
+
+    new_words = words[:gap_i] + [best_mid] + words[gap_i:]
+    m_prob = max(index.dict_freq.get(new_words[0], 1), 1) / 100000.0
+    for i in range(len(new_words) - 1):
+        m_prob *= index.fwd_prob.get(new_words[i], {}).get(new_words[i + 1], 1e-6)
+    shifted_edits: list[EditSpan] = []
+    for e in edits:
+        st = e.start + (1 if e.start >= gap_i else 0)
+        ed = e.end + (1 if e.end > gap_i else 0)
+        shifted_edits.append(EditSpan(orig=e.orig, start=st, end=ed, kind=e.kind))
+    shifted_edits.append(EditSpan(orig="", start=gap_i, end=gap_i + 1, kind="missing_insert"))
+    bridged = QueryMatch(
+        phrase=" ".join(new_words),
+        freq=best_score[0],
+        missing_count=1,
+        superstring_diff=0,
+        source_phrase="",
+        missing_words=[best_mid],
+        context_tier=3,
+        context_span_len=len(new_words) - 1,
+        markov_prob=m_prob,
+        edits=shifted_edits,
+    )
+    bridged.confidence = compute_confidence(bridged)
+    return bridged
 
 
 def _repair_broken_markov_bridge(
@@ -478,6 +620,13 @@ def review_matches(
         if rm.phrase not in seen_phrases:
             seen_phrases.add(rm.phrase)
             repaired_matches.append(rm)
+        if idx_m < deep_limit and rm.superstring_diff < 0 and rm.missing_count == 0:
+            rm_words = rm.phrase.split()
+            rm_edits = list(_resolve_edits(rm, orig_tokens, rm_words))
+            bridged = _try_bridge_broken_edge_by_overlapping_kb(index, rm, rm_words, rm_edits)
+            if bridged is not None and bridged.phrase not in seen_phrases:
+                seen_phrases.add(bridged.phrase)
+                repaired_matches.append(bridged)
 
     had_dangling = any(is_dangling_phrase(m.phrase) for m in repaired_matches)
     valid: list[QueryMatch] = []
