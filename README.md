@@ -17,6 +17,10 @@
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="MIT License" />
 </p>
 
+<p align="center">
+  <strong>Tiếng Việt</strong> | <a href="README.en.md">English</a>
+</p>
+
 > **Dùng thử trực tuyến:** mở **[Demo trên Hugging Face Spaces](https://huggingface.co/spaces/evilogre1112/factotum)** để trải nghiệm nhanh không cần cài đặt.
 
 ---
