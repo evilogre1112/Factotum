@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="https://huggingface.co/spaces/evilogre1112/factotum"><img src="https://img.shields.io/badge/Dùng%20thử%20ngay-Hugging%20Face%20Spaces-FFD21E?logo=huggingface&logoColor=black" alt="Live Demo on Hugging Face Spaces" /></a>
+  <a href="https://pypi.org/project/factotum-vn-nlp/"><img src="https://img.shields.io/pypi/v/factotum-vn-nlp?color=0073b7&logo=pypi&logoColor=white" alt="PyPI" /></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/thư%20viện%20ngoài-0-2EA043" alt="Zero Dependencies" />
   <img src="https://img.shields.io/badge/chạy%20cục%20bộ-không%20cần%20GPU-orange" alt="Offline No GPU" />
@@ -100,6 +101,12 @@ Người dùng gõ nhanh: "csgt xpvphc người không có gplx"
 ## Bắt đầu nhanh trong 1 phút
 
 ### 1. Cài đặt
+
+```bash
+pip install factotum-vn-nlp
+```
+
+Hoặc cài từ mã nguồn (có sẵn mô hình pháp luật mẫu `output/factotum_law.ftm`, CLI & demo web):
 
 ```bash
 git clone https://github.com/evilogre1112/Factotum.git
