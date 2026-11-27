@@ -141,36 +141,108 @@ class MDISStore:
     def build_from_phrases(self, phrases: list[tuple[str, tuple[str, ...] | list[str], int]]) -> None:
         """Dựng toàn bộ cấu trúc vật lý MDIS từ danh sách cụm tối đại `phrases`."""
         self.reset()
-        edge_tmp: dict[int, list[int]] = defaultdict(list)
+        id_to_ent = self.id_to_entity
+        ent_to_id = self.entity_to_id
+        ent_dims = self.entity_dims
+        dim_owner = self.dim_owner
+        dim_mode = self.dim_mode
+        dim_freq = self.dim_freq
+        dim_pid = self.dim_pid
+        dim_events = self.dim_events
+        ev_left = self.event_left_dim
+        ev_right = self.event_right_dim
+        ent_in_dim = self._entity_in_dim
+        edge_tmp: dict[int, list[int]] = {}
+        next_ev_id = 0
+        next_dim_id = 0
+        next_ent_id = len(id_to_ent)
 
         for pid, (_p_str, p_words, p_freq) in enumerate(phrases):
             n_w = len(p_words)
             if n_w < 2:
                 if n_w == 1:
-                    self._get_or_add_entity(p_words[0])
+                    w0 = p_words[0]
+                    if w0 not in ent_to_id:
+                        ent_to_id[w0] = next_ent_id
+                        id_to_ent.append(w0)
+                        ent_dims.append([])
+                        next_ent_id += 1
                 continue
 
-            eids = [self._get_or_add_entity(w) for w in p_words]
+            eids: list[int] = []
+            for w in p_words:
+                eid = ent_to_id.get(w)
+                if eid is None:
+                    eid = next_ent_id
+                    ent_to_id[w] = eid
+                    id_to_ent.append(w)
+                    ent_dims.append([])
+                    next_ent_id += 1
+                eids.append(eid)
+
             root_eid = eids[0]
-            d_plus = self._allocate_dim(root_eid, mode_plus=True, freq=p_freq, pid=pid)
+            d_plus = next_dim_id
+            next_dim_id += 1
+            dim_owner.append(root_eid)
+            dim_mode.append(1)
+            dim_freq.append(p_freq)
+            dim_pid.append(pid)
+            d_plus_evs = array("I")
+            dim_events.append(d_plus_evs)
+            ent_dims[root_eid].append(d_plus)
 
-            for j in range(1, n_w):
-                target_eid = eids[j]
-                d_in = self._get_or_add_in_dim(target_eid)
-                self._append_event(d_plus, d_in)
-
-            # Ghi chỉ mục tọa độ vật lý nén 64-bit cho mọi cặp liên tiếp trên chiều d_plus
+            prev_eid = root_eid
             for slot in range(n_w - 1):
-                edge_key = (eids[slot] << 32) | eids[slot + 1]
-                edge_tmp[edge_key].append((d_plus << 16) | slot)
+                target_eid = eids[slot + 1]
+                d_in = ent_in_dim.get(target_eid)
+                if d_in is None:
+                    d_in = next_dim_id
+                    next_dim_id += 1
+                    dim_owner.append(target_eid)
+                    dim_mode.append(0)
+                    dim_freq.append(0)
+                    dim_pid.append(0)
+                    dim_events.append(array("I"))
+                    ent_dims[target_eid].append(d_in)
+                    ent_in_dim[target_eid] = d_in
+
+                ev_id = next_ev_id
+                next_ev_id += 1
+                ev_left.append(d_plus)
+                ev_right.append(d_in)
+                d_plus_evs.append(ev_id)
+                dim_events[d_in].append(ev_id)
+
+                edge_key = (prev_eid << 32) | target_eid
+                bucket = edge_tmp.get(edge_key)
+                if bucket is None:
+                    edge_tmp[edge_key] = [(d_plus << 16) | slot]
+                else:
+                    bucket.append((d_plus << 16) | slot)
+                prev_eid = target_eid
 
         # Gắn 1 sự kiện AUX <AUX> duy nhất vào cuối vật lý của mỗi chiều âm d_in-
         # để che sạch quan hệ ngược dư theo đúng định lý MDIS (chỉ tốn 1 thực thể AUX cho toàn kho)
-        if self._entity_in_dim:
-            self._aux_dim_id = self._allocate_dim(0, mode_plus=True, freq=0, pid=0)
-            for d_in in self._entity_in_dim.values():
-                self._append_event(self._aux_dim_id, d_in)
-                self._aux_capped.add(d_in)
+        if ent_in_dim:
+            aux_dim = next_dim_id
+            next_dim_id += 1
+            self._aux_dim_id = aux_dim
+            dim_owner.append(0)
+            dim_mode.append(1)
+            dim_freq.append(0)
+            dim_pid.append(0)
+            aux_evs = array("I")
+            dim_events.append(aux_evs)
+            ent_dims[0].append(aux_dim)
+            aux_capped = self._aux_capped
+            for d_in in ent_in_dim.values():
+                ev_id = next_ev_id
+                next_ev_id += 1
+                ev_left.append(aux_dim)
+                ev_right.append(d_in)
+                aux_evs.append(ev_id)
+                dim_events[d_in].append(ev_id)
+                aux_capped.add(d_in)
 
         self.edge_postings = {k: array("Q", vals) for k, vals in edge_tmp.items()}
 

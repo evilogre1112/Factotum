@@ -312,6 +312,7 @@ class GraphIndex:
     def load_standalone(self, model_path: str | Path, allow_pickle: bool = False) -> None:
         """Nạp mô hình từ file `.ftm` (JSON + zlib), hoặc `.pkl` khi bật `allow_pickle=True`."""
         graph_io.load_standalone(self, model_path, allow_pickle=allow_pickle)
+        self.ensure_mdis()
 
     def load(
         self,
@@ -332,6 +333,7 @@ class GraphIndex:
             use_cache=use_cache,
             cache_path=cache_path,
         )
+        self.ensure_mdis()
 
     def get_len_range_pids(self, min_len: int, max_len: int) -> set[int]:
         key = (min_len, max_len)
