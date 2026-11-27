@@ -49,11 +49,11 @@ Hằng ngày người dùng thường gõ tắt (`tngt`, `atgt`, `csgt`, `xpvphc
 - **Chủ động kiểm soát dữ liệu nội bộ:** Khi cài chạy trên máy hoặc máy chủ riêng của bạn, toàn bộ quá trình học tài liệu và xử lý văn bản diễn ra hoàn toàn cục bộ, không cần gửi dữ liệu qua API bên thứ ba.
 - **Phản hồi nhanh trong vài mili-giây:** Đủ mượt để gắn trực tiếp vào thanh tìm kiếm hoặc hộp gợi ý ngay trong lúc người dùng đang gõ.
 - **Tự học từ chính tài liệu của bạn:** Đưa trực tiếp thư mục file Word (`.doc`, `.docx`) hoặc `.txt` của tổ chức vào — Factotum tự rút ra bộ thuật ngữ chuyên ngành mà không cần gán nhãn thủ công.
-- **Minh bạch, dễ kiểm tra (MDIS + văn bản thuần):** Không tự bịa nội dung ngoài dữ liệu đã học. Lõi cấu trúc **MDIS** (giao cắt đa chiều có thứ tự) hỗ trợ xuất trực tiếp ra file tri thức nén `.mdis` và văn bản thuần `MDIS.txt` để kiểm tra.
+- **Minh bạch, dễ kiểm tra:** Không tự bịa nội dung ngoài dữ liệu đã học. Khi câu quá mơ hồ, Factotum ưu tiên giữ nguyên câu gốc thay vì đoán bừa; người dùng có thể mở xem và chỉnh sửa trực tiếp các file tri thức thuần văn bản.
 
 ---
 
-## Kết quả Benchmark nổi bật (v1.1.0 — MDIS)
+## Kết quả Benchmark nổi bật (v1.1.0)
 
 Đánh giá trên **20.064 câu kiểm thử** ([report_10000_20261127_115720.txt](benchmark/report_10000_20261127_115720.txt)):
 

@@ -1,4 +1,4 @@
-# Báo cáo Đánh giá Thực nghiệm (Factotum v1.1.0 — MDIS)
+# Báo cáo Đánh giá Thực nghiệm (Factotum v1.1.0)
 
 ## Tóm tắt kết quả chính
 
@@ -46,7 +46,7 @@ Tập dữ liệu gồm 156 văn bản pháp luật được tách hoàn toàn t
 
 **Nhận xét:**
 - So với câu gốc chưa xử lý, Factotum v1.1 nâng tỷ lệ phủ từ khóa thêm **`+75,1%`** (`20,0% → 95,1%`) và độ sát ngữ cảnh thêm **`+74,1%`** (`21,4% → 95,5%`).
-- So với `Base-2g` (Bigram + Viterbi), Factotum vượt **`+8,2%` KW-Rec** và **`+22,3%` All-KW**, cách biệt lớn nhất nằm ở các nhóm khó: **thiếu từ ở giữa** (`80,5%` vs `14,0%` All-KW), **viết tắt toàn cụm** (`79,8%` vs `47,4%` All-KW nhờ cấu trúc MDIS) và **viết tắt hỗn hợp** (`89,3%` vs `77,5%` All-KW).
+- So với `Base-2g` (Bigram + Viterbi), Factotum vượt **`+8,2%` KW-Rec** và **`+22,3%` All-KW**, cách biệt lớn nhất nằm ở các nhóm khó: **thiếu từ ở giữa** (`80,5%` vs `14,0%` All-KW), **viết tắt toàn cụm** (`79,8%` vs `47,4%` All-KW) và **viết tắt hỗn hợp** (`89,3%` vs `77,5%` All-KW).
 - Tốc độ trung vị đạt **`3,61 ms/câu`** (trung bình `6,96 ms/câu`, tốc độ xử lý `144 câu/giây`).
 
 ### 2.2. Kiểm thử tải 10.000 câu trên thuật ngữ đã học
@@ -89,15 +89,15 @@ Bộ dữ liệu gồm 64 câu gõ thực tế có gán danh sách thực từ b
 
 ---
 
-## 4. Lịch sử cải tiến qua các phiên bản (v1.0.0 → v1.1.0 MDIS)
+## 4. Lịch sử cải tiến qua các phiên bản (v1.0.0 → v1.1.0)
 
 ![Lịch sử cải tiến Factotum qua các phiên bản](../docs/images/version_progress.png)
 
-| Phiên bản | Điểm nhấn kiến trúc | Held-out 10k (`KW / All / F1`) | Viết tắt toàn cụm Held-out (`KW / All`) | 64 ca thực tế (`KW / All`) | Stress Test 10k (`KW / All`) | Tổng câu lỗi / 20.064 câu |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **v1.0.0** | Đồ thị Markov 2 chiều + Reviewer 2 chặng | `80,0 / 67,2 / 80,8%` | `39,0 / 28,0%` | `97,7 / 95,3%` | `95,1 / 92,5%` | `3.558` |
-| **v1.0.1** | Ngưỡng thích ứng không gán cứng + Beam Spell 2 chiều | `91,9 / 84,0 / 92,5%` | `73,2 / 52,8%` | `97,7 / 95,3%` | `96,2 / 92,6%` | `2.343` (`-34,1%`) |
-| **v1.1.0** | **Cấu trúc vật lý MDIS (`+/-`, `<AUX>`, tọa độ 64-bit)** | **`95,1 / 89,4 / 95,5%`** | **`88,9 / 79,8%`** | **`98,4 / 96,9%`** | **`98,9 / 97,4%`** | **`1.326`** (**`-62,7%`**) |
+| Phiên bản | Held-out 10k (`KW / All / F1`) | Viết tắt toàn cụm Held-out (`KW / All`) | 64 ca thực tế (`KW / All`) | Stress Test 10k (`KW / All`) | Tổng câu lỗi / 20.064 câu |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **v1.0.0** | `80,0 / 67,2 / 80,8%` | `39,0 / 28,0%` | `97,7 / 95,3%` | `95,1 / 92,5%` | `3.558` |
+| **v1.0.1** | `91,9 / 84,0 / 92,5%` | `73,2 / 52,8%` | `97,7 / 95,3%` | `96,2 / 92,6%` | `2.343` (`-34,1%`) |
+| **v1.1.0** | **`95,1 / 89,4 / 95,5%`** | **`88,9 / 79,8%`** | **`98,4 / 96,9%`** | **`98,9 / 97,4%`** | **`1.326`** (**`-62,7%`**) |
 
 ---
 
@@ -147,7 +147,7 @@ Rút `1.000` câu độc nhất từ 32 văn bản chưa từng học (`seed = 4
 | 80 | 1.218.295 từ | 7,10 MB | 15,04 MB (**212%**) | 455.391 từ (**37,4%**) | 796,4 KB (**11,0%**) |
 | 156 | 2.618.007 từ | 15,21 MB | 24,51 MB (**161%**) | 775.032 từ (**29,6%**) | 1,29 MB (**8,5%**, nén `11,8 : 1`) |
 
-Khi số văn bản tăng gần 16 lần (`10 → 156` văn bản), kích thước file `.ftm` chỉ tăng khoảng 3 lần (`434,9 KB → 1,29 MB`, tỷ lệ tăng trưởng dưới tuyến tính $S_{\text{ftm}} \propto N^{0.56}$). Ngoài ra, cấu trúc vật lý MDIS nén (`.mdis`) cho toàn bộ 156 văn bản có dung lượng `4,87 MB` (`3.399` thực thể, `1` `<AUX>`, `110.804` chiều `+`, `2.959` chiều `-`, `664.884` giao điểm 2 phía) và tăng tốc tra cứu cụm con không khớp chính xác gấp **2,65×**.
+Khi số văn bản tăng gần 16 lần (`10 → 156` văn bản), kích thước file `.ftm` chỉ tăng khoảng 3 lần (`434,9 KB → 1,29 MB`, tỷ lệ tăng trưởng dưới tuyến tính $S_{\text{ftm}} \propto N^{0.56}$).
 
 ---
 
@@ -155,7 +155,7 @@ Khi số văn bản tăng gần 16 lần (`10 → 156` văn bản), kích thư�
 
 Số liệu `Base-1g`, `Base-2g` và `Factotum v1.1` lấy từ Held-out 10.000 câu và bộ `context_cases.json`; cột `LLM (zero-shot)` tham chiếu kết quả đo trực tiếp trên `893` cụm trọn nghĩa ở mục 5:
 
-| Tiêu chí | `Base-1g` (Unigram) | `Base-2g` (Bigram + Viterbi) | **Factotum v1.1 (MDIS)** | SymSpell / Edit Distance* | LLM (zero-shot) |
+| Tiêu chí | `Base-1g` (Unigram) | `Base-2g` (Bigram + Viterbi) | **Factotum v1.1** | SymSpell / Edit Distance* | LLM (zero-shot) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | Làm rõ ngữ cảnh (Held-out 10.000 câu) | `64,0%` KW-Rec | `86,8%` KW-Rec (`67,1%` All-KW) | **`95,1%` KW-Rec (`89,4%` All-KW)** | Không hỗ trợ viết tắt/dấu | `68,9% – 71,2%` KW-Rec (mục 5) |
 | Giải nhập nhằng & nhiều thực thể (64 ca) | `35,2%` KW-Rec | `64,3%` KW-Rec (`45,3%` All-KW) | **`98,4%` KW-Rec (`96,9%` All-KW)** | Không | Cao* |

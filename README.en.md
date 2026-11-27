@@ -49,11 +49,11 @@ Every day, users type shorthand (`tngt`, `atgt`, `csgt`, `xpvphc`, `nd`), omit V
 - **Full Control Over Private Data:** When deployed on your machine or private server, all document learning and text clarification run 100% locally — nothing is ever sent to third-party APIs.
 - **Millisecond Latency:** Fast enough to sit directly in front of a search box or typeahead dropdown as the user types.
 - **Learns Directly From Your Documents:** Point Factotum at your `.doc`, `.docx`, or `.txt` folder — it automatically extracts domain terminology with no manual labeling.
-- **Transparent & Inspectable (MDIS + Plain Text):** Never hallucinates outside its learned corpus. Its physical **MDIS** (Multi-Dimensional Ordered Intersection Structure) core exports directly to compact `.mdis` and human-readable `MDIS.txt` files.
+- **Transparent & Inspectable:** Never hallucinates outside its learned corpus. When an input is too ambiguous, Factotum preserves the original text instead of guessing blindly; all knowledge files can be inspected and edited as plain text.
 
 ---
 
-## Benchmark Highlights (v1.1.0 — MDIS)
+## Benchmark Highlights (v1.1.0)
 
 Evaluated across **20,064 test queries** ([report_10000_20261127_115720.txt](benchmark/report_10000_20261127_115720.txt)):
 
