@@ -421,7 +421,7 @@ def _beam_graph_spell_correction(
 
     def _fuzzy_vocab_seeds(tok: str) -> list[str]:
         ua_t = remove_accents(tok)
-        if len(ua_t) < 2:
+        if len(ua_t) < 2 or not any(ch in "aeiouy" for ch in ua_t):
             return []
         first_ch = ua_t[0]
         scored: list[tuple[float, int, str]] = []
@@ -510,7 +510,7 @@ def _beam_graph_spell_correction(
                 if wf > 0 and sum(1 for j in range(k, k + 3) if j in mutated_valid_set) > 1:
                     wf = 0
                 win_freqs.append(wf)
-            # Kẽ hở 4: mọi vị trí có biến dạng khung (idx thuộc edited_positions) đều phải nằm trong ít nhất 1 cửa sổ KB có wf > 0
+            # Mọi vị trí có biến dạng khung (idx thuộc edited_positions) đều phải nằm trong ít nhất 1 cửa sổ KB có wf > 0
             all_edits_kb_covered = bool(edited_positions) and all(
                 any(win_freqs[k] > 0 for k in range(max(0, idx - 2), min(n - 2, idx + 1)))
                 for idx in edited_positions

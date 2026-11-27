@@ -192,47 +192,66 @@ def _review_acronym_edits(
     dict_freq = index.dict_freq
     changed = False
 
-    for _pass in range(2):
+    max_passes = 2 if len(acronym_edits) > 1 else 1
+    med_kb_freq = index.medium_kb_freq
+    for _pass in range(max_passes):
         pass_changed = False
-        cur_metrics = _sentence_global_metrics(index, words, allow_superstring=False)
+        cur_metrics: tuple[int, int, int, int, int, float] | None = None
         for ed_span in acronym_edits:
             orig, st, ed = ed_span.orig, ed_span.start, ed_span.end
             span_len = ed - st
-            acr_pids = index.get_acronym_pids(remove_accents(orig))
-            if not acr_pids:
-                continue
-            cand_phrases = [
-                list(index.phrases[pid][1])
-                for pid in acr_pids
-                if len(index.phrases[pid][1]) == span_len
-            ]
-            if not cand_phrases:
-                continue
-            cand_phrases.sort(key=lambda pw: -dict_freq.get(" ".join(pw), 0))
-            cur_block_freq = dict_freq.get(" ".join(words[st:ed]), 0)
             left_b = words[st - 1] if st > 0 else ""
             right_b = words[ed] if ed < n else ""
+            cur_block_freq = dict_freq.get(" ".join(words[st:ed]), 0)
             cur_l_ok = _has_graph_edge(fwd_g, left_b, words[st])
             cur_r_ok = _has_graph_edge(fwd_g, words[ed - 1], right_b)
-            med_kb_freq = index.medium_kb_freq
             if cur_block_freq >= med_kb_freq and (span_len >= 3 or (cur_l_ok and cur_r_ok)):
                 continue
+            if span_len >= 3:
+                cur_l_dim_freq = dict_freq.get(" ".join(words[st - 1 : ed]), 0) if st > 0 else 0
+                cur_r_dim_freq = dict_freq.get(" ".join(words[st : ed + 1]), 0) if ed < n else 0
+                if max(cur_l_dim_freq, cur_r_dim_freq) >= med_kb_freq:
+                    continue
+            cand_phrases = index.mdis_acronym_extensions(orig, left_b, right_b)
+            if not cand_phrases:
+                continue
+            cur_s_max_len, _, _, cur_s_freq = _span_kb_context(
+                index, words, st, ed, allow_superstring=False
+            )
+            cur_anchored_dim = span_len >= 3 and cur_s_max_len > span_len
+            cur_eff_freq = max(cur_block_freq, cur_s_freq if cur_anchored_dim else 0)
+            if cur_eff_freq >= med_kb_freq and (cur_anchored_dim or span_len >= 3 or (cur_l_ok and cur_r_ok)):
+                continue
+            if cur_metrics is None:
+                cur_metrics = _sentence_global_metrics(index, words, allow_superstring=False)
 
             def _block_key(
                 trial_words: list[str],
                 block_freq: int,
                 metrics: tuple[int, int, int, int, int, float],
-            ) -> tuple[int, int, int, int, int, int, int, int, float]:
+            ) -> tuple[int, int, int, int, int, int, int, int, int, float]:
                 tb, tc, tw_kb, t4p, t3, tp = metrics
                 l_ok = _has_graph_edge(fwd_g, left_b, trial_words[st])
                 r_ok = _has_graph_edge(fwd_g, trial_words[ed - 1], right_b)
                 both_broken = 1 if (left_b and right_b and not l_ok and not r_ok) else 0
-                strong_kb = 1 if block_freq >= med_kb_freq else 0
                 s_max_len, s_cross, _s_hits, s_freq = _span_kb_context(
                     index, trial_words, st, ed, allow_superstring=False
                 )
+                anchored_dim = (
+                    1
+                    if (
+                        span_len >= 3
+                        and s_max_len > span_len
+                        and (not left_b or l_ok)
+                        and (not right_b or r_ok)
+                    )
+                    else 0
+                )
+                eff_freq = max(block_freq, s_freq if anchored_dim else 0)
+                strong_kb = 1 if eff_freq >= med_kb_freq else 0
                 return (
                     strong_kb,
+                    anchored_dim,
                     -both_broken,
                     s_cross,
                     -tb,
@@ -240,7 +259,7 @@ def _review_acronym_edits(
                     tc,
                     tw_kb,
                     t4p + t3,
-                    tp + min(block_freq, 5000) * 1e-12 + min(s_freq, 5000) * 1e-13,
+                    tp + min(eff_freq, 5000) * 1e-12 + min(block_freq, 5000) * 1e-13,
                 )
 
             best_block: list[str] | None = None
@@ -348,6 +367,20 @@ def _review_single_edits(
                 and (cur_kb_hits == 0 or c_kb_len > cur_kb_len)
             ):
                 score = (1, c_kb_len, c_kb_hits, c_kb_freq, cl * cr)
+            elif (
+                allow_kb_upgrade
+                and cand_broken == 1
+                and cur_broken == 1
+                and cur_adj_kb_freq == 0
+                and cur_kb_len == 0
+            ):
+                cand_adj_kb_freq = max(
+                    index.dict_freq.get(f"{left_w} {cand}", 0) if left_w else 0,
+                    index.dict_freq.get(f"{cand} {right_w}", 0) if right_w else 0,
+                )
+                if cand_adj_kb_freq < index.strong_kb_freq:
+                    continue
+                score = (1, 2, 1, cand_adj_kb_freq, max(cl, cr))
             else:
                 continue
 
@@ -445,7 +478,7 @@ def _review_single_edits(
                 if best_nbr:
                     best_f = best_nbr
 
-            # Cấu hình (1) b/c1 - lỗi1 - lỗi2 và (2) lỗi2 - lỗi1 - b/c2 (Idea.txt dòng 70-82):
+            # Cấu hình hai từ lỗi liền kề (b/c1 - lỗi1 - lỗi2 hoặc lỗi2 - lỗi1 - b/c2):
             # Khi đổi dấu w1 thuộc ua_map[orig] nối được với b/c1 nhưng đứt với từ kề bên (do từ kề bên là neo giả lỗi2),
             # đồng thời dò hàng xóm đồ thị w2 cho từ kề bên trong cận biến dạng 1/max(|x|,|y|) tạo cụm 3 từ KB mạnh.
             if not best_f and is_valid_ua and cands and cur_adj_kb_freq == 0:

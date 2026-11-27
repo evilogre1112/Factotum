@@ -411,7 +411,12 @@ def query_with_context(
                 ctx_info = score_candidate_in_context(index, f_m, left_ctx, right_ctx, max_diff_k=max_diff_k)
                 tier, span_len, ctx_freq, ctx_diff, _src = ctx_info
                 diff_rank = ctx_diff if ctx_diff >= 0 else (f_m.superstring_diff if f_m.superstring_diff >= 0 else 999)
-                f_stands = ctx_can_stand_alone and tier >= 4 and f_m.superstring_diff == 0 and len(f_m.phrase.split()) >= 2
+                f_stands = (
+                    ctx_can_stand_alone
+                    and tier >= 4
+                    and (f_m.superstring_diff == 0 or (0 < f_m.superstring_diff <= max_diff_k and len(f_m.phrase.split()) >= 4))
+                    and len(f_m.phrase.split()) >= 2
+                )
                 sort_k = (
                     1 if f_m.superstring_diff == -1 else 0,
                     f_m.missing_count,
@@ -446,7 +451,12 @@ def query_with_context(
             seg_offset = len(bw)
             for _, f_m, (tier, span_len, ctx_freq, ctx_diff, ctx_src) in scored[: max(top_k, 5)]:
                 f_words = f_m.phrase.split()
-                f_stands = ctx_can_stand_alone and tier >= 4 and f_m.superstring_diff == 0 and len(f_words) >= 2
+                f_stands = (
+                    ctx_can_stand_alone
+                    and tier >= 4
+                    and (f_m.superstring_diff == 0 or (0 < f_m.superstring_diff <= max_diff_k and len(f_words) >= 4))
+                    and len(f_words) >= 2
+                )
                 b_prob = f_m.markov_prob if f_m.markov_prob > 0 else 1e-6
                 if tier >= 4 and not f_stands:
                     long_f = len(f_words) >= 4 and len(seg_tokens) == 1

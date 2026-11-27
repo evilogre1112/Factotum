@@ -16,6 +16,7 @@ from factotum.core.extension import (
 )
 from factotum.engine import graph_io
 from factotum.engine.graph_io import FTM_MAGIC
+from factotum.engine.mdis import MDISStore
 from factotum.engine.models import (
     DATA_PATH,
     KB_PATH,
@@ -51,6 +52,9 @@ class GraphIndex:
         self.acronym_to_pids: dict[str, int | tuple[int, ...]] = {}        # Mã viết tắt chữ cái đầu -> pid (int) hoặc tuple[pid]
         self.loaded_from_cache: bool = False
         self._max_key_len_cache: tuple[int, int] = (0, 7)
+        self._mdis_phrase_score_cache: dict[tuple[str, int], tuple[int, int, str]] = {}
+        self.mdis: MDISStore = MDISStore()
+        self._mdis_ready: bool = False
 
     @property
     def max_vocab_word_len(self) -> int:
@@ -263,6 +267,8 @@ class GraphIndex:
         self.col_id_to_pids.clear()
         self.col_id_to_set.clear()
         self.col_id_to_initial.clear()
+        self._mdis_phrase_score_cache.clear()
+        self._mdis_ready = False
         for key, candidates in self.unaccented_map.items():
             cid = id(candidates)
             self.col_id_to_set[cid] = set(candidates)
@@ -338,58 +344,111 @@ class GraphIndex:
         self.len_range_cache[key] = res
         return res
 
+    def has_mdis_3gram(self, a: str, b: str, c: str) -> bool:
+        """Kiểm tra [b, c] có là tiền tố có thứ tự liên tiếp trên một chiều ngữ cảnh + của thực thể gốc `a` (theo bất biến MDIS)."""
+        if self.dict_freq.get(f"{a} {b} {c}", 0) > 0:
+            return True
+        return self.lookup_real_phrase_score([a, b, c])[0] > 0
+
+    def mdis_acronym_extensions(
+        self, orig_acr: str, left_anchor: str = "", right_anchor: str = ""
+    ) -> list[list[str]]:
+        """
+        Truy vấn tập chiều mở rộng viết tắt `orig_acr` theo cấu trúc MDIS:
+        - Chiều + từ thực thể gốc trái `left_anchor`: `left_anchor -> [X_1, ..., X_k]`.
+        - Chiều - vào thực thể gốc phải `right_anchor`: `[X_1, ..., X_k] <- right_anchor`.
+        - Chiều độc lập không neo: `[X_1, ..., X_k]`.
+        """
+        ua_orig = remove_accents(orig_acr)
+        span_len = len(ua_orig)
+        if span_len < 2:
+            return []
+        phrases = self.phrases
+        dict_freq = self.dict_freq
+        seen: set[tuple[str, ...]] = set()
+        anchored_cands: list[tuple[int, list[str]]] = []
+        standalone_cands: list[tuple[int, list[str]]] = []
+
+        if span_len >= 3 and left_anchor and not left_anchor.startswith("<"):
+            ua_l = remove_accents(left_anchor)
+            if ua_l:
+                for pid in self.get_acronym_pids(ua_l[0] + ua_orig) or ():
+                    _, p_words, p_freq = phrases[pid]
+                    if len(p_words) == span_len + 1 and p_words[0] == left_anchor:
+                        tail = tuple(p_words[1:])
+                        if tail not in seen:
+                            seen.add(tail)
+                            anchored_cands.append((p_freq, list(tail)))
+
+        if span_len >= 3 and right_anchor and not right_anchor.startswith("<"):
+            ua_r = remove_accents(right_anchor)
+            if ua_r:
+                for pid in self.get_acronym_pids(ua_orig + ua_r[0]) or ():
+                    _, p_words, p_freq = phrases[pid]
+                    if len(p_words) == span_len + 1 and p_words[-1] == right_anchor:
+                        head = tuple(p_words[:-1])
+                        if head not in seen:
+                            seen.add(head)
+                            anchored_cands.append((p_freq, list(head)))
+
+        for pid in self.get_acronym_pids(ua_orig) or ():
+            p_str, p_words, p_freq = phrases[pid]
+            pw_tup = tuple(p_words)
+            if len(pw_tup) == span_len and pw_tup not in seen:
+                seen.add(pw_tup)
+                standalone_cands.append((dict_freq.get(p_str, p_freq), list(pw_tup)))
+
+        anchored_cands.sort(key=lambda x: -x[0])
+        standalone_cands.sort(key=lambda x: -x[0])
+        return [w for _, w in anchored_cands] + [w for _, w in standalone_cands]
+
+    def ensure_mdis(self) -> MDISStore:
+        """Dựng lười cấu trúc vật lý MDIS (`entities`, `dims +/-`, `events` đối ứng, tọa độ 64-bit) từ `self.phrases`."""
+        if not self._mdis_ready:
+            self.mdis.build_from_phrases(self.phrases)
+            self._mdis_ready = True
+        return self.mdis
+
+    def save_mdis(self, path: str | Path) -> Path:
+        """Xuất cấu trúc vật lý MDIS ra file tri thức `.mdis`."""
+        return self.ensure_mdis().save_file(path)
+
+    def load_mdis(self, path: str | Path) -> None:
+        """Nạp cấu trúc vật lý MDIS từ file tri thức `.mdis`."""
+        self.mdis.load_file(path)
+        self._mdis_ready = True
+
+    def export_mdis_txt(self, path: str | Path) -> Path:
+        """Xuất cấu trúc vật lý MDIS ra file văn bản `.txt` dễ đọc."""
+        return self.ensure_mdis().export_text(path)
+
     def lookup_real_phrase_score(
         self, words: list[str], max_diff_k: int = MAX_SUPERSTRING_DIFF_K
     ) -> tuple[int, int, str]:
-        """Kiểm tra chuỗi `words` có khớp chính xác hoặc nằm trong chuỗi tối đại cha của KB không."""
+        """Kiểm tra chuỗi `words` có khớp chính xác hoặc nằm trong chiều ngữ cảnh MDIS của KB không."""
         phrase = " ".join(words)
         exact_freq = self.dict_freq.get(phrase)
         if exact_freq is not None:
             return exact_freq, 0, phrase
 
+        cache_key = (phrase, max_diff_k)
+        cached = self._mdis_phrase_score_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         fwd = self.fwd_graph
         for i in range(len(words) - 1):
             nbrs = fwd.get(words[i])
             if not nbrs or words[i + 1] not in nbrs:
-                return 0, -1, ""
+                res = (0, -1, "")
+                if len(self._mdis_phrase_score_cache) < 16384:
+                    self._mdis_phrase_score_cache[cache_key] = res
+                return res
 
-        posting_sets: list[set[int]] = []
-        w2p = self.word_to_phrases
-        for w in words:
-            ps = w2p.get(w)
-            if not ps:
-                return 0, -1, ""
-            posting_sets.append(ps)
-
-        if len(posting_sets) == 1:
-            common_ids = posting_sets[0]
-        else:
-            posting_sets.sort(key=len)
-            common_ids = set.intersection(*posting_sets)
-            if not common_ids:
-                return 0, -1, ""
-
-        padded_target = f" {phrase} "
-        best_freq = 0
-        best_diff = max_diff_k + 1
-        best_source = ""
-        target_len = len(words)
-        phrases = self.phrases
-
-        for pid in common_ids:
-            p_str, p_words, p_freq = phrases[pid]
-            diff = len(p_words) - target_len
-            if diff < 0 or diff > max_diff_k:
-                continue
-            if padded_target in f" {p_str} ":
-                if diff < best_diff or (diff == best_diff and p_freq > best_freq):
-                    best_diff = diff
-                    best_freq = p_freq
-                    best_source = p_str
-
-        if best_freq > 0:
-            return best_freq, best_diff, best_source
-        return 0, -1, ""
+        res = self.ensure_mdis().lookup_phrase_score(words, self.phrases, max_diff_k)
+        if len(self._mdis_phrase_score_cache) < 16384:
+            self._mdis_phrase_score_cache[cache_key] = res
+        return res
 
     def filter_contiguous_pids(
         self, cand_pids: set[int], window: list[str], max_diff_k: int
@@ -459,6 +518,8 @@ class GraphIndex:
                 phrase_to_pid[phrase] = pid
                 self.dict_freq[phrase] = new_freq
                 self.len_to_phrases[n_w].add(pid)
+                if self._mdis_ready:
+                    self.mdis.add_phrase(pid, words, new_freq)
                 added += 1
 
             ua_words: list[str] = []
@@ -574,6 +635,7 @@ class GraphIndex:
             self.col_id_to_initial[cid] = ua_key[0] if ua_key else ""
 
         self.len_range_cache.clear()
+        self._mdis_phrase_score_cache.clear()
         return {"added": added, "updated": updated}
 
     def pids_to_exact_matches(

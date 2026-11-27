@@ -551,7 +551,7 @@ def search_variant(
                     continue
                 if min_zero_broken == 0 and any(_junction_kb_connected(zw, gap_i) for zw in zero_beams):
                     continue
-                # Kẽ hở 3: khi cột gap_i-1 là âm tiết đầy đủ và đường 0-thiếu đầu bảng đã thông suốt tại biên đó,
+                # Khi cột gap_i-1 là âm tiết đầy đủ và đường 0-thiếu đầu bảng đã thông suốt tại biên đó,
                 # không dùng nhánh đồng âm cụt đường để chèn từ thiếu
                 if (
                     min_zero_broken == 0
@@ -563,7 +563,7 @@ def search_variant(
                     and dict_freq.get(f"{top_zero[gap_i - 1]} {top_zero[gap_i]}", 0) >= strong_f
                 ):
                     continue
-                # Kẽ hở 2: nếu X_0 và Y_0 đều là cụm KB độc lập quanh biên gap_i, phép bung không được phá hủy X_0 hay Y_0
+                # Nếu X_0 và Y_0 đều là cụm KB độc lập quanh biên gap_i, phép bung không được phá hủy X_0 hay Y_0
                 if top_zero and gap_i < len(top_zero):
                     l_ind, r_ind = _has_independent_boundary_phrases(top_zero, gap_i)
                     if l_ind and r_ind and (

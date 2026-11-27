@@ -13,6 +13,8 @@ Thư mục này lưu trữ toàn bộ **file tri thức thuần văn bản**, **
 | `Data.txt` | **Hạn chế sửa tay** *(file dẫn xuất tự động)* | Không *(sinh cục bộ)* | Bảng cạnh chuyển tiếp Markov $P(v \mid u)$ sinh tự động từ `KnowledgeBase.txt` |
 | `UnaccentedMap.txt` | **Hạn chế sửa tay** *(file dẫn xuất tự động)* | Không *(sinh cục bộ)* | Bảng ánh xạ từ đơn không dấu / chữ cái đầu sang danh sách từ có dấu |
 | `factotum_law.ftm` | **Không sửa tay** *(file đóng gói cho máy đọc)* | Có | Bản đóng gói gọn (`JSON + zlib`) an toàn để chia sẻ & triển khai |
+| `factotum_law.mdis` | **Không sửa tay** *(xuất qua `save_mdis()`)* | Không *(sinh cục bộ)* | Kho tri thức vật lý MDIS nén (`JSON + zlib`): thực thể, chiều `+`/`-`, giao điểm 2 phía & `<AUX>` |
+| `MDIS.txt` | **Chỉ đọc / kiểm tra** *(xuất qua `export_mdis_txt()`)* | Không *(sinh cục bộ)* | Bản văn bản thuần UTF-8 của cấu trúc MDIS (`[ENTITIES]`, `[DIMENSIONS_PLUS]`, `[DIMENSIONS_MINUS]`) |
 | `model_cache.pkl` | **Không sửa tay** *(có thể xóa để tạo lại)* | Không *(cache cục bộ)* | Bộ nhớ đệm nhị phân (`pickle`) giúp khởi động nạp RAM nhanh hơn |
 
 > [!TIP]

@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/dependencies-0-2EA043" alt="Zero Dependencies" />
   <img src="https://img.shields.io/badge/local-no%20GPU%20needed-orange" alt="Offline No GPU" />
-  <img src="https://img.shields.io/badge/release-v1.0.0-blue" alt="Release v1.0.0" />
+  <img src="https://img.shields.io/badge/release-v1.1.0-blue" alt="Release v1.1.0" />
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="MIT License" />
 </p>
 
@@ -35,13 +35,9 @@ Every day, users type shorthand (`tngt`, `atgt`, `csgt`, `xpvphc`, `nd`), omit V
 | :--- | :--- | :--- |
 | **Unaccented typing** | `xu phat vi pham hanh chinh` | `xử phạt vi phạm hành chính` |
 | **Chained long abbreviations** | `csgt xpvphc người không có gplx` | `cảnh sát giao thông xử phạt vi phạm hành chính người không có giấy phép lái xe` |
-| **Context-aware acronym** | `nd 23/24 quy định về atgt đường bộ` | `nghị định 23/24 quy định về an toàn giao thông đường bộ` |
-| **Same `nd`, different context** | `tòa án nd tối cao` | `tòa án nhân dân tối cao` |
-| **Diacritic disambiguation** | `co the bị xử phạt` / `xâm phạm co the người khác` | `có thể bị xử phạt` / `xâm phạm cơ thể người khác` |
+| **Context-aware acronym disambiguation** | `nd 23/24 quy định về atgt đường bộ` / `tòa án nd tối cao` | `nghị định 23/24 quy định về an toàn giao thông đường bộ` / `tòa án nhân dân tối cao` |
 | **Dropped middle word** | `an toan thong` / `xe k bang lai` | `an toàn giao thông` / `xe không có bằng lái` |
-| **Telex & key-repeat typos** | `buowcs`, `vi pham phappp luat` | `bước`, `vi phạm pháp luật` |
-| **Accented spelling error** | `uống dượu bia phạt bao nhiêu` | `uống rượu bia phạt bao nhiêu` |
-| **Multi-token & real-word typos** | `con nui` / `hộ kihw doan` | `con nuôi` / `hộ kinh doanh` |
+| **Telex, key-repeat & spelling typos** | `buowcs`, `uống dượu bia phạt bao nhiêu`, `hộ kihw doan` | `bước`, `uống rượu bia phạt bao nhiêu`, `hộ kinh doanh` |
 | **Already valid sentence** | `chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền` | Kept intact without over-correcting |
 
 ---
@@ -53,7 +49,21 @@ Every day, users type shorthand (`tngt`, `atgt`, `csgt`, `xpvphc`, `nd`), omit V
 - **Full Control Over Private Data:** When deployed on your machine or private server, all document learning and text clarification run 100% locally — nothing is ever sent to third-party APIs.
 - **Millisecond Latency:** Fast enough to sit directly in front of a search box or typeahead dropdown as the user types.
 - **Learns Directly From Your Documents:** Point Factotum at your `.doc`, `.docx`, or `.txt` folder — it automatically extracts domain terminology with no manual labeling.
-- **Transparent & Inspectable:** Never hallucinates outside its learned corpus. When an input is too ambiguous, Factotum preserves the original text instead of guessing blindly; all knowledge files can be inspected and edited as plain text.
+- **Transparent & Inspectable (MDIS + Plain Text):** Never hallucinates outside its learned corpus. Its physical **MDIS** (Multi-Dimensional Ordered Intersection Structure) core exports directly to compact `.mdis` and human-readable `MDIS.txt` files.
+
+---
+
+## Benchmark Highlights (v1.1.0 — MDIS)
+
+Evaluated across **20,064 test queries** ([report_10000_20261127_115720.txt](benchmark/report_10000_20261127_115720.txt)):
+
+| Benchmark Suite | Queries | Raw (`KW-Rec`) | Base-2g (`KW-Rec`) | **Factotum v1.1 (`KW-Rec` / `All-KW` / `Ctx-F1`)** | Median Latency |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Document-level Held-out** | 10,000 | 20.0% | 86.8% | **95.1% / 89.4% / 95.5%** | `3.61 ms` |
+| **64 Real-World Context Cases** | 64 | 23.4% | 64.3% | **98.4% / 96.9% / 99.7%** | `16.25 ms` |
+| **In-Sample Stress Test** | 10,000 | 17.1% | 91.1% | **98.9% / 97.4% / 99.1%** | `3.05 ms` |
+
+![Factotum Version Progress](docs/images/version_progress.png)
 
 ---
 

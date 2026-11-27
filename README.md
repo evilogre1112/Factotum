@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/thư%20viện%20ngoài-0-2EA043" alt="Zero Dependencies" />
   <img src="https://img.shields.io/badge/chạy%20cục%20bộ-không%20cần%20GPU-orange" alt="Offline No GPU" />
-  <img src="https://img.shields.io/badge/release-v1.0.0-blue" alt="Release v1.0.0" />
+  <img src="https://img.shields.io/badge/release-v1.1.0-blue" alt="Release v1.1.0" />
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="MIT License" />
 </p>
 
@@ -35,13 +35,9 @@ Hằng ngày người dùng thường gõ tắt (`tngt`, `atgt`, `csgt`, `xpvphc
 | :--- | :--- | :--- |
 | **Gõ không dấu** | `xu phat vi pham hanh chinh` | `xử phạt vi phạm hành chính` |
 | **Nhiều viết tắt dài đứng sát nhau** | `csgt xpvphc người không có gplx` | `cảnh sát giao thông xử phạt vi phạm hành chính người không có giấy phép lái xe` |
-| **Tự hiểu viết tắt theo ngữ cảnh** | `nd 23/24 quy định về atgt đường bộ` | `nghị định 23/24 quy định về an toàn giao thông đường bộ` |
-| **Cùng từ `nd`, khác ngữ cảnh** | `tòa án nd tối cao` | `tòa án nhân dân tối cao` |
-| **Phân biệt nghĩa không dấu** | `co the bị xử phạt` / `xâm phạm co the người khác` | `có thể bị xử phạt` / `xâm phạm cơ thể người khác` |
+| **Giải nhập nhằng viết tắt theo ngữ cảnh** | `nd 23/24 quy định về atgt đường bộ` / `tòa án nd tối cao` | `nghị định 23/24 quy định về an toàn giao thông đường bộ` / `tòa án nhân dân tối cao` |
 | **Rơi mất từ ở giữa** | `an toan thong` / `xe k bang lai` | `an toàn giao thông` / `xe không có bằng lái` |
-| **Lỗi gõ Telex & lặp phím** | `buowcs`, `vi pham phappp luat` | `bước`, `vi phạm pháp luật` |
-| **Sai chính tả trên câu có dấu** | `uống dượu bia phạt bao nhiêu` | `uống rượu bia phạt bao nhiêu` |
-| **Gõ nhầm/thiếu chữ đa từ** | `con nui` / `hộ kihw doan` | `con nuôi` / `hộ kinh doanh` |
+| **Lỗi Telex, lặp phím & sai chính tả** | `buowcs`, `uống dượu bia phạt bao nhiêu`, `hộ kihw doan` | `bước`, `uống rượu bia phạt bao nhiêu`, `hộ kinh doanh` |
 | **Giữ nguyên câu đã gõ đúng** | `chạy xe vượt đèn đỏ bị phạt bao nhiêu tiền` | Giữ nguyên không sửa bừa |
 
 ---
@@ -53,7 +49,21 @@ Hằng ngày người dùng thường gõ tắt (`tngt`, `atgt`, `csgt`, `xpvphc
 - **Chủ động kiểm soát dữ liệu nội bộ:** Khi cài chạy trên máy hoặc máy chủ riêng của bạn, toàn bộ quá trình học tài liệu và xử lý văn bản diễn ra hoàn toàn cục bộ, không cần gửi dữ liệu qua API bên thứ ba.
 - **Phản hồi nhanh trong vài mili-giây:** Đủ mượt để gắn trực tiếp vào thanh tìm kiếm hoặc hộp gợi ý ngay trong lúc người dùng đang gõ.
 - **Tự học từ chính tài liệu của bạn:** Đưa trực tiếp thư mục file Word (`.doc`, `.docx`) hoặc `.txt` của tổ chức vào — Factotum tự rút ra bộ thuật ngữ chuyên ngành mà không cần gán nhãn thủ công.
-- **Minh bạch, dễ kiểm tra:** Không tự bịa nội dung ngoài dữ liệu đã học. Khi câu quá mơ hồ, Factotum ưu tiên giữ nguyên câu gốc thay vì đoán bừa; người dùng có thể mở xem và chỉnh sửa trực tiếp các file tri thức thuần văn bản.
+- **Minh bạch, dễ kiểm tra (MDIS + văn bản thuần):** Không tự bịa nội dung ngoài dữ liệu đã học. Lõi cấu trúc **MDIS** (giao cắt đa chiều có thứ tự) hỗ trợ xuất trực tiếp ra file tri thức nén `.mdis` và văn bản thuần `MDIS.txt` để kiểm tra.
+
+---
+
+## Kết quả Benchmark nổi bật (v1.1.0 — MDIS)
+
+Đánh giá trên **20.064 câu kiểm thử** ([report_10000_20261127_115720.txt](benchmark/report_10000_20261127_115720.txt)):
+
+| Bộ kiểm thử | Quy mô | Câu gốc (`KW-Rec`) | Base-2g (`KW-Rec`) | **Factotum v1.1 (`KW-Rec` / `All-KW` / `Ctx-F1`)** | Trung vị tốc độ |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Văn bản chưa từng học (Held-out)** | 10.000 câu | 20,0% | 86,8% | **95,1% / 89,4% / 95,5%** | `3,61 ms` |
+| **64 ca thực tế có từ khóa bắt buộc** | 64 câu | 23,4% | 64,3% | **98,4% / 96,9% / 99,7%** | `16,25 ms` |
+| **Kiểm thử tải trên thuật ngữ đã học** | 10.000 câu | 17,1% | 91,1% | **98,9% / 97,4% / 99,1%** | `3,05 ms` |
+
+![Lịch sử cải tiến Factotum qua các phiên bản](docs/images/version_progress.png)
 
 ---
 

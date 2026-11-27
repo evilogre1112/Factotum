@@ -430,6 +430,16 @@ class GraphQueryEngine(GraphIndex):
                     idx_t = 0
                     idx_w = 0
                     while idx_t < max_tok_step and idx_w < lcp_len:
+                        miss_ed = next(
+                            (e for e in edits_k if e.start - anc_len == idx_w and e.kind == "missing_insert"),
+                            None,
+                        )
+                        if miss_ed is not None:
+                            span_w = miss_ed.end - miss_ed.start
+                            if idx_w + span_w <= lcp_len:
+                                idx_w += span_w
+                                continue
+                            break
                         raw_t = orig_tokens[pos + idx_t]
                         matched_ed = next(
                             (e for e in edits_k if e.start - anc_len == idx_w and e.orig == raw_t),

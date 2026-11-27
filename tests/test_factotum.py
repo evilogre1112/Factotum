@@ -210,6 +210,75 @@ class TestFactotum(unittest.TestCase):
         self.assertGreaterEqual(model.engine.strong_kb_freq, 1)
         self.assertLessEqual(model.engine.medium_kb_freq, model.engine.strong_kb_freq)
 
+    def test_physical_mdis_store_and_persistence(self) -> None:
+        """Cấu trúc MDIS vật lý (Entity / +/- Dimension / Twin Event / AUX) và lưu-tải file .mdis."""
+        import tempfile
+        from pathlib import Path
+        from factotum.engine.mdis import MDISStore
+
+        model = Factotum().fit(
+            [
+                (
+                    "quyền và nghĩa vụ dân sự. "
+                    "thực hiện nghĩa vụ dân sự. "
+                    "nghĩa vụ dân sự của công dân."
+                )
+                * 4
+            ]
+        )
+        store = model.engine.ensure_mdis()
+        st = store.stats()
+        self.assertEqual(st["aux_entities"], 1)
+        self.assertGreater(st["entities"], 5)
+        self.assertGreater(st["dims_plus"], 0)
+        self.assertGreater(st["dims_minus"], 0)
+        self.assertGreater(st["events"], 0)
+
+        # Kiểm tra định lý giao cắt hai chiều và phần tử ẩn <AUX>
+        self.assertTrue(store.query_prefix("nghĩa", ["vụ", "dân", "sự"]))
+        self.assertFalse(store.query_prefix("vụ", ["nghĩa"]))
+
+        # Kiểm tra chiều - đọc ngược và chiều + đọc xuôi với other_entity O(1)
+        plus_dims = [d for d in range(len(store.dim_mode)) if store.dim_mode[d] == 1 and store.dim_events[d]]
+        minus_dims = [d for d in range(len(store.dim_mode)) if store.dim_mode[d] == 0 and store.dim_events[d]]
+        self.assertTrue(plus_dims)
+        self.assertTrue(minus_dims)
+        d_plus = plus_dims[0]
+        self.assertEqual(store.logical_events(d_plus), list(store.dim_events[d_plus]))
+        d_minus = minus_dims[0]
+        self.assertEqual(store.logical_events(d_minus), list(reversed(store.dim_events[d_minus])))
+        # Phần tử đầu tiên logic của chiều '-' luôn là sự kiện <AUX> (ID 0, chặn đầu)
+        first_minus_ev = store.logical_events(d_minus)[0]
+        self.assertEqual(store.other_entity(first_minus_ev, d_minus), 0)
+
+        # Kiểm tra tra cứu cụm con qua MDISStore và cập nhật động add_phrases
+        freq_sub, diff_sub, src_sub = model.engine.lookup_real_phrase_score(["nghĩa", "vụ", "dân"])
+        self.assertGreater(freq_sub, 0)
+        self.assertGreaterEqual(diff_sub, 0)
+        self.assertIn("nghĩa vụ dân", src_sub)
+
+        model.engine.add_phrases({"bảo hộ quyền tác giả": 7})
+        self.assertTrue(store.query_prefix("bảo", ["hộ", "quyền", "tác", "giả"]))
+        freq_new, diff_new, src_new = model.engine.lookup_real_phrase_score(["hộ", "quyền", "tác"])
+        self.assertEqual(freq_new, 7)
+        self.assertEqual(diff_new, 2)
+        self.assertEqual(src_new, "bảo hộ quyền tác giả")
+
+        # Lưu và tải lại file .mdis
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mdis_path = Path(tmpdir) / "test.mdis"
+            model.engine.save_mdis(mdis_path)
+            self.assertTrue(mdis_path.exists())
+            reloaded = MDISStore()
+            reloaded.load_file(mdis_path)
+            self.assertEqual(reloaded.stats(), store.stats())
+            self.assertTrue(reloaded.query_prefix("nghĩa", ["vụ", "dân", "sự"]))
+            self.assertFalse(reloaded.query_prefix("vụ", ["nghĩa"]))
+            self.assertEqual(
+                reloaded.lookup_phrase_score(["hộ", "quyền", "tác"], model.engine.phrases, 4),
+                store.lookup_phrase_score(["hộ", "quyền", "tác"], model.engine.phrases, 4),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
