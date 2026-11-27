@@ -55,13 +55,13 @@ Every day, users type shorthand (`tngt`, `atgt`, `csgt`, `xpvphc`, `nd`), omit V
 
 ## Benchmark Highlights (v1.1.0)
 
-Evaluated across **20,064 test queries** ([report_10000_20261127_115720.txt](benchmark/report_10000_20261127_115720.txt)):
+Evaluated across **20,064 test queries** ([report_10000_20261127_201343.txt](benchmark/report_10000_20261127_201343.txt)):
 
 | Benchmark Suite | Queries | Raw (`KW-Rec`) | Base-2g (`KW-Rec`) | **Factotum v1.1 (`KW-Rec` / `All-KW` / `Ctx-F1`)** | Median Latency |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Document-level Held-out** | 10,000 | 20.0% | 86.8% | **95.1% / 89.4% / 95.5%** | `3.61 ms` |
-| **64 Real-World Context Cases** | 64 | 23.4% | 64.3% | **98.4% / 96.9% / 99.7%** | `16.25 ms` |
-| **In-Sample Stress Test** | 10,000 | 17.1% | 91.1% | **98.9% / 97.4% / 99.1%** | `3.05 ms` |
+| **Document-level Held-out** | 10,000 | 19.5% | 87.3% | **95.8% / 91.0% / 96.2%** | `3.15 ms` |
+| **64 Real-World Context Cases** | 64 | 23.4% | 64.3% | **98.4% / 96.9% / 99.7%** | `12.33 ms` |
+| **In-Sample Stress Test** | 10,000 | 16.9% | 91.1% | **99.1% / 97.6% / 99.2%** | `2.22 ms` |
 
 ![Factotum Version Progress](docs/images/version_progress.png)
 

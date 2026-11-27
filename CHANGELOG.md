@@ -11,13 +11,14 @@ Bản nâng cấp lớn về chất lượng mở rộng viết tắt theo ngữ
 - Cải thiện mạnh khả năng mở rộng viết tắt toàn cụm và viết tắt dài nhiều từ dựa trên ngữ cảnh xung quanh.
 - Giảm thiểu lỗi lệch dấu thanh điệu trên các cụm từ hiếm hoặc ngoài tập huấn luyện.
 - Tối ưu tốc độ tra cứu cụm con trên kho tri thức lớn.
+- Tự động tách các từ tiếng Việt bị dính liền do lỗi văn bản nguồn khi nạp dữ liệu và hỗ trợ chia thư mục `data/unprocessed/` – `data/processed/` kèm chống nạp trùng bằng mã băm nội dung.
 
-### Kết quả Benchmark (20.064 câu — `report_10000_20261127_115720.txt`)
+### Kết quả Benchmark (20.064 câu — `report_10000_20261127_201343.txt`)
 
-- **Held-out 10.000 câu:** **`95,1%` KW-Rec / `89,4%` All-KW / `95,5%` Ctx-F1** (viết tắt toàn cụm tăng từ `73,2% → 88,9%` KW-Rec và `52,8% → 79,8%` All-KW).
-- **64 ca thực tế (`context_cases.json`):** **`98,4%` KW-Rec / `96,9%` All-KW / `99,7%` Ctx-F1** (`62/64` câu đạt 100%).
-- **Stress Test 10.000 câu:** **`98,9%` KW-Rec / `97,4%` All-KW / `99,1%` Ctx-F1** (viết tắt toàn cụm tăng từ `79,5% → 97,8%` KW-Rec).
-- Tổng số câu còn thiếu từ khóa trên 20.064 câu giảm **43,4%** so với v1.0.1 (`2.343 → 1.326` câu) và **62,7%** so với v1.0.0 (`3.558 → 1.326` câu).
+- **Held-out 10.000 câu:** **`95,8%` KW-Rec / `91,0%` All-KW / `96,2%` Ctx-F1** (viết tắt toàn cụm đạt `91,0%` KW-Rec và `83,7%` All-KW).
+- **64 ca thực tế (`context_cases.json`):** **`98,4%` KW-Rec / `96,9%` All-KW / `99,7%` Ctx-F1** (`62/64` câu đạt 100%, trung vị `12,33 ms`).
+- **Stress Test 10.000 câu:** **`99,1%` KW-Rec / `97,6%` All-KW / `99,2%` Ctx-F1** (`206 câu/giây`, trung vị `2,22 ms`).
+- Tổng số câu còn thiếu từ khóa trên 20.064 câu giảm **51,3%** so với v1.0.1 (`2.343 → 1.141` câu) và **67,9%** so với v1.0.0 (`3.558 → 1.141` câu).
 
 ## [1.0.1] - 2026-11-26
 

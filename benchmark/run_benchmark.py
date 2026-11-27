@@ -511,6 +511,8 @@ def run_held_out_benchmark(
     if not DATA_DIR.exists():
         return ""
     docs = read_all_files(DATA_DIR)
+    if not docs and (DATA_DIR / "processed").exists():
+        docs = read_all_files(DATA_DIR / "processed")
     if not docs:
         return ""
     docs.sort(key=lambda x: x[0])

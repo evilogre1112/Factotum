@@ -1,9 +1,11 @@
+import hashlib
 from pathlib import Path
+import shutil
 import time
 
 from factotum.builder import make_tree
 from factotum.builder.extractor import process_document
-from factotum.core.doc_reader import read_all_files, read_single_file
+from factotum.core.doc_reader import read_single_file
 from factotum.core.extension import format_duration, init_console, print_progress
 from factotum.engine import GraphQueryEngine
 from factotum.engine.models import OUTPUT_DIR
@@ -11,44 +13,100 @@ from factotum.engine.models import OUTPUT_DIR
 SRC_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SRC_DIR.parent
 DEFAULT_DATA_DIR = PROJECT_DIR / "data"
+UNPROCESSED_DATA_DIR = DEFAULT_DATA_DIR / "unprocessed"
+PROCESSED_DATA_DIR = DEFAULT_DATA_DIR / "processed"
+
+
+def _file_sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _collect_processed_signatures(processed_dir: Path) -> tuple[set[str], set[str]]:
+    """Thu thập tập tên file (chữ thường) và mã băm SHA-256 của toàn bộ file đã xử lý."""
+    names: set[str] = set()
+    hashes: set[str] = set()
+    if not processed_dir.exists():
+        return names, hashes
+    for f in processed_dir.iterdir():
+        if f.is_file() and f.suffix.lower() in (".doc", ".docx") and not f.name.startswith("~$"):
+            names.add(f.name.lower())
+            hashes.add(_file_sha256(f))
+    return names, hashes
 
 
 def add_data_flow(engine: GraphQueryEngine) -> None:
+    UNPROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
     print("\n--- [1] THÊM DỮ LIỆU MỚI (.doc / .docx) ---")
-    print(f"Nhập đường dẫn file hoặc thư mục (có thể kéo-thả vào đây).")
-    print(f"Bấm Enter để dùng thư mục mặc định: {DEFAULT_DATA_DIR}")
+    print("Nhập đường dẫn file hoặc thư mục (có thể kéo-thả vào đây).")
+    print(f"Bấm Enter để nạp tự động từ thư mục chưa xử lý: {UNPROCESSED_DATA_DIR}")
     raw_input = input("Đường dẫn: ").strip().strip('"').strip("'")
 
-    target = Path(raw_input) if raw_input else DEFAULT_DATA_DIR
+    target = Path(raw_input) if raw_input else UNPROCESSED_DATA_DIR
     if not target.exists():
         print(f"[Lỗi] Không tìm thấy đường dẫn: {target}\n")
         return
 
     t0 = time.perf_counter()
-    docs: list[tuple[str, str]] = []
+    candidate_files: list[Path] = []
 
     if target.is_file():
         if target.suffix.lower() not in (".doc", ".docx"):
             print(f"[Lỗi] Chỉ hỗ trợ file .doc hoặc .docx (nhận được: {target.suffix})\n")
             return
-        docs = [(target.name, read_single_file(target))]
+        candidate_files = [target]
     else:
-        docs = read_all_files(target)
+        candidate_files = sorted(
+            f
+            for f in target.iterdir()
+            if f.is_file()
+            and f.suffix.lower() in (".doc", ".docx")
+            and not f.name.startswith("~$")
+        )
 
-    if not docs:
-        print(f"[Thông báo] Không có file .doc / .docx nào trong: {target}\n")
+    if not candidate_files:
+        print(f"[Thông báo] Không có file .doc / .docx nào chưa xử lý trong: {target}\n")
         return
 
+    processed_names, processed_hashes = _collect_processed_signatures(PROCESSED_DATA_DIR)
+    new_files: list[tuple[Path, str]] = []
+    skipped_files: list[Path] = []
+    for f in candidate_files:
+        f_hash = _file_sha256(f)
+        if f.name.lower() in processed_names or f_hash in processed_hashes:
+            skipped_files.append(f)
+        else:
+            processed_names.add(f.name.lower())
+            processed_hashes.add(f_hash)
+            new_files.append((f, f_hash))
+
+    if skipped_files:
+        print(f"\n>> Bỏ qua {len(skipped_files)} file đã tồn tại trong '{PROCESSED_DATA_DIR.name}/' (trùng tên hoặc nội dung):")
+        for sf in skipped_files[:10]:
+            print(f"   - [Trùng] {sf.name}")
+        if len(skipped_files) > 10:
+            print(f"   ... và {len(skipped_files) - 10} file khác.")
+
+    if not new_files:
+        print(">> Không có file mới nào cần xử lý (tránh nạp trùng thành công).\n")
+        return
+
+    docs: list[tuple[Path, str]] = [(f, read_single_file(f)) for f, _ in new_files]
     total_words = sum(len(raw_str.split()) for _, raw_str in docs)
     print(
-        f"\n>> Đã đọc {len(docs)} file ({total_words:,} từ) trong {time.perf_counter() - t0:.4f} s."
+        f"\n>> Đã đọc {len(docs)} file mới ({total_words:,} từ) trong {time.perf_counter() - t0:.4f} s."
     )
 
     done_words = 0
     t_extract = time.perf_counter()
-    for idx, (doc_name, raw_str) in enumerate(docs, start=1):
-        print(f"\n[{idx}/{len(docs)}] Đang trích xuất cụm lõi: {doc_name}...")
-        process_document(doc_name, raw_str)
+    for idx, (doc_path, raw_str) in enumerate(docs, start=1):
+        print(f"\n[{idx}/{len(docs)}] Đang trích xuất cụm lõi: {doc_path.name}...")
+        process_document(doc_path.name, raw_str)
         done_words += len(raw_str.split())
         print_progress(
             done_words, total_words, t_extract, label="Trích xuất", unit="từ"
@@ -60,11 +118,20 @@ def add_data_flow(engine: GraphQueryEngine) -> None:
     )
     make_tree.main()
 
+    # Chuyển file từ unprocessed/ sang processed/ (hoặc sao lưu bản đối chiếu nếu nạp từ ngoài)
+    for doc_path, _ in docs:
+        dest = PROCESSED_DATA_DIR / doc_path.name
+        if doc_path.parent.resolve() == UNPROCESSED_DATA_DIR.resolve():
+            shutil.move(str(doc_path), str(dest))
+        elif not dest.exists():
+            shutil.copy2(str(doc_path), str(dest))
+
     # Tải lại đồ thị mới nhất vào RAM để sẵn sàng truy vấn ngay
     t_reload = time.perf_counter()
     engine.load()
     print(
-        f">> Đã cập nhật xong vào RAM ({time.perf_counter() - t_reload:.3f} s): "
+        f">> Đã chuyển {len(docs)} file sang '{PROCESSED_DATA_DIR.name}/' và cập nhật vào RAM "
+        f"({time.perf_counter() - t_reload:.3f} s): "
         f"{len(engine.phrases):,} cụm | {len(engine.real_vocab):,} từ đơn.\n"
     )
 

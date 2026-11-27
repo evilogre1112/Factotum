@@ -253,8 +253,11 @@ def build_graph(paths: FactotumPaths = DEFAULT_PATHS, show_progress: bool = True
                     edge_freq[get_or_add_id(parts[1])][get_or_add_id(parts[2])] += int(float(parts[3]))
         logger.info("Đã nạp tri thức lịch sử từ %s.", paths.kb_path)
 
-    # 2. Đọc & gom cụm mới từ Pure_Log
+    # 2. Đọc & gom cụm mới từ Pure_Log (tự tách các từ tiếng Việt bị dính liền)
     aggregated_new = _read_and_dedup_pure_logs(paths.pure_log_dir, paths.processed_log_dir)
+    if aggregated_new:
+        known_vocab = {w for p in phrase_to_id for w in p.split()}
+        aggregated_new = _clean_glued_vn_phrases(aggregated_new, known_vocab=known_vocab)
     sorted_unique_new = sorted(aggregated_new.items(), key=lambda kv: (kv[0].count(" ") + 1, kv[0]))
 
     total_phrases = len(sorted_unique_new)
@@ -279,6 +282,64 @@ def build_graph(paths: FactotumPaths = DEFAULT_PATHS, show_progress: bool = True
     logger.info("MakeTree hoàn tất trong %.3fs -> %s", time.perf_counter() - t_start, paths.output_dir)
 
 
+def _clean_glued_vn_phrases(
+    phrase_counts: dict[str, int],
+    known_vocab: set[str] | None = None,
+) -> dict[str, int]:
+    """
+    Tự động tách các từ tiếng Việt có dấu bị dính liền do lỗi văn bản gốc (vd: 'nàohoạt' -> 'nào hoạt',
+    'tộitrong' -> 'tội trong') thành 2 âm tiết tiếng Việt hợp lệ đã tồn tại trong từ vựng.
+    """
+    valid_word_freq: dict[str, int] = defaultdict(int)
+    if known_vocab:
+        for w in known_vocab:
+            if w.isalpha() and is_valid_vietnamese_syllable(w):
+                valid_word_freq[w] = max(valid_word_freq[w], 1)
+    for phrase, freq in phrase_counts.items():
+        for w in phrase.split():
+            if w.isalpha() and is_valid_vietnamese_syllable(w):
+                valid_word_freq[w] += freq
+
+    split_cache: dict[str, str] = {}
+    cleaned: dict[str, int] = defaultdict(int)
+
+    for phrase, freq in phrase_counts.items():
+        words = phrase.split()
+        changed = False
+        new_words: list[str] = []
+        for w in words:
+            if (
+                w.isalpha()
+                and len(w) >= 5
+                and w != remove_accents(w)
+                and not is_valid_vietnamese_syllable(w)
+            ):
+                rep = split_cache.get(w)
+                if rep is None:
+                    best_pair: tuple[str, str] | None = None
+                    best_score = (-1, -1)
+                    for cut in range(1, len(w)):
+                        a, b = w[:cut], w[cut:]
+                        fa = valid_word_freq.get(a, 0)
+                        fb = valid_word_freq.get(b, 0)
+                        if fa > 0 and fb > 0:
+                            sc = (1 if (len(a) >= 2 and len(b) >= 2) else 0, min(fa, fb))
+                            if sc > best_score:
+                                best_score = sc
+                                best_pair = (a, b)
+                    rep = f"{best_pair[0]} {best_pair[1]}" if best_pair is not None else w
+                    split_cache[w] = rep
+                if rep != w:
+                    new_words.extend(rep.split())
+                    changed = True
+                    continue
+            new_words.append(w)
+        out_phrase = " ".join(new_words) if changed else phrase
+        cleaned[out_phrase] += freq
+
+    return dict(cleaned)
+
+
 def rebuild_from_kb(paths: FactotumPaths = DEFAULT_PATHS, show_progress: bool = True) -> int:
     """Dựng lại toàn bộ cạnh Markov (AB), Data.txt và UnaccentedMap.txt từ các dòng 'A,...' trong KnowledgeBase.txt."""
     if not paths.kb_path.exists():
@@ -299,6 +360,8 @@ def rebuild_from_kb(paths: FactotumPaths = DEFAULT_PATHS, show_progress: bool = 
                     continue
                 if freq > 0:
                     active_phrases[phrase] = active_phrases.get(phrase, 0) + freq
+
+    active_phrases = _clean_glued_vn_phrases(active_phrases)
 
     phrase_to_id: dict[str, int] = {}
     id_to_phrase: list[str] = [""]

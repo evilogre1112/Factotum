@@ -55,13 +55,13 @@ Hằng ngày người dùng thường gõ tắt (`tngt`, `atgt`, `csgt`, `xpvphc
 
 ## Kết quả Benchmark nổi bật (v1.1.0)
 
-Đánh giá trên **20.064 câu kiểm thử** ([report_10000_20261127_115720.txt](benchmark/report_10000_20261127_115720.txt)):
+Đánh giá trên **20.064 câu kiểm thử** ([report_10000_20261127_201343.txt](benchmark/report_10000_20261127_201343.txt)):
 
 | Bộ kiểm thử | Quy mô | Câu gốc (`KW-Rec`) | Base-2g (`KW-Rec`) | **Factotum v1.1 (`KW-Rec` / `All-KW` / `Ctx-F1`)** | Trung vị tốc độ |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Văn bản chưa từng học (Held-out)** | 10.000 câu | 20,0% | 86,8% | **95,1% / 89,4% / 95,5%** | `3,61 ms` |
-| **64 ca thực tế có từ khóa bắt buộc** | 64 câu | 23,4% | 64,3% | **98,4% / 96,9% / 99,7%** | `16,25 ms` |
-| **Kiểm thử tải trên thuật ngữ đã học** | 10.000 câu | 17,1% | 91,1% | **98,9% / 97,4% / 99,1%** | `3,05 ms` |
+| **Văn bản chưa từng học (Held-out)** | 10.000 câu | 19,5% | 87,3% | **95,8% / 91,0% / 96,2%** | `3,15 ms` |
+| **64 ca thực tế có từ khóa bắt buộc** | 64 câu | 23,4% | 64,3% | **98,4% / 96,9% / 99,7%** | `12,33 ms` |
+| **Kiểm thử tải trên thuật ngữ đã học** | 10.000 câu | 16,9% | 91,1% | **99,1% / 97,6% / 99,2%** | `2,22 ms` |
 
 ![Lịch sử cải tiến Factotum qua các phiên bản](docs/images/version_progress.png)
 

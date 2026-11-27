@@ -45,6 +45,16 @@ class FactotumPaths:
     def dangling_words_path(self) -> Path:
         return self.output_dir / "dangling_end_words.txt"
 
+    @property
+    def unprocessed_data_dir(self) -> Path:
+        base = self.data_dir or (DEFAULT_PROJECT_DIR / "data")
+        return base / "unprocessed"
+
+    @property
+    def processed_data_dir(self) -> Path:
+        base = self.data_dir or (DEFAULT_PROJECT_DIR / "data")
+        return base / "processed"
+
     @classmethod
     def default(cls) -> "FactotumPaths":
         return cls(
