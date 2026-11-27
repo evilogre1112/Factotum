@@ -279,6 +279,25 @@ class TestFactotum(unittest.TestCase):
                 store.lookup_phrase_score(["hộ", "quyền", "tác"], model.engine.phrases, 4),
             )
 
+    def test_long_sentence_real_word_typo_local_kb_window(self) -> None:
+        """Sửa lỗi chính tả từ hợp lệ (vd 'nang' -> 'nạn') trong câu dài nhờ cửa sổ KB cục bộ 3-4 từ."""
+        model = Factotum().fit(
+            [
+                (
+                    "lái xe ô tô gây tai nạn giao thông bị xử phạt nghiêm. "
+                    "người lái xe gây tai nạn giao thông phải bồi thường. "
+                    "phòng chống tai nạn giao thông đường bộ. "
+                    "năng lực hành vi dân sự của công dân."
+                )
+                * 4
+            ]
+        )
+        self.assertEqual(model.restore("gay tai nang giao thong"), "gây tai nạn giao thông")
+        self.assertEqual(
+            model.restore("lái xe oto gay tai nang giao thông"),
+            "lái xe oto gây tai nạn giao thông",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -451,6 +451,13 @@ def _review_single_edits(
                         trial = list(words)
                         trial[i] = cand
                         local_kb_freq = index.dict_freq.get(" ".join(trial), 0)
+                        if both_ok and left_w and right_w and cur_broken == 2 and cur_adj_kb_freq == 0:
+                            local_kb_freq = max(
+                                local_kb_freq,
+                                index.dict_freq.get(f"{left_w} {cand} {right_w}", 0),
+                                index.dict_freq.get(f"{words[i - 2]} {left_w} {cand} {right_w}", 0) if i >= 2 else 0,
+                                index.dict_freq.get(f"{left_w} {cand} {right_w} {words[i + 2]}", 0) if i + 2 < n else 0,
+                            )
                         if both_ok and not right_w and i >= 2 and index.is_subsequence_expansion(ua_orig, ua_cand):
                             f3_l = index.dict_freq.get(f"{words[i - 2]} {left_w} {cand}", 0)
                             if f3_l > 0:
