@@ -608,6 +608,7 @@ def _repair_broken_markov_bridge(
     orig_tokens: list[str],
     *,
     allow_kb_upgrade: bool = False,
+    orig_by_phrase: dict[str, QueryMatch] | None = None,
 ) -> QueryMatch:
     """
     Hậu kiểm 2 chặng trên danh sách đoạn chỉnh sửa `match.edits`:
@@ -642,13 +643,26 @@ def _repair_broken_markov_bridge(
         return match
 
     new_phrase = " ".join(words)
+    if match.superstring_diff >= 0 and orig_by_phrase is not None:
+        existing = orig_by_phrase.get(new_phrase)
+        if existing is not None and existing.superstring_diff >= 0 and existing.context_tier == match.context_tier:
+            return existing
+
     new_prob = index.markov_prob(words)
+    new_freq = match.freq
+    new_diff = match.superstring_diff
+    new_src = match.source_phrase
+    if match.superstring_diff >= 0:
+        kb_f, kb_d, kb_src = index.lookup_real_phrase_score(words)
+        if kb_f > 0:
+            new_freq, new_diff, new_src = kb_f, kb_d, kb_src
+
     repaired = QueryMatch(
         phrase=new_phrase,
-        freq=match.freq,
+        freq=new_freq,
         missing_count=match.missing_count,
-        superstring_diff=match.superstring_diff,
-        source_phrase=match.source_phrase,
+        superstring_diff=new_diff,
+        source_phrase=new_src,
         missing_words=list(match.missing_words),
         context_tier=match.context_tier,
         context_span_len=match.context_span_len,
@@ -759,13 +773,21 @@ def review_matches(
     - Chặng 2: Xếp hạng tổng thể toàn câu và lọc câu kết thúc cụt lủn.
     """
     orig_tokens = fallback_phrase.split() if fallback_phrase else []
+    orig_by_phrase: dict[str, QueryMatch] = {}
+    for m in matches:
+        if m.phrase not in orig_by_phrase:
+            orig_by_phrase[m.phrase] = m
     repaired_matches: list[QueryMatch] = []
     seen_phrases: set[str] = set()
     deep_limit = max(5, top_k)
     for idx_m, m in enumerate(matches):
         if orig_tokens or m.edits:
             rm = _repair_broken_markov_bridge(
-                index, m, orig_tokens, allow_kb_upgrade=(idx_m < deep_limit)
+                index,
+                m,
+                orig_tokens,
+                allow_kb_upgrade=(idx_m < deep_limit),
+                orig_by_phrase=orig_by_phrase,
             )
         else:
             rm = m
