@@ -101,6 +101,8 @@ def review_matches(
     matches: list[QueryMatch],
     fallback_phrase: str,
     top_k: int = 5,
+    *,
+    check_dangling: bool = True,
 ) -> list[QueryMatch]:
     """
     Tầng hậu kiểm 2 chặng trên danh sách đoạn chỉnh sửa `match.edits`:
@@ -137,16 +139,19 @@ def review_matches(
                 seen_phrases.add(bridged.phrase)
                 repaired_matches.append(bridged)
 
-    had_dangling = any(is_dangling_phrase(m.phrase) for m in repaired_matches)
-    valid: list[QueryMatch] = []
-    for m in repaired_matches:
-        if is_dangling_phrase(m.phrase):
-            continue
-        if had_dangling and m.superstring_diff < 0:
-            words = m.phrase.split()
-            if len(words) >= 2 and index.fwd_graph.get(words[-2], {}).get(words[-1], 0) == 0:
+    if check_dangling:
+        had_dangling = any(is_dangling_phrase(m.phrase) for m in repaired_matches)
+        valid: list[QueryMatch] = []
+        for m in repaired_matches:
+            if is_dangling_phrase(m.phrase):
                 continue
-        valid.append(m)
+            if had_dangling and m.superstring_diff < 0:
+                words = m.phrase.split()
+                if len(words) >= 2 and index.fwd_graph.get(words[-2], {}).get(words[-1], 0) == 0:
+                    continue
+            valid.append(m)
+    else:
+        valid = list(repaired_matches)
 
     if valid:
         if orig_tokens:

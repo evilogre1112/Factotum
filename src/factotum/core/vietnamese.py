@@ -1,3 +1,4 @@
+from functools import lru_cache
 import re
 import unicodedata
 
@@ -58,13 +59,27 @@ def normalize_vietnamese_tone(w: str) -> str:
     return w
 
 
+_VN_ACCENT_TRANS = str.maketrans(
+    "àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ"
+    "ÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ",
+    "aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd"
+    "AAAAAAAAAAAAAAAAAEEEEEEEEEEEIIIIIOOOOOOOOOOOOOOOOOUUUUUUUUUUUYYYYYD",
+)
+
+
+@lru_cache(maxsize=32768)
 def remove_accents(text: str) -> str:
     """Bỏ toàn bộ dấu tiếng Việt, chuyển về ASCII không dấu."""
-    text = text.replace("đ", "d").replace("Đ", "D")
-    nfd = unicodedata.normalize("NFD", text)
+    if text.isascii():
+        return text
+    translated = text.translate(_VN_ACCENT_TRANS)
+    if translated.isascii():
+        return translated
+    nfd = unicodedata.normalize("NFD", translated)
     return "".join(ch for ch in nfd if unicodedata.category(ch) != "Mn")
 
 
+@lru_cache(maxsize=32768)
 def is_valid_vietnamese_syllable(w: str) -> bool:
     """Kiểm tra từ đơn có đúng cấu trúc âm tiết tiếng Việt chuẩn không (loại từ viết tắt thô như ubnd, gt)."""
     if not w or not w.isalpha():
@@ -163,44 +178,63 @@ def decode_telex_word(tok: str) -> str:
     return decoded
 
 
+@lru_cache(maxsize=32768)
 def collapse_repeated_chars(word: str) -> str:
     """Gộp các ký tự lặp liên tiếp bất thường (vd: 'pháppp' -> 'pháp')."""
     if len(word) <= 1:
         return word
     out = [word[0]]
+    prev = word[0]
     for ch in word[1:]:
-        if ch != out[-1]:
+        if ch != prev:
             out.append(ch)
+            prev = ch
     return "".join(out)
 
 
 def _damerau_levenshtein(a: str, b: str) -> int:
+    if a == b:
+        return 0
     la, lb = len(a), len(b)
     if la == 0:
         return lb
     if lb == 0:
         return la
-    dp = [[0] * (lb + 1) for _ in range(la + 1)]
-    for i in range(la + 1):
-        dp[i][0] = i
-    for j in range(lb + 1):
-        dp[0][j] = j
+    prev2: list[int] | None = None
+    prev1 = list(range(lb + 1))
+    prev_ai = ""
     for i in range(1, la + 1):
         ai = a[i - 1]
+        curr = [i] + [0] * lb
+        prev_bj = ""
         for j in range(1, lb + 1):
-            cost = 0 if ai == b[j - 1] else 1
-            val = min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost)
-            if i > 1 and j > 1 and ai == b[j - 2] and a[i - 2] == b[j - 1]:
-                val = min(val, dp[i - 2][j - 2] + 1)
-            dp[i][j] = val
-    return dp[la][lb]
+            bj = b[j - 1]
+            cost = 0 if ai == bj else 1
+            v_del = prev1[j] + 1
+            v_ins = curr[j - 1] + 1
+            v_sub = prev1[j - 1] + cost
+            val = v_del if v_del < v_ins else v_ins
+            if v_sub < val:
+                val = v_sub
+            if prev2 is not None and j > 1 and ai == prev_bj and prev_ai == bj:
+                v_tr = prev2[j - 2] + 1
+                if v_tr < val:
+                    val = v_tr
+            curr[j] = val
+            prev_bj = bj
+        prev2 = prev1
+        prev1 = curr
+        prev_ai = ai
+    return prev1[lb]
 
 
+@lru_cache(maxsize=32768)
 def _decompose_vn_features(word: str) -> tuple[str, str, int]:
     mod_chars: list[str] = []
     tone = 0
+    get_info = _VN_CHAR_TO_MOD_AND_TONE.get
     for ch in word:
-        info = _VN_CHAR_TO_MOD_AND_TONE.get(ch)
+        info = get_info(ch)
         if info is not None:
             mod_chars.append(info[0])
             if info[1] > 0:
@@ -228,6 +262,7 @@ def is_vn_orthographic_confusion(word_a: str, word_b: str) -> bool:
     return any(onset_a in g and onset_b in g for g in _VN_HOMOPHONE_ONSET_GROUPS)
 
 
+@lru_cache(maxsize=32768)
 def token_similarity(word_a: str, word_b: str) -> float:
     """Đo độ tương đồng chữ cái trung lập ngôn ngữ [0.0 .. 1.0] dựa trên Damerau-Levenshtein."""
     if not word_a or not word_b:
@@ -238,13 +273,20 @@ def token_similarity(word_a: str, word_b: str) -> float:
     ua_b = remove_accents(collapse_repeated_chars(word_b))
     if ua_a == ua_b:
         return 0.98 if word_a != word_b else 1.0
-    max_len = max(len(ua_a), len(ua_b), 1)
+    la, lb = len(ua_a), len(ua_b)
+    max_len = la if la >= lb else lb
+    if max_len == 0:
+        max_len = 1
+    max_dl = max(2, max_len // 2)
+    if abs(la - lb) > max_dl:
+        return 0.0
     dl = _damerau_levenshtein(ua_a, ua_b)
-    if dl > max(2, max_len // 2):
+    if dl > max_dl:
         return 0.0
     return max(0.0, 1.0 - dl / max_len)
 
 
+@lru_cache(maxsize=32768)
 def vn_word_similarity(raw_word: str, candidate: str) -> float:
     """Đo độ tương đồng âm tiết tiếng Việt [0.0 .. 1.0] theo khung không dấu, dấu mũ/móc, thanh điệu và phần vần."""
     if not raw_word or not candidate:
@@ -260,9 +302,15 @@ def vn_word_similarity(raw_word: str, candidate: str) -> float:
     ua_a, mod_a, tone_a = _decompose_vn_features(raw_c)
     ua_b, mod_b, tone_b = _decompose_vn_features(cand_c)
 
-    max_len = max(len(ua_a), len(ua_b), 1)
+    la, lb = len(ua_a), len(ua_b)
+    max_len = la if la >= lb else lb
+    if max_len == 0:
+        max_len = 1
+    max_dl = max(2, max_len // 2)
+    if abs(la - lb) > max_dl:
+        return 0.0
     dl_ua = _damerau_levenshtein(ua_a, ua_b)
-    if dl_ua > max(2, max_len // 2):
+    if dl_ua > max_dl:
         return 0.0
 
     sim_ua = max(0.0, 1.0 - dl_ua / max_len)

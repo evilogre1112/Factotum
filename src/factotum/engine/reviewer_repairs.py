@@ -19,20 +19,23 @@ def _has_graph_edge(fwd_g: dict[str, dict[str, int]], u: str, v: str) -> bool:
         return True
     u_nbrs = fwd_g.get(u)
     if u_nbrs:
-        if u_nbrs.get(v, 0) > 0:
+        if u_nbrs.get(v):
             return True
         cls_v = get_token_class(v)
         if cls_v:
-            if u_nbrs.get(cls_v, 0) > 0:
+            if u_nbrs.get(cls_v):
                 return True
-            if cls_v in ("<code>", "<date>") and u_nbrs.get("<num>", 0) > 0:
+            if (cls_v == "<code>" or cls_v == "<date>") and u_nbrs.get("<num>"):
                 return True
     cls_u = get_token_class(u)
     if cls_u:
-        if fwd_g.get(cls_u, {}).get(v, 0) > 0:
+        c_nbrs = fwd_g.get(cls_u)
+        if c_nbrs and c_nbrs.get(v):
             return True
-        if cls_u in ("<code>", "<date>") and fwd_g.get("<num>", {}).get(v, 0) > 0:
-            return True
+        if cls_u == "<code>" or cls_u == "<date>":
+            n_nbrs = fwd_g.get("<num>")
+            if n_nbrs and n_nbrs.get(v):
+                return True
     return False
 
 

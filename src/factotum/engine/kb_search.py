@@ -152,6 +152,7 @@ def direct_kb_search(
     col_0 = col_sets[0]
     col_last = col_sets[L - 1]
     matches_by_phrase: dict[str, QueryMatch] = {}
+    best_rk_by_phrase: dict[str, tuple[int, int, int, int, float]] = {}
     min_col_len = min(len(s) for s in col_pids)
     phrases = index.phrases
     fwd_prob = index.fwd_prob
@@ -169,20 +170,32 @@ def direct_kb_search(
                     break
                 pair_filters.append(pair_pids)
 
+    reusable_col_common: set[int] | None = None
     if possible_direct:
         if pair_filters:
-            # Chuyển cặp nhỏ nhất sang set để thu hẹp tập giao ngay từ đầu (nhanh ~2x)
+            # Chuyển cặp nhỏ nhất sang set chỉ khi nhỏ hơn hoặc bằng tập nhỏ nhất hiện có;
+            # khi tập giao đã thu gọn <= 32 phần tử thì dừng lọc pair_filters (lọc tiếp không làm giảm đáng kể).
             pair_filters.sort(key=len)
-            direct_sets.append(set(pair_filters[0]))
             direct_sets.sort(key=len)
-            direct_common = set.intersection(*direct_sets)
-            for pf in pair_filters[1:]:
-                if not direct_common:
+            if len(pair_filters[0]) < len(direct_sets[0]):
+                direct_common = set(pair_filters[0])
+                for ds in direct_sets:
+                    direct_common.intersection_update(ds)
+                    if not direct_common:
+                        break
+                rem_filters = pair_filters[1:]
+            else:
+                direct_common = direct_sets[0].intersection(*direct_sets[1:])
+                rem_filters = pair_filters
+            for pf in rem_filters:
+                if len(direct_common) <= 32:
                     break
                 direct_common.intersection_update(pf)
         else:
             direct_sets.sort(key=len)
-            direct_common = set.intersection(*direct_sets)
+            direct_common = direct_sets[0].intersection(*direct_sets[1:])
+            if min_col_len <= 300:
+                reusable_col_common = direct_common
         max_len_direct = L + max_diff_k
         for pid in direct_common:
             p_str, p_words, p_freq = phrases[pid]
@@ -193,24 +206,38 @@ def direct_kb_search(
             for start in range(diff_direct + 1):
                 if p_words[start] not in col_0 or p_words[start + L - 1] not in col_last:
                     continue
-                if L == 2 or all(p_words[start + i] in col_sets[i] for i in range(1, L - 1)):
-                    sub_words = p_words[start : start + L]
-                    sub_phrase = " ".join(sub_words)
-                    m_prob = 1.0
-                    for i in range(L - 1):
-                        m_prob *= fwd_prob.get(sub_words[i], {}).get(sub_words[i + 1], 1e-6)
-                    cand = QueryMatch(
-                        phrase=sub_phrase,
-                        freq=p_freq,
-                        missing_count=0,
-                        superstring_diff=diff_direct,
-                        source_phrase=p_str,
-                        missing_words=[],
-                        markov_prob=m_prob,
-                    )
-                    prev = matches_by_phrase.get(sub_phrase)
-                    if prev is None or rank_key(cand) < rank_key(prev):
-                        matches_by_phrase[sub_phrase] = cand
+                if L > 2:
+                    ok = True
+                    for i in range(1, L - 1):
+                        if p_words[start + i] not in col_sets[i]:
+                            ok = False
+                            break
+                    if not ok:
+                        continue
+                sub_words = p_words[start : start + L]
+                sub_phrase = " ".join(sub_words)
+                prev_rk = best_rk_by_phrase.get(sub_phrase)
+                if prev_rk is not None:
+                    # Nhanh: nếu diff lớn hơn hoặc bằng nhau nhưng freq nhỏ hơn thì bỏ qua không cần tính markov_prob
+                    if diff_direct > prev_rk[2] or (diff_direct == prev_rk[2] and -p_freq > prev_rk[3]):
+                        continue
+                m_prob = 1.0
+                for i in range(L - 1):
+                    nbrs = fwd_prob.get(sub_words[i])
+                    m_prob *= nbrs.get(sub_words[i + 1], 1e-6) if nbrs else 1e-6
+                cand = QueryMatch(
+                    phrase=sub_phrase,
+                    freq=p_freq,
+                    missing_count=0,
+                    superstring_diff=diff_direct,
+                    source_phrase=p_str,
+                    missing_words=[],
+                    markov_prob=m_prob,
+                )
+                rk = rank_key(cand)
+                if prev_rk is None or rk < prev_rk:
+                    matches_by_phrase[sub_phrase] = cand
+                    best_rk_by_phrase[sub_phrase] = rk
 
     strong_f = index.strong_kb_freq
     strong_zero_miss = sum(
@@ -220,11 +247,14 @@ def direct_kb_search(
     if not allow_missing or L < 2 or strong_zero_miss >= 3 or (is_pure_acronym and strong_zero_miss >= 1):
         return list(matches_by_phrase.values())
 
-    miss_sets = list(col_pids)
-    if min_col_len > 300:
-        miss_sets.append(index.get_len_range_pids(L + 1, L + 1 + max_diff_k))
-    miss_sets.sort(key=len)
-    miss_common = set.intersection(*miss_sets)
+    if reusable_col_common is not None:
+        miss_common = reusable_col_common
+    else:
+        miss_sets = list(col_pids)
+        if min_col_len > 300:
+            miss_sets.append(index.get_len_range_pids(L + 1, L + 1 + max_diff_k))
+        miss_sets.sort(key=len)
+        miss_common = miss_sets[0].intersection(*miss_sets[1:])
     min_len_miss = L + 1
     max_len_miss = L + 1 + max_diff_k
     for pid in miss_common:
@@ -237,29 +267,44 @@ def direct_kb_search(
             if p_words[start] not in col_0 or p_words[start + L] not in col_last:
                 continue
             for gap_i in range(1, L):
-                if all(p_words[start + i] in col_sets[i] for i in range(1, gap_i)) and all(
-                    p_words[start + i + 1] in col_sets[i] for i in range(gap_i, L - 1)
-                ):
-                    sub_words = p_words[start : start + L + 1]
-                    mid_word = p_words[start + gap_i]
-                    if is_class_token(mid_word):
-                        continue
-                    sub_phrase = " ".join(sub_words)
-                    m_prob = 1.0
-                    for i in range(L):
-                        m_prob *= fwd_prob.get(sub_words[i], {}).get(sub_words[i + 1], 1e-6)
-                    cand = QueryMatch(
-                        phrase=sub_phrase,
-                        freq=p_freq,
-                        missing_count=1,
-                        superstring_diff=diff_miss,
-                        source_phrase=p_str,
-                        missing_words=[mid_word],
-                        markov_prob=m_prob,
-                    )
-                    prev = matches_by_phrase.get(sub_phrase)
-                    if prev is None or rank_key(cand) < rank_key(prev):
-                        matches_by_phrase[sub_phrase] = cand
+                ok = True
+                for i in range(1, gap_i):
+                    if p_words[start + i] not in col_sets[i]:
+                        ok = False
+                        break
+                if not ok:
+                    continue
+                for i in range(gap_i, L - 1):
+                    if p_words[start + i + 1] not in col_sets[i]:
+                        ok = False
+                        break
+                if not ok:
+                    continue
+                mid_word = p_words[start + gap_i]
+                if is_class_token(mid_word):
+                    continue
+                sub_words = p_words[start : start + L + 1]
+                sub_phrase = " ".join(sub_words)
+                prev_rk = best_rk_by_phrase.get(sub_phrase)
+                if prev_rk is not None and prev_rk[1] == 0:
+                    continue
+                m_prob = 1.0
+                for i in range(L):
+                    nbrs = fwd_prob.get(sub_words[i])
+                    m_prob *= nbrs.get(sub_words[i + 1], 1e-6) if nbrs else 1e-6
+                cand = QueryMatch(
+                    phrase=sub_phrase,
+                    freq=p_freq,
+                    missing_count=1,
+                    superstring_diff=diff_miss,
+                    source_phrase=p_str,
+                    missing_words=[mid_word],
+                    markov_prob=m_prob,
+                )
+                rk = rank_key(cand)
+                if prev_rk is None or rk < prev_rk:
+                    matches_by_phrase[sub_phrase] = cand
+                    best_rk_by_phrase[sub_phrase] = rk
 
     return list(matches_by_phrase.values())
 

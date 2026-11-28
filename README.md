@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/dependencies-0-2EA043" alt="Zero Dependencies" />
   <img src="https://img.shields.io/badge/local-no%20GPU%20needed-orange" alt="Offline No GPU" />
-  <img src="https://img.shields.io/badge/release-v1.1.0-blue" alt="Release v1.1.0" />
+  <img src="https://img.shields.io/badge/release-v1.1.1-blue" alt="Release v1.1.1" />
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="MIT License" />
 </p>
 
@@ -58,15 +58,15 @@ Every day, users type shorthand (`tngt`, `atgt`, `csgt`, `xpvphc`, `nd`), omit V
 
 ---
 
-## Benchmark Highlights (v1.1.0)
+## Benchmark Highlights (v1.1.1)
 
-Evaluated across **20,064 test queries** ([report_10000_20261127_201343.txt](benchmark/report_10000_20261127_201343.txt)):
+Evaluated across **20,064 test queries** ([report_10000_20261128_185548.txt](benchmark/report_10000_20261128_185548.txt)):
 
-| Benchmark Suite | Queries | Raw (`KW-Rec`) | Base-2g (`KW-Rec`) | **Factotum v1.1 (`KW-Rec` / `All-KW` / `Ctx-F1`)** | Median Latency |
+| Benchmark Suite | Queries | Raw (`KW-Rec`) | Base-2g (`KW-Rec`) | **Factotum v1.1.1 (`KW-Rec` / `All-KW` / `Ctx-F1`)** | Median / Mean Latency |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Document-level Held-out** | 10,000 | 19.5% | 87.3% | **95.8% / 91.0% / 96.2%** | `3.15 ms` |
-| **64 Real-World Context Cases** | 64 | 23.4% | 64.3% | **98.4% / 96.9% / 99.7%** | `12.33 ms` |
-| **In-Sample Stress Test** | 10,000 | 16.9% | 91.1% | **99.1% / 97.6% / 99.2%** | `2.22 ms` |
+| **Document-level Held-out** | 10,000 | 19.5% | 87.3% | **95.8% / 91.0% / 96.2%** | `2.65 ms` / `3.55 ms` |
+| **64 Real-World Context Cases** | 64 | 23.4% | 64.3% | **98.4% / 96.9% / 99.7%** | `10.64 ms` / `14.80 ms` |
+| **In-Sample Stress Test** | 10,000 | 16.9% | 91.1% | **99.1% / 97.6% / 99.2%** | `2.05 ms` / `3.24 ms` |
 
 ![Factotum Version Progress](docs/images/version_progress.png)
 

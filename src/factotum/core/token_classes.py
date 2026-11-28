@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 import re
 import time
@@ -64,6 +65,7 @@ def is_dangling_phrase(phrase: str, dangling_words: frozenset[str] | None = None
     return tokens[-1] in banned
 
 
+@lru_cache(maxsize=32768)
 def clean_word(w: str) -> str:
     if w in CLASS_TOKENS:
         return w
@@ -108,6 +110,7 @@ def get_compatible_token_classes(tok: str, prev_tok: str = "") -> list[str]:
     return []
 
 
+@lru_cache(maxsize=32768)
 def get_token_class(tok: str, prev_tok: str = "") -> str:
     """Phân loại hình thái cho token biến thiên (<date>, <num>, <code>, <roman>)."""
     if not tok:

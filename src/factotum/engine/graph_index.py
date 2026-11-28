@@ -53,6 +53,7 @@ class GraphIndex:
         self.loaded_from_cache: bool = False
         self._max_key_len_cache: tuple[int, int] = (0, 7)
         self._mdis_phrase_score_cache: dict[tuple[str, int], tuple[int, int, str]] = {}
+        self._kb_3gram_cache: dict[tuple[str, str, str], bool] = {}
         self.mdis: MDISStore = MDISStore()
         self._mdis_ready: bool = False
 
@@ -268,6 +269,7 @@ class GraphIndex:
         self.col_id_to_set.clear()
         self.col_id_to_initial.clear()
         self._mdis_phrase_score_cache.clear()
+        self._kb_3gram_cache.clear()
         self._mdis_ready = False
         for key, candidates in self.unaccented_map.items():
             cid = id(candidates)
@@ -344,6 +346,39 @@ class GraphIndex:
         for length in range(min_len, max_len + 1):
             res.update(self.len_to_phrases.get(length, ()))
         self.len_range_cache[key] = res
+        return res
+
+    def has_kb_3gram(self, a: str, b: str, c: str) -> bool:
+        """Kiểm tra nhanh 3 từ (a, b, c) có cùng xuất hiện trong ít nhất 1 cụm KB hay không (có cache, không tạo set tạm)."""
+        key = (a, b, c)
+        cached = self._kb_3gram_cache.get(key)
+        if cached is not None:
+            return cached
+        if self.dict_freq.get(f"{a} {b} {c}", 0) > 0:
+            res = True
+        else:
+            w2p = self.word_to_phrases
+            p0 = w2p.get(a)
+            if not p0:
+                res = False
+            else:
+                p1 = w2p.get(b)
+                p2 = w2p.get(c)
+                if not p1 or not p2:
+                    res = False
+                else:
+                    # Duyệt từ tập nhỏ nhất và thoát sớm ngay khi gặp PID chung đầu tiên (không cấp phát set trung gian)
+                    l0, l1, l2 = len(p0), len(p1), len(p2)
+                    if l0 <= l1 and l0 <= l2:
+                        s_min, s_a, s_b = p0, p1, p2
+                    elif l1 <= l0 and l1 <= l2:
+                        s_min, s_a, s_b = p1, p0, p2
+                    else:
+                        s_min, s_a, s_b = p2, p0, p1
+                    res = any((pid in s_a and pid in s_b) for pid in s_min)
+        if len(self._kb_3gram_cache) >= 65536:
+            self._kb_3gram_cache.clear()
+        self._kb_3gram_cache[key] = res
         return res
 
     def has_mdis_3gram(self, a: str, b: str, c: str) -> bool:
@@ -638,6 +673,7 @@ class GraphIndex:
 
         self.len_range_cache.clear()
         self._mdis_phrase_score_cache.clear()
+        self._kb_3gram_cache.clear()
         return {"added": added, "updated": updated}
 
     def pids_to_exact_matches(

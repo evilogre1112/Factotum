@@ -378,12 +378,32 @@ class GraphQueryEngine(GraphIndex):
         pos = 0
         chunk_confs: list[float] = []
 
-        def _decode_chunk(tokens_chunk: list[str]) -> tuple[list[str], list[EditSpan], float]:
+        def _decode_chunk(
+            tokens_chunk: list[str], *, is_final: bool = False
+        ) -> tuple[list[str], list[EditSpan], float]:
             sub_q = " ".join(tokens_chunk)
-            ms = self._query_direct(tokens_chunk, sub_q, top_k=1, allow_missing=allow_missing, max_diff_k=max_diff_k)
+            ms = self._query_direct(
+                tokens_chunk,
+                sub_q,
+                top_k=1,
+                allow_missing=allow_missing,
+                max_diff_k=max_diff_k,
+                check_dangling=is_final,
+            )
             if not ms:
                 return list(tokens_chunk), [], 0.0
             return ms[0].phrase.split(), ms[0].edits, ms[0].confidence
+
+        def _strip_anchor(words_out: list[str], anc: list[str]) -> list[str]:
+            if not anc:
+                return words_out
+            a_len = len(anc)
+            if len(words_out) >= a_len:
+                if words_out[:a_len] == anc:
+                    return words_out[a_len:]
+                if [remove_accents(w) for w in words_out[:a_len]] == [remove_accents(w) for w in anc]:
+                    return words_out[a_len:]
+            return words_out
 
         while pos < n:
             anc_len = len(anchor_words)
@@ -396,8 +416,8 @@ class GraphQueryEngine(GraphIndex):
                     k = future_ends[1]
 
             if k >= n:
-                words_out, _, conf = _decode_chunk(anchor_words + orig_tokens[pos:])
-                body = words_out[anc_len:] if len(words_out) >= anc_len and words_out[:anc_len] == anchor_words else words_out
+                words_out, _, conf = _decode_chunk(anchor_words + orig_tokens[pos:], is_final=True)
+                body = _strip_anchor(words_out, anchor_words)
                 committed.extend(body)
                 chunk_confs.append(conf)
                 break
@@ -410,12 +430,14 @@ class GraphQueryEngine(GraphIndex):
             best_commit_words: list[str] = []
             best_conf = 0.0
 
-            w_k, edits_k, conf_k = _decode_chunk(anchor_words + orig_tokens[pos:k])
-            body_k = w_k[anc_len:] if len(w_k) >= anc_len and w_k[:anc_len] == anchor_words else w_k
+            w_k, edits_k, conf_k = _decode_chunk(anchor_words + orig_tokens[pos:k], is_final=(k >= n))
+            body_k = _strip_anchor(w_k, anchor_words)
 
             for k_next in range(k + 1, max_probe + 1):
-                w_k1, edits_k1, conf_k1 = _decode_chunk(anchor_words + orig_tokens[pos:k_next])
-                body_k1 = w_k1[anc_len:] if len(w_k1) >= anc_len and w_k1[:anc_len] == anchor_words else w_k1
+                w_k1, edits_k1, conf_k1 = _decode_chunk(
+                    anchor_words + orig_tokens[pos:k_next], is_final=(k_next >= n)
+                )
+                body_k1 = _strip_anchor(w_k1, anchor_words)
 
                 lcp_len = 0
                 lim = min(len(body_k), len(body_k1))
@@ -509,6 +531,8 @@ class GraphQueryEngine(GraphIndex):
         top_k: int = 5,
         allow_missing: bool = True,
         max_diff_k: int = MAX_SUPERSTRING_DIFF_K,
+        *,
+        check_dangling: bool = True,
     ) -> list[QueryMatch]:
         fallback_phrase = " ".join(orig_tokens)
         eff_top_k = max(top_k, 5)
@@ -526,7 +550,7 @@ class GraphQueryEngine(GraphIndex):
                 ),
             )
             # Pha 2 (Reviewer): Hậu kiểm cục bộ trên `edits` và xếp hạng toàn câu
-            return review_matches(self, raw_matches, fallback_phrase, top_k)
+            return review_matches(self, raw_matches, fallback_phrase, top_k, check_dangling=check_dangling)
 
         merged: dict[str, QueryMatch] = {}
         for norm_tokens, class_slots in class_variants:
@@ -544,7 +568,7 @@ class GraphQueryEngine(GraphIndex):
             merged.values(),
             key=lambda m: (-round(m.confidence, 4), m.missing_count, -m.freq, -m.markov_prob),
         )
-        return review_matches(self, ranked, fallback_phrase, top_k)
+        return review_matches(self, ranked, fallback_phrase, top_k, check_dangling=check_dangling)
 
     def query(
         self,

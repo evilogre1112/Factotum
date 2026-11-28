@@ -2,6 +2,22 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/), đánh số phiên bản theo [SemVer](https://semver.org/lang/vi/).
 
+## [1.1.1] - 2026-11-28
+
+Bản tối ưu tốc độ thực thi (không suy giảm độ chính xác) và nâng cao độ ổn định khi xử lý câu dài phẳng không dấu câu.
+
+### Cải tiến chính
+
+- **Tăng tốc truy vấn & nạp mô hình (2–3×):** Tối ưu bỏ dấu tiếng Việt, phân loại hình thái token, tính khoảng cách chỉnh sửa và giao tập ứng viên cụm từ mà vẫn giữ nguyên 100% độ chính xác trên bộ 20.064 câu.
+- **Khắc phục lỗi biên đoạn trên câu dài không dấu câu:** Sửa lỗi lặp từ neo, rơi đoạn khi lát trung gian kết thúc bằng hư từ (`với`, `và`, `có`, `của`...) và ngăn nhánh chèn từ thiếu phá vỡ cụm từ đã khớp sẵn.
+
+### Kết quả Benchmark (20.064 câu — `report_10000_20261128_185548.txt`)
+
+- **Nạp RAM:** `3,404 s → 1,482 s` (**2,30× nhanh hơn**).
+- **Held-out 10.000 câu:** **`95,8%` KW-Rec / `91,0%` All-KW / `96,2%` Ctx-F1** · Mean `8,60 ms → 3,55 ms` (**2,42× nhanh hơn**), P99 `94,96 ms → 15,62 ms` (**6,08× nhanh hơn**), `282 câu/giây`.
+- **64 ca thực tế (`context_cases.json`):** **`98,4%` KW-Rec / `96,9%` All-KW / `99,7%` Ctx-F1** · P50 `12,33 ms → 10,64 ms`, Mean `24,90 ms → 14,80 ms`.
+- **Stress Test 10.000 câu:** **`99,1%` KW-Rec / `97,6%` All-KW / `99,2%` Ctx-F1** · P50 `2,05 ms`, Mean `3,24 ms`, **`308 câu/giây`**.
+
 ## [1.1.0] - 2026-11-27
 
 Bản nâng cấp lớn về chất lượng mở rộng viết tắt theo ngữ cảnh, độ chính xác khôi phục dấu và tốc độ tra cứu cụm từ.

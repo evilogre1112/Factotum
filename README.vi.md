@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/thư%20viện%20ngoài-0-2EA043" alt="Zero Dependencies" />
   <img src="https://img.shields.io/badge/chạy%20cục%20bộ-không%20cần%20GPU-orange" alt="Offline No GPU" />
-  <img src="https://img.shields.io/badge/release-v1.1.0-blue" alt="Release v1.1.0" />
+  <img src="https://img.shields.io/badge/release-v1.1.1-blue" alt="Release v1.1.1" />
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="MIT License" />
 </p>
 
@@ -58,15 +58,15 @@ Hằng ngày người dùng thường gõ tắt (`tngt`, `atgt`, `csgt`, `xpvphc
 
 ---
 
-## Kết quả Benchmark nổi bật (v1.1.0)
+## Kết quả Benchmark nổi bật (v1.1.1)
 
-Đánh giá trên **20.064 câu kiểm thử** ([report_10000_20261127_201343.txt](benchmark/report_10000_20261127_201343.txt)):
+Đánh giá trên **20.064 câu kiểm thử** ([report_10000_20261128_185548.txt](benchmark/report_10000_20261128_185548.txt)):
 
-| Bộ kiểm thử | Quy mô | Câu gốc (`KW-Rec`) | Base-2g (`KW-Rec`) | **Factotum v1.1 (`KW-Rec` / `All-KW` / `Ctx-F1`)** | Trung vị tốc độ |
+| Bộ kiểm thử | Quy mô | Câu gốc (`KW-Rec`) | Base-2g (`KW-Rec`) | **Factotum v1.1.1 (`KW-Rec` / `All-KW` / `Ctx-F1`)** | Trung vị / TB tốc độ |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Văn bản chưa từng học (Held-out)** | 10.000 câu | 19,5% | 87,3% | **95,8% / 91,0% / 96,2%** | `3,15 ms` |
-| **64 ca thực tế có từ khóa bắt buộc** | 64 câu | 23,4% | 64,3% | **98,4% / 96,9% / 99,7%** | `12,33 ms` |
-| **Kiểm thử tải trên thuật ngữ đã học** | 10.000 câu | 16,9% | 91,1% | **99,1% / 97,6% / 99,2%** | `2,22 ms` |
+| **Văn bản chưa từng học (Held-out)** | 10.000 câu | 19,5% | 87,3% | **95,8% / 91,0% / 96,2%** | `2,65 ms` / `3,55 ms` |
+| **64 ca thực tế có từ khóa bắt buộc** | 64 câu | 23,4% | 64,3% | **98,4% / 96,9% / 99,7%** | `10,64 ms` / `14,80 ms` |
+| **Kiểm thử tải trên thuật ngữ đã học** | 10.000 câu | 16,9% | 91,1% | **99,1% / 97,6% / 99,2%** | `2,05 ms` / `3,24 ms` |
 
 ![Lịch sử cải tiến Factotum qua các phiên bản](docs/images/version_progress.png)
 

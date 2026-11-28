@@ -298,6 +298,26 @@ class TestFactotum(unittest.TestCase):
             "lái xe oto gây tai nạn giao thông",
         )
 
+    def test_long_flat_unaccented_sentence_chunk_boundaries(self) -> None:
+        """Câu dài không dấu câu không bị rơi đoạn, lặp từ neo hay chèn từ thiếu phá vỡ cụm KB."""
+        model = Factotum().fit(
+            [
+                (
+                    "trong quan hệ dân sự các bên bình đẳng không được phân biệt đối xử. "
+                    "trong quản lý hành chính nhà nước phải tuân thủ pháp luật. "
+                    "thỏa thuận không vi phạm điều cấm của luật không trái đạo đức xã hội. "
+                    "có hiệu lực thực hiện đối với các bên và phải được chủ thể khác tôn trọng."
+                )
+                * 4
+            ]
+        )
+        out = model.restore(
+            "trong quan he dan su cac ben binh dang thoa thuan khong vi pham dieu cam cua luat "
+            "khong trai dao duc xa hoi co hieu luc thuc hien doi voi cac ben va phai duoc chu the khac ton trong"
+        )
+        self.assertIn("trong quan hệ dân sự các bên bình đẳng", out)
+        self.assertIn("có hiệu lực thực hiện đối với các bên và phải được chủ thể khác tôn trọng", out)
+
 
 if __name__ == "__main__":
     unittest.main()

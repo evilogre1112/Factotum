@@ -70,13 +70,19 @@ def search_variant(
         ch = remove_accents(col[0])[:1]
         return bool(ch) and col is ua_map.get(ch)
 
+    col_is_init = [_is_initial_col(c) for c in columns]
+    col_id_to_set = index.col_id_to_set
+    has_kb_3gram = index.has_kb_3gram
+
     for col_idx in range(1, len(columns)):
         full_col = columns[col_idx]
         target_list = trimmed_cols[col_idx]
-        target_set = set(full_col)
-        is_init_c = _is_initial_col(full_col)
-        prev_init_c = _is_initial_col(columns[col_idx - 1])
-        prev2_init_c = _is_initial_col(columns[col_idx - 2]) if col_idx >= 2 else False
+        target_set = col_id_to_set.get(id(full_col))
+        if target_set is None:
+            target_set = set(full_col)
+        is_init_c = col_is_init[col_idx]
+        prev_init_c = col_is_init[col_idx - 1]
+        prev2_init_c = col_is_init[col_idx - 2] if col_idx >= 2 else False
         in_acronym_span = (is_init_c and prev_init_c) or (prev_init_c and prev2_init_c)
         per_state_zero: dict[str, list[tuple[list[str], float, int, list[str]]]] = {}
         with_miss_next: list[tuple[list[str], float, int, list[str]]] = []
@@ -181,23 +187,11 @@ def search_variant(
 
         zero_flat.sort(key=lambda x: -x[1])
         if with_miss_next:
-            w2p = index.word_to_phrases
-
-            def _has_kb_3gram(a: str, b: str, c: str) -> bool:
-                if dict_freq.get(f"{a} {b} {c}", 0) > 0:
-                    return True
-                p0 = w2p.get(a)
-                if p0:
-                    p1 = w2p.get(b)
-                    p2 = w2p.get(c)
-                    if p1 and p2 and (p0 & p1 & p2):
-                        return True
-                return False
-
             def _has_kb_suffix(pw: list[str]) -> bool:
-                if len(pw) >= 3 and _has_kb_3gram(pw[-3], pw[-2], pw[-1]):
+                n_pw = len(pw)
+                if n_pw >= 3 and has_kb_3gram(pw[-3], pw[-2], pw[-1]):
                     return True
-                if len(pw) >= 4 and _has_kb_3gram(pw[-4], pw[-3], pw[-2]):
+                if n_pw >= 4 and has_kb_3gram(pw[-4], pw[-3], pw[-2]):
                     return True
                 return False
 
@@ -304,7 +298,7 @@ def search_variant(
             for gap_i in range(1, n_pw - 1):
                 if path_words[gap_i] != mw:
                     continue
-                if min_zero_broken == 0 and any(_junction_kb_connected(zw, gap_i) for zw in zero_beams):
+                if cand_broken >= min_zero_broken and any(_junction_kb_connected(zw, gap_i) for zw in zero_beams):
                     continue
                 # Khi cột gap_i-1 là âm tiết đầy đủ và đường 0-thiếu đầu bảng đã thông suốt tại biên đó,
                 # không dùng nhánh đồng âm cụt đường để chèn từ thiếu
