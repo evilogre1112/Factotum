@@ -1,3 +1,5 @@
+import math
+
 from factotum.core.extension import (
     is_class_token,
     is_valid_vietnamese_syllable,
@@ -58,8 +60,11 @@ def search_variant(
     fwd_prob_top = index.fwd_prob_top
     max_per_state = 2
 
+    log_fn = math.log
+    log_1e5 = log_fn(1e-5)
+    log_1e6 = log_fn(1e-6)
     beam: list[tuple[list[str], float, int, list[str]]] = [
-        ([w], max(dict_freq.get(w, 1), 1) / 100000.0, 0, []) for w in trimmed_cols[0]
+        ([w], log_fn(max(dict_freq.get(w, 1), 1) / 100000.0), 0, []) for w in trimmed_cols[0]
     ]
 
     ua_map = index.unaccented_map
@@ -113,7 +118,7 @@ def search_variant(
                     p_edge = prob_neighbors.get(nxt)
                     if p_edge is not None:
                         found_direct = True
-                        cand_item = (path_words + [nxt], curr_prob * p_edge, miss_cnt, miss_words)
+                        cand_item = (path_words + [nxt], curr_prob + log_fn(p_edge), miss_cnt, miss_words)
                         if miss_cnt == 0:
                             _push_zero(nxt, cand_item)
                         else:
@@ -122,7 +127,7 @@ def search_variant(
                 for nxt, p_edge in prob_neighbors.items():
                     if nxt in target_set:
                         found_direct = True
-                        cand_item = (path_words + [nxt], curr_prob * p_edge, miss_cnt, miss_words)
+                        cand_item = (path_words + [nxt], curr_prob + log_fn(p_edge), miss_cnt, miss_words)
                         if miss_cnt == 0:
                             _push_zero(nxt, cand_item)
                         else:
@@ -130,8 +135,8 @@ def search_variant(
 
             if not found_direct:
                 for nxt in target_list[:4]:
-                    backoff_p = 1e-5 * (max(dict_freq.get(nxt, 1), 1) / 100000.0)
-                    cand_item = (path_words + [nxt], curr_prob * backoff_p, miss_cnt, miss_words)
+                    backoff_log_p = log_1e5 + log_fn(max(dict_freq.get(nxt, 1), 1) / 100000.0)
+                    cand_item = (path_words + [nxt], curr_prob + backoff_log_p, miss_cnt, miss_words)
                     if miss_cnt == 0:
                         _push_zero(nxt, cand_item)
                     else:
@@ -150,18 +155,19 @@ def search_variant(
                         mid_neighbors = fwd_prob.get(mid, {})
                         if not mid_neighbors:
                             continue
+                        log_p1 = log_fn(p1)
                         if t_len < len(mid_neighbors):
                             for nxt in target_list:
                                 p2 = mid_neighbors.get(nxt)
                                 if p2 is not None:
                                     with_miss_next.append(
-                                        (path_words + [mid, nxt], curr_prob * p1 * p2, miss_cnt + 1, miss_words + [mid])
+                                        (path_words + [mid, nxt], curr_prob + log_p1 + log_fn(p2), miss_cnt + 1, miss_words + [mid])
                                     )
                         else:
                             for nxt, p2 in mid_neighbors.items():
                                 if nxt in target_set:
                                     with_miss_next.append(
-                                        (path_words + [mid, nxt], curr_prob * p1 * p2, miss_cnt + 1, miss_words + [mid])
+                                        (path_words + [mid, nxt], curr_prob + log_p1 + log_fn(p2), miss_cnt + 1, miss_words + [mid])
                                     )
 
         # Luôn cho phép trạng thái dẫn đầu toàn cục chuyển tiếp backoff sang top-6 ứng viên đích
@@ -169,14 +175,14 @@ def search_variant(
         if best_prev_zero is not None:
             bp_words, bp_prob, _, bp_miss = best_prev_zero
             for nxt in target_list[:6]:
-                backoff_p = 1e-5 * (max(dict_freq.get(nxt, 1), 1) / 100000.0)
-                _push_zero(nxt, (bp_words + [nxt], bp_prob * backoff_p, 0, bp_miss))
+                backoff_log_p = log_1e5 + log_fn(max(dict_freq.get(nxt, 1), 1) / 100000.0)
+                _push_zero(nxt, (bp_words + [nxt], bp_prob + backoff_log_p, 0, bp_miss))
 
         zero_flat = [item for bucket in per_state_zero.values() for item in bucket]
         if not zero_flat and not with_miss_next and target_list:
             for path_words, curr_prob, miss_cnt, miss_words in beam[:5]:
                 for nxt in target_list[:3]:
-                    item = (path_words + [nxt], curr_prob * 1e-6, miss_cnt, miss_words)
+                    item = (path_words + [nxt], curr_prob + log_1e6, miss_cnt, miss_words)
                     if miss_cnt == 0:
                         zero_flat.append(item)
                     else:
@@ -198,7 +204,7 @@ def search_variant(
             with_miss_next.sort(
                 key=lambda x: (
                     1 if _has_kb_suffix(x[0]) else 0,
-                    x[1] ** (1.0 / max(len(x[0]), 1)),
+                    x[1] / max(len(x[0]), 1),
                 ),
                 reverse=True,
             )
@@ -279,10 +285,11 @@ def search_variant(
         default=0.0,
     )
 
-    for path_words, m_prob, miss_cnt, miss_words in beam:
+    for path_words, m_log_p, miss_cnt, miss_words in beam:
         phrase = " ".join(path_words)
         if phrase in results_map:
             continue
+        m_prob = math.exp(m_log_p) if m_log_p > -700.0 else 0.0
         promoted = False
         cand_broken = index.count_broken_edges(path_words) if (not has_direct_kb and miss_cnt == 1) else 0
         if (
@@ -335,12 +342,13 @@ def search_variant(
                             "",
                             miss_words,
                             markov_prob=m_prob,
+                            markov_log_prob=m_log_p,
                         )
                         promoted = True
                         break
         if not promoted:
             results_map[phrase] = QueryMatch(
-                phrase, 0, miss_cnt, -1, "", miss_words, markov_prob=m_prob
+                phrase, 0, miss_cnt, -1, "", miss_words, markov_prob=m_prob, markov_log_prob=m_log_p
             )
 
     return list(results_map.values())

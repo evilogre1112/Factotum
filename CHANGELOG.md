@@ -2,6 +2,15 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/), đánh số phiên bản theo [SemVer](https://semver.org/lang/vi/).
 
+## [1.1.2] - 2026-11-28
+
+Chuyển đổi toàn bộ quá trình tính xác suất chuỗi Markov sang không gian log-probability ($\sum \ln P$) để triệt tiêu tràn số thực trên câu dài.
+
+### Cải tiến chính
+
+- Chuyển Beam Search, xếp hạng ứng viên và tính điểm tin cậy sang tổng log-probability (`markov_log_prob`, `effective_log_prob`) — loại bỏ hiện tượng tràn về `0.000000` trên văn bản dài hàng trăm từ mà vẫn giữ nguyên 100% độ chính xác trên 20.064 câu benchmark.
+- Hiển thị `logP=...` thay cho `P_markov=0.000000` trong giao diện CLI (`src/app.py`).
+
 ## [1.1.1] - 2026-11-28
 
 Bản tối ưu tốc độ thực thi (không suy giảm độ chính xác) và nâng cao độ ổn định khi xử lý câu dài phẳng không dấu câu.

@@ -1,6 +1,6 @@
 from factotum.core.extension import is_dangling_phrase, remove_accents
 from factotum.engine.graph_index import GraphIndex
-from factotum.engine.models import QueryMatch, evidence_tier
+from factotum.engine.models import QueryMatch, effective_log_prob, evidence_tier
 from factotum.engine.reviewer_repairs import (
     _repair_broken_markov_bridge,
     _resolve_edits,
@@ -91,7 +91,7 @@ def _deep_rerank_score(
         0 if is_acr_exp else -(kb4_plus_hits + kb3_hits),
         -round(m.confidence, 4),
         broken_dist,
-        -m.markov_prob,
+        -effective_log_prob(m),
         -m.freq,
     )
 

@@ -1,4 +1,5 @@
 from itertools import product
+import math
 
 from factotum.engine.context import is_normalized_anchor, query_with_context
 from factotum.core.extension import (
@@ -510,7 +511,8 @@ class GraphQueryEngine(GraphIndex):
         if not committed:
             return []
         phrase_str = " ".join(committed)
-        m_prob = self.markov_prob(committed)
+        m_log_p = self.markov_log_prob(committed)
+        m_prob = math.exp(m_log_p) if m_log_p > -700.0 else 0.0
         avg_conf = sum(chunk_confs) / len(chunk_confs) if chunk_confs else 0.5
         res = QueryMatch(
             phrase=phrase_str,
@@ -520,6 +522,7 @@ class GraphQueryEngine(GraphIndex):
             source_phrase="",
             missing_words=[],
             markov_prob=m_prob,
+            markov_log_prob=m_log_p,
             confidence=round(min(0.95, max(0.1, avg_conf)), 4),
         )
         return [res]

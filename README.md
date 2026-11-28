@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/dependencies-0-2EA043" alt="Zero Dependencies" />
   <img src="https://img.shields.io/badge/local-no%20GPU%20needed-orange" alt="Offline No GPU" />
-  <img src="https://img.shields.io/badge/release-v1.1.1-blue" alt="Release v1.1.1" />
+  <img src="https://img.shields.io/badge/release-v1.1.2-blue" alt="Release v1.1.2" />
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="MIT License" />
 </p>
 

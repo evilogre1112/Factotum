@@ -8,7 +8,7 @@ from factotum.builder.extractor import process_document
 from factotum.core.doc_reader import read_single_file
 from factotum.core.extension import format_duration, init_console, print_progress
 from factotum.engine import GraphQueryEngine
-from factotum.engine.models import OUTPUT_DIR
+from factotum.engine.models import OUTPUT_DIR, effective_log_prob
 
 SRC_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SRC_DIR.parent
@@ -215,7 +215,7 @@ def query_test_flow(engine: GraphQueryEngine) -> None:
             score_str = (
                 f"freq={m.freq}"
                 if m.superstring_diff != -1
-                else f"P_markov={m.markov_prob:.6f}"
+                else f"logP={effective_log_prob(m):.2f}"
             )
             conf_str = f"conf={m.confidence * 100:.0f}%"
             low_warn = " [Độ tin cậy thấp]" if m.confidence < 0.45 else ""

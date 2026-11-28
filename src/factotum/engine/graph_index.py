@@ -79,21 +79,29 @@ class GraphIndex:
         """Ngưỡng tần suất cụm KB trung bình theo quy mô kho."""
         return max(1, self.strong_kb_freq // 2)
 
+    def markov_log_prob(self, words: list[str]) -> float:
+        """Tính tổng log-xác suất tự nhiên chuỗi Markov bậc 1 trên danh sách từ `words` (không bị tràn về 0)."""
+        if not words:
+            return float("-inf")
+        log_p = math.log(max(self.dict_freq.get(words[0], 1), 1) / 100000.0)
+        fwd_prob = self.fwd_prob
+        log_backoff = math.log(1e-6)
+        for i in range(len(words) - 1):
+            nbrs = fwd_prob.get(words[i])
+            p = nbrs.get(words[i + 1]) if nbrs else None
+            log_p += math.log(p) if (p is not None and p > 0.0) else log_backoff
+        return log_p
+
     def markov_prob(self, words: list[str]) -> float:
         """Tính xác suất chuỗi Markov bậc 1 trên danh sách từ `words`."""
-        if not words:
-            return 0.0
-        p = max(self.dict_freq.get(words[0], 1), 1) / 100000.0
-        fwd_prob = self.fwd_prob
-        for i in range(len(words) - 1):
-            p *= fwd_prob.get(words[i], {}).get(words[i + 1], 1e-6)
-        return p
+        log_p = self.markov_log_prob(words)
+        return math.exp(log_p) if log_p > -700.0 else 0.0
 
     def step_prob(self, words: list[str]) -> float:
-        """Tính xác suất chuẩn hóa theo độ dài G(W) = P(W)^(1/|W|)."""
+        """Tính xác suất chuẩn hóa theo độ dài G(W) = exp(ln P(W) / |W|) (chống tràn về 0 trên câu dài)."""
         if not words:
             return 0.0
-        return self.markov_prob(words) ** (1.0 / len(words))
+        return math.exp(self.markov_log_prob(words) / len(words))
 
     def count_broken_edges(self, words: list[str]) -> int:
         """Đếm số cạnh đứt (tần suất chuyển tiếp = 0) trên chuỗi `words`."""

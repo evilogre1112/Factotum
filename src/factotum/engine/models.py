@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+import math
 
 from factotum.core.config import DEFAULT_PATHS
 from factotum.core.extension import is_valid_vietnamese_syllable, remove_accents
@@ -42,9 +43,19 @@ class QueryMatch:
     context_tier: int = 0  # 1: 2 đầu A-F-B, 2: 1 đầu, 3: nối qua 1 từ đệm, 4: cạnh 1-gram, 5: đơn lẻ
     context_span_len: int = 0  # Số từ ngữ cảnh chuẩn khớp được quanh F
     markov_prob: float = 0.0   # Xác suất chuỗi Markov P(w1 -> ... -> wn)
+    markov_log_prob: float | None = None  # Tổng log-xác suất tự nhiên ln P(w1 -> ... -> wn) (chống tràn về 0 trên câu dài)
     confidence: float = 0.0    # Độ tin cậy tổng hợp [0.0 .. 1.0]
     is_fallback: bool = False  # True: câu bị cụt lủn / không đoán được nên trả lại nguyên văn câu gốc
     edits: list[EditSpan] = field(default_factory=list)  # Danh sách các đoạn Worker đã sửa/bung gửi sang Reviewer
+
+
+def effective_log_prob(m: QueryMatch) -> float:
+    """Trả về tổng log-xác suất tự nhiên ln P(W) của ứng viên (ưu tiên `markov_log_prob`, fallback `ln(markov_prob)`)."""
+    if m.markov_log_prob is not None:
+        return m.markov_log_prob
+    if m.markov_prob > 0.0:
+        return math.log(m.markov_prob)
+    return float("-inf")
 
 
 def evidence_tier(m: QueryMatch) -> int:
@@ -88,11 +99,12 @@ def compute_confidence(m: QueryMatch) -> float:
             base, span, scale, cap = (0.52, 0.24, 30.0, 0.76) if m.superstring_diff == 0 else (0.38, 0.20, 30.0, 0.58)
         return min(cap, base + span * min(1.0, m.freq / scale))
 
-    # Nhánh Markov thuần (superstring_diff == -1)
-    if m.markov_prob <= 0.0:
+    # Nhánh Markov thuần (superstring_diff == -1) — dùng log-probability để không bao giờ tràn về 0 trên câu dài
+    log_p = effective_log_prob(m)
+    if log_p == float("-inf"):
         return 0.10
     n_steps = max(1, len(m.phrase.split()) - 1)
-    step_prob = m.markov_prob ** (1.0 / n_steps)
+    step_prob = math.exp(log_p / n_steps)
     if step_prob <= 1e-4:
         return 0.10
     if m.missing_count >= 1:
@@ -104,7 +116,7 @@ def rank_key(m: QueryMatch) -> tuple[int, int, int, int, float]:
     """Khóa xếp hạng thống nhất cho ứng viên trong pha tìm kiếm (Hạng 0 -> Hạng 6)."""
     tier = evidence_tier(m)
     diff_rank = m.superstring_diff if m.superstring_diff >= 0 else 999
-    return (tier, m.missing_count, diff_rank, -m.freq, -m.markov_prob)
+    return (tier, m.missing_count, diff_rank, -m.freq, -effective_log_prob(m))
 
 
 def finalize_matches(
@@ -117,7 +129,7 @@ def finalize_matches(
     """
     Tính `confidence` và sắp xếp thống nhất trước khi đưa sang tầng hậu kiểm:
     - Mọi ứng viên có bằng chứng KB (`superstring_diff >= 0`) luôn đứng trên nhánh Markov (`-1`).
-    - Trong nhánh Markov (`-1`), ưu tiên không thiếu từ trước rồi giảm dần theo `confidence` và `markov_prob`.
+    - Trong nhánh Markov (`-1`), ưu tiên không thiếu từ trước rồi giảm dần theo `confidence` và `markov_log_prob`.
     """
     for m in matches:
         if m.confidence <= 0.0 and not m.is_fallback:
@@ -130,7 +142,7 @@ def finalize_matches(
     if not preserve_kb_order:
         kb_part.sort(key=rank_key)
     if sort_markov_by_conf:
-        mk_part.sort(key=lambda m: (m.missing_count, -round(m.confidence, 4), -m.markov_prob, -m.freq))
+        mk_part.sort(key=lambda m: (m.missing_count, -round(m.confidence, 4), -effective_log_prob(m), -m.freq))
     else:
         mk_part.sort(key=rank_key)
 
